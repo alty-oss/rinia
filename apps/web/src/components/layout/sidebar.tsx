@@ -1,5 +1,5 @@
 import { useEffect, useState, type Dispatch, type ReactNode, type SetStateAction } from "react";
-import { Circle, House, Search, ShieldCheck, SlidersHorizontal, SquarePen, UserRound } from "lucide-react";
+import { ChevronDown, Circle, House, Search, ShieldCheck, SlidersHorizontal, SquarePen, UserRound } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router";
 import { AppIcons } from "@/components/foundations/icons";
 import type { AppIcon } from "@/components/foundations/icons";
@@ -15,9 +15,10 @@ import { useProjects } from "@/features/projects/hooks/use-projects";
 import { useTranslation } from "react-i18next";
 
 const OPEN_PROJECTS_KEY = "rinia-open-projects";
+const LAST_PROJECT_KEY = "rinia-last-project";
 const OPEN_DOCS_KEY = "rinia-open-project-docs";
 const SECTIONS_KEY = "rinia-sidebar-sections";
-const ITEM = "flex h-7 w-full min-w-0 items-center gap-2.5 rounded-md px-2 text-left text-[13px] font-medium";
+const ITEM = "flex h-7 w-full min-w-0 items-center gap-2.5 rounded-md px-2 text-left text-[13px] font-medium transition-colors duration-150";
 const IDLE = "text-tertiary hover:bg-layer-transparent-hover hover:text-primary";
 const ACTIVE = "bg-layer-1-selected text-white [&_svg]:text-white";
 
@@ -39,12 +40,9 @@ function persistIdSet(key: string, ids: Set<string>) {
     localStorage.setItem(key, JSON.stringify([...ids]));
 }
 
+/** The project the user was last in, used when leaving settings and as the default for new issues. */
 function readOpenProjectId(): string | null {
-    return [...readIdSet(OPEN_PROJECTS_KEY)].at(-1) ?? null;
-}
-
-function storeOpenProject(id: string) {
-    localStorage.setItem(OPEN_PROJECTS_KEY, JSON.stringify([id]));
+    return localStorage.getItem(LAST_PROJECT_KEY) || ([...readIdSet(OPEN_PROJECTS_KEY)].at(-1) ?? null);
 }
 
 function toggleStoredId(key: string, setter: Dispatch<SetStateAction<Set<string>>>, id: string) {
@@ -90,15 +88,20 @@ export function Sidebar({ onSearch, onNavigate }: { onSearch: () => void; onNavi
     const routeProjectId = location.pathname.match(/^\/projects\/([^/]+)/)?.[1] ?? "";
     const { data: columns } = useColumns(routeProjectId);
     const [creatingProjectId, setCreatingProjectId] = useState<string | null>(null);
-    const [openProjectId, setOpenProjectId] = useState<string | null>(() => routeProjectId || readOpenProjectId());
+    const [openProjects, setOpenProjects] = useState(() => {
+        const ids = readIdSet(OPEN_PROJECTS_KEY);
+        if (routeProjectId) ids.add(routeProjectId);
+        return ids;
+    });
     const [openDocs, setOpenDocs] = useState(() => readIdSet(OPEN_DOCS_KEY));
     const [sections, setSections] = useState(readSections);
     const settings = location.pathname.includes("/settings");
     useEffect(() => setCreatingProjectId(null), [routeProjectId]);
     useEffect(() => {
         if (!routeProjectId) return;
-        setOpenProjectId(routeProjectId);
-        storeOpenProject(routeProjectId);
+        // Visiting a project expands it without closing the others.
+        openStoredId(OPEN_PROJECTS_KEY, setOpenProjects, routeProjectId);
+        localStorage.setItem(LAST_PROJECT_KEY, routeProjectId);
     }, [routeProjectId]);
 
     function toggleProjects() {
@@ -114,7 +117,7 @@ export function Sidebar({ onSearch, onNavigate }: { onSearch: () => void; onNavi
         navigate(path);
     }
 
-    const createTarget = routeProjectId || openProjectId || projects?.[0]?.id || "";
+    const createTarget = routeProjectId || readOpenProjectId() || projects?.[0]?.id || "";
 
     return (
         <div className="flex h-full flex-col">
@@ -145,24 +148,20 @@ export function Sidebar({ onSearch, onNavigate }: { onSearch: () => void; onNavi
                             <span className="truncate">{t("nav.allProjects")}</span>
                         </Link>
                         <SectionLabel label={t("nav.yourProjects")} open={sections.projects} onToggle={toggleProjects} />
-                        {sections.projects && (projects ?? []).map((project) => (
+                        <Collapse open={sections.projects}>
+                        {(projects ?? []).map((project) => (
                             <ProjectNavItem
                                 key={project.id}
                                 project={project}
                                 currentProjectId={routeProjectId}
-                                open={openProjectId === project.id}
+                                open={openProjects.has(project.id)}
                                 docsOpen={openDocs.has(project.id)}
-                                onToggle={() => {
-                                    setOpenProjectId((current) => {
-                                        if (current === project.id) return null;
-                                        storeOpenProject(project.id);
-                                        return project.id;
-                                    });
-                                }}
+                                onToggle={() => toggleStoredId(OPEN_PROJECTS_KEY, setOpenProjects, project.id)}
                                 onToggleDocs={() => toggleStoredId(OPEN_DOCS_KEY, setOpenDocs, project.id)}
                                 onOpenDocs={() => openStoredId(OPEN_DOCS_KEY, setOpenDocs, project.id)}
                             />
                         ))}
+                        </Collapse>
                     </div>
                 </>
             )}
@@ -268,12 +267,27 @@ function SectionLabel({ label, open, onToggle }: { label: string; open: boolean;
     );
 }
 
-/** Small solid triangle placed after a label, as in Linear's section and team headers. */
+/** Thin chevron after a label; points down when its group is open. */
 function Caret({ open }: { open: boolean }) {
+    return <ChevronDown strokeWidth={2.5} className={`size-3 shrink-0 transition-transform duration-200 ease-out ${open ? "" : "-rotate-90"}`} aria-hidden="true" />;
+}
+
+/**
+ * Animates a group open and closed by easing its height and opacity.
+ * Content mounts on first open, so collapsed projects do not fetch their documents.
+ */
+function Collapse({ open, children }: { open: boolean; children: ReactNode }) {
+    const [mounted, setMounted] = useState(open);
+    useEffect(() => {
+        if (open) setMounted(true);
+    }, [open]);
     return (
-        <svg viewBox="0 0 8 8" className={`size-2 shrink-0 transition-transform ${open ? "" : "-rotate-90"}`} aria-hidden="true">
-            <path d="M1 2.25h6L4 6.25z" fill="currentColor" />
-        </svg>
+        <div
+            inert={!open}
+            className={`grid transition-[grid-template-rows,opacity] duration-200 ease-[cubic-bezier(0.2,0,0,1)] motion-reduce:transition-none ${open ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"}`}
+        >
+            <div className="min-h-0 overflow-hidden">{mounted && children}</div>
+        </div>
     );
 }
 
@@ -317,8 +331,8 @@ function ProjectNavItem({
                 <span className="truncate">{project.name}</span>
                 <span className="text-placeholder"><Caret open={open} /></span>
             </button>
-            {open && (
-                <nav aria-label={project.name} className="ml-4 flex flex-col gap-px">
+            <Collapse open={open}>
+                <nav aria-label={project.name} className="ml-4 flex flex-col gap-px pt-px">
                     <ChildLink to={`/projects/${project.id}`} icon={House} label={t("nav.home")} active={home} />
                     <ChildLink to={`/projects/${project.id}/issues`} icon={Circle} label={t("nav.issues")} active={issues} />
                     <div className={`${ITEM} ${documentsIndex ? ACTIVE : IDLE} pr-1`}>
@@ -337,9 +351,11 @@ function ProjectNavItem({
                         </button>
                         <Link to={`/projects/${project.id}/documents`} onClick={onOpenDocs} tabIndex={-1} aria-hidden="true" className="flex-1 self-stretch" />
                     </div>
-                    {docsOpen && <ProjectDocumentsNav projectId={project.id} />}
+                    <Collapse open={docsOpen}>
+                        <ProjectDocumentsNav projectId={project.id} />
+                    </Collapse>
                 </nav>
-            )}
+            </Collapse>
         </div>
     );
 }
