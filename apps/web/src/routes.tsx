@@ -1,5 +1,5 @@
 import { Suspense, lazy } from "react";
-import { Navigate, Route, Routes, useLocation, useNavigate, useParams } from "react-router";
+import { Navigate, Route, Routes, useLocation, useNavigate, useParams, useSearchParams } from "react-router";
 import { Skeleton } from "@/components/base/feedback/skeleton";
 import { Sheet } from "@/components/base/sheet/sheet";
 import { LoadingState } from "@/components/feedback/loading-state";
@@ -15,7 +15,6 @@ const DesignSystemPage = lazy(() => import("@/pages/design-system-page").then((m
 const IssueView = lazy(() => import("@/features/issues/components/issue-view").then((module) => ({ default: module.IssueView })));
 const LoginPage = lazy(() => import("@/pages/login-page").then((module) => ({ default: module.LoginPage })));
 const NotFound = lazy(() => import("@/pages/not-found").then((module) => ({ default: module.NotFound })));
-const ProjectBoardPage = lazy(() => import("@/pages/project-board-page").then((module) => ({ default: module.ProjectBoardPage })));
 const ProjectDocumentPage = lazy(() => import("@/pages/project-documents-page").then((module) => ({ default: module.ProjectDocumentPage })));
 const ProjectDocumentsPage = lazy(() => import("@/pages/project-documents-page").then((module) => ({ default: module.ProjectDocumentsPage })));
 const ProjectIssuesPage = lazy(() => import("@/pages/project-issues-page").then((module) => ({ default: module.ProjectIssuesPage })));
@@ -27,6 +26,21 @@ const RegisterPage = lazy(() => import("@/pages/register-page").then((module) =>
 function ProjectSettingsRedirect() {
     const { projectId } = useParams();
     return <Navigate replace to={`/projects/${projectId}/settings/general`} />;
+}
+
+function IssuesListRedirect() {
+    const { projectId } = useParams();
+    const [params] = useSearchParams();
+    const search = params.toString();
+    return <Navigate replace to={`/projects/${projectId}/issues${search ? `?${search}` : ""}`} />;
+}
+
+function BoardRedirect() {
+    const { projectId } = useParams();
+    const [params] = useSearchParams();
+    const next = new URLSearchParams(params);
+    next.set("view", "board");
+    return <Navigate replace to={`/projects/${projectId}/issues?${next.toString()}`} />;
 }
 
 export const AppRoutes = () => {
@@ -56,10 +70,10 @@ export const AppRoutes = () => {
                     <Route path="/projects/:projectId/settings" element={<ProjectSettingsRedirect />} />
                     <Route path="/projects/:projectId/settings/:section" element={<ProjectSettingsPage />} />
                     <Route path="/projects/:projectId" element={<ProjectOverviewPage />} />
-                    <Route path="/projects/:projectId/issues" element={<ProjectBoardPage />} />
-                    <Route path="/projects/:projectId/issues/list" element={<ProjectIssuesPage />} />
+                    <Route path="/projects/:projectId/issues" element={<ProjectIssuesPage />} />
+                    <Route path="/projects/:projectId/issues/list" element={<IssuesListRedirect />} />
                     <Route path="/projects/:projectId/issues/:issueIdentifier" element={<IssueView mode="page" />} />
-                    <Route path="/projects/:projectId/board" element={<ProjectBoardPage />} />
+                    <Route path="/projects/:projectId/board" element={<BoardRedirect />} />
                     <Route path="/projects/:projectId/documents" element={<ProjectDocumentsPage />} />
                     <Route path="/projects/:projectId/documents/:documentId" element={<ProjectDocumentPage />} />
                     <Route path="/projects/:projectId/page" element={<Navigate replace to="../documents" />} />

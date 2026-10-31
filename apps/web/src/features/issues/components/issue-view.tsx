@@ -464,7 +464,7 @@ export const IssueView = ({ identifier, projectId, mode = "page", onClose }: Iss
                     {mode === "page" && <>
                         <Link to={`/projects/${issue.projectId}`} className="truncate text-secondary hover:text-primary">{issue.project.name}</Link>
                         <span className="text-placeholder">›</span>
-                        <Link to={`/projects/${issue.projectId}/issues/list`} className="truncate text-secondary hover:text-primary">{t("nav.issues")}</Link>
+                        <Link to={`/projects/${issue.projectId}/issues`} className="truncate text-secondary hover:text-primary">{t("nav.issues")}</Link>
                         <span className="text-placeholder">›</span>
                         <span className="truncate text-primary">{issue.identifier} {title || issue.title}</span>
                     </>}

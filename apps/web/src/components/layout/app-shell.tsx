@@ -67,12 +67,12 @@ export const AppShell = () => {
         <NavigationContext.Provider value={{ toggleSidebar }}>
             <div className="relative flex h-dvh min-h-0 overflow-hidden bg-canvas text-primary">
                 <aside
-                    className={`relative hidden h-full shrink-0 flex-col md:flex ${resizing ? "" : "transition-[width] duration-200 ease-[cubic-bezier(0.2,0,0,1)]"}`}
+                    className={`relative hidden h-full shrink-0 overflow-hidden md:flex ${resizing ? "" : "transition-[width] duration-200 ease-[cubic-bezier(0.2,0,0,1)]"}`}
                     style={{ width: collapsed ? 0 : width }}
                     aria-label={t("nav.navigation")}
                     aria-hidden={collapsed}
                 >
-                    <div className="flex h-full min-h-0 flex-col" style={{ width }}>
+                    <div className="flex h-full min-h-0 flex-col overflow-hidden" style={{ width }}>
                         <div className="min-h-0 flex-1">
                             <Sidebar onSearch={() => setSearchOpen(true)} />
                         </div>

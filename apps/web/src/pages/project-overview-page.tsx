@@ -68,9 +68,8 @@ export const ProjectOverviewPage = () => {
                         <h2 className="mt-6 text-[13px] text-secondary">{t("projects.goTo")}</h2>
                         <nav className="mt-2 grid gap-1">
                             <GoTo to={`/projects/${projectId}/settings/general`} icon={AppIcons.Settings} label={t("nav.projectSettings")} />
-                            <GoTo to={`/projects/${projectId}/issues/list`} icon={AppIcons.Issues} label={t("nav.issues")} />
+                            <GoTo to={`/projects/${projectId}/issues`} icon={AppIcons.Issues} label={t("nav.issues")} />
                             <GoTo to={`/projects/${projectId}/documents`} icon={AppIcons.Documents} label={t("nav.documents")} />
-                            <GoTo to={`/projects/${projectId}/board`} icon={AppIcons.Board} label={t("projects.board")} />
                         </nav>
                     </aside>
                 </div>

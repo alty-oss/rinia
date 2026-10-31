@@ -1,15 +1,17 @@
 import { useEffect, useMemo, useState } from "react";
 import type { Issue } from "@/features/issues/api";
 import { AddOutline, ChevronDownOutline } from "@makeplane/propel/icons";
-import { Plus } from "lucide-react";
+import { LayoutGrid, List, Plus } from "lucide-react";
 import { useLocation, useNavigate, useParams, useSearchParams } from "react-router";
 import { Button } from "@/components/base/buttons/button";
 import { Input } from "@/components/base/input/input";
 import { EmptyState } from "@/components/feedback/empty-state";
 import { ErrorMessage } from "@/components/feedback/error-message";
 import { Skeleton } from "@/components/base/feedback/skeleton";
+import { Board } from "@/features/board/components/board";
 import { StateIcon } from "@/features/board/components/issue-property-icons";
 import { useColumns } from "@/features/board/hooks/use-board";
+import { IssueQuickCreateModal } from "@/features/issues/components/issue-quick-create-modal";
 import { IssueListRow } from "@/features/issues/components/issue-list-row";
 import { useCreateIssue, useIssues, useUpdateIssue } from "@/features/issues/hooks/use-issues";
 import { ProjectWorkspaceHeader } from "@/features/projects/components/project-workspace-header";
@@ -37,6 +39,7 @@ export const ProjectIssuesPage = () => {
     const assignee = searchParams.get("assignee") ?? "";
     const category = searchParams.get("label") ?? "";
     const scope = readScope(searchParams.get("scope"));
+    const view = searchParams.get("view") === "board" ? "board" : "list";
     const { data: issues, isLoading, isError } = useIssues(projectId!, { orderBy });
     const updateIssue = useUpdateIssue(projectId!);
     const { data: columns } = useColumns(projectId!);
@@ -100,7 +103,7 @@ export const ProjectIssuesPage = () => {
     }, [orderedIssues, selectedIssueId]);
 
     useEffect(() => {
-        if (!location.pathname.endsWith("/issues/list")) return;
+        if (view !== "list") return;
 
         function handleListKeyDown(event: KeyboardEvent) {
             const target = event.target as HTMLElement | null;
@@ -125,7 +128,7 @@ export const ProjectIssuesPage = () => {
 
         window.addEventListener("keydown", handleListKeyDown);
         return () => window.removeEventListener("keydown", handleListKeyDown);
-    }, [location.pathname, orderedIssues, selectedIssueId]);
+    }, [orderedIssues, selectedIssueId, view]);
 
     function clearFilters() {
         setSearchParams(
@@ -176,8 +179,17 @@ export const ProjectIssuesPage = () => {
         }, { replace: true });
     }
 
-    const pill = "flex h-6 items-center rounded-md px-2 text-[13px] text-tertiary hover:bg-layer-transparent-hover hover:text-primary";
-    const pillOn = "bg-layer-1-selected text-primary";
+    function setView(next: "list" | "board") {
+        setSearchParams((current) => {
+            if (next === "board") current.set("view", "board");
+            else current.delete("view");
+            return current;
+        }, { replace: true });
+    }
+
+    const pill = "flex h-6 items-center rounded-md px-2 text-[13px]";
+    const pillOff = "text-tertiary hover:bg-layer-transparent-hover hover:text-primary";
+    const pillOn = "bg-layer-1-selected text-white";
 
     return (
         <div className="flex h-full min-h-0 flex-col bg-surface-1">
@@ -200,19 +212,37 @@ export const ProjectIssuesPage = () => {
                 }
             />
             <div className="flex h-10 shrink-0 items-center gap-1 border-b border-subtle px-3">
-                {([
+                {view === "list" && ([
                     ["active", t("issue.active")],
                     ["backlog", t("issue.backlog")],
                     ["all", t("issue.allIssues")],
                 ] as const).map(([value, label]) => (
-                    <button key={value} type="button" aria-pressed={scope === value} className={`${pill} ${scope === value ? pillOn : ""}`} onClick={() => setScope(value)}>
+                    <button key={value} type="button" aria-pressed={scope === value} className={`${pill} ${scope === value ? pillOn : pillOff}`} onClick={() => setScope(value)}>
                         {label}
                     </button>
                 ))}
-                <div className="ml-auto">
-                    <IssueToolbar chrome projectId={projectId!} onCreate={() => setIsCreating(true)} />
+                <div className="ml-auto flex items-center gap-2">
+                    <ViewSwitch view={view} onChange={setView} />
+                    <IssueToolbar chrome layout={view} projectId={projectId!} onCreate={() => setIsCreating(true)} />
                 </div>
             </div>
+            {view === "board" ? (
+                <div className="min-h-0 flex-1 overflow-x-auto bg-surface-2 px-4 pt-3 pb-3">
+                    <Board projectId={projectId!} filters={searchParams} />
+                    {isCreating && columns?.[0] && (
+                        <IssueQuickCreateModal
+                            projectId={projectId!}
+                            columnId={creatingColumnId ?? columns[0].id}
+                            onClose={() => { setIsCreating(false); setCreatingColumnId(null); }}
+                            onCreated={(identifier) => {
+                                setIsCreating(false);
+                                setCreatingColumnId(null);
+                                openIssue(identifier);
+                            }}
+                        />
+                    )}
+                </div>
+            ) : (
             <main className="min-h-0 w-full flex-1 overflow-y-auto">
                 <div className="flex flex-col">
                     {isCreating && !creatingColumnId && (
@@ -310,9 +340,27 @@ export const ProjectIssuesPage = () => {
                     )}
                 </div>
             </main>
+            )}
         </div>
     );
 };
+
+function ViewSwitch({ view, onChange }: { view: "list" | "board"; onChange: (view: "list" | "board") => void }) {
+    const { t } = useTranslation();
+    const button = "flex h-6 items-center gap-1 rounded px-2 text-[13px]";
+    return (
+        <div role="group" aria-label={t("issue.view")} className="flex items-center gap-0.5 rounded-md bg-layer-1 p-0.5">
+            <button type="button" aria-pressed={view === "list"} className={`${button} ${view === "list" ? "bg-layer-1-selected text-white" : "text-tertiary hover:text-primary"}`} onClick={() => onChange("list")}>
+                <List className="size-3.5" />
+                {t("issue.list")}
+            </button>
+            <button type="button" aria-pressed={view === "board"} className={`${button} ${view === "board" ? "bg-layer-1-selected text-white" : "text-tertiary hover:text-primary"}`} onClick={() => onChange("board")}>
+                <LayoutGrid className="size-3.5" />
+                {t("projects.board")}
+            </button>
+        </div>
+    );
+}
 
 function CreateRow({ title, pending, error, onChange, onSubmit, onCancel }: { title: string; pending: boolean; error: string | null; onChange: (value: string) => void; onSubmit: () => void; onCancel: () => void }) {
     const { t } = useTranslation();

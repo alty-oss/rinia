@@ -40,7 +40,7 @@ export const ProjectSearchModal = ({ onClose }: ProjectSearchModalProps) => {
         const commandResults: SearchResult[] = activeProjectId
             ? [
                   { type: "command" as const, id: "issues", title: t("search.openIssues"), key: t("search.navigation"), description: t("search.browseIssues"), icon: null, path: `/projects/${activeProjectId}/issues` },
-                  { type: "command" as const, id: "board", title: t("search.openBoard"), key: t("search.navigation"), description: t("search.moveIssues"), icon: null, path: `/projects/${activeProjectId}/board` },
+                  { type: "command" as const, id: "board", title: t("search.openBoard"), key: t("search.navigation"), description: t("search.moveIssues"), icon: null, path: `/projects/${activeProjectId}/issues?view=board` },
                   { type: "command" as const, id: "documents", title: t("search.openDocuments"), key: t("search.navigation"), description: t("search.openProjectDocument"), icon: null, path: `/projects/${activeProjectId}/documents` },
               ].filter((command) => !normalized || `${command.title} ${command.description}`.toLowerCase().includes(normalized))
             : [];

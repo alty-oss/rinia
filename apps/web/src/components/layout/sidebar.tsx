@@ -17,8 +17,13 @@ import { useTranslation } from "react-i18next";
 const OPEN_PROJECTS_KEY = "rinia-open-projects";
 const OPEN_DOCS_KEY = "rinia-open-project-docs";
 const SECTIONS_KEY = "rinia-sidebar-sections";
-const ITEM = "flex h-7 w-full items-center gap-2 rounded-md px-2 text-left text-[13px] text-tertiary hover:bg-layer-transparent-hover hover:text-primary";
-const ACTIVE = "bg-layer-1-selected text-primary";
+const ITEM = "flex h-7 w-full min-w-0 items-center gap-2 rounded-md px-2 text-left text-[13px]";
+const IDLE = "text-tertiary hover:bg-layer-transparent-hover hover:text-primary";
+const ACTIVE = "bg-layer-1-selected text-white [&_svg]:text-white";
+
+function itemClass(active: boolean, extra = "") {
+    return `${ITEM} ${active ? ACTIVE : IDLE} ${extra}`;
+}
 
 function readIdSet(key: string): Set<string> {
     try {
@@ -193,7 +198,7 @@ function SectionLabel({ label, open, onToggle, to }: { label: string; open: bool
             <button type="button" aria-expanded={open} aria-label={label} className="flex size-4 items-center justify-center hover:text-secondary" onClick={(event) => { event.stopPropagation(); onToggle(); }}>
                 <ChevronRightOutline className={`size-3 shrink-0 transition-transform ${open ? "rotate-90" : ""}`} />
             </button>
-            <Link to={to} className={`min-w-0 flex-1 truncate text-left hover:text-secondary ${active ? "text-primary" : ""}`} aria-current={active ? "page" : undefined}>{label}</Link>
+            <Link to={to} className={`min-w-0 flex-1 truncate text-left ${active ? "text-white" : "text-tertiary hover:text-secondary"}`} aria-current={active ? "page" : undefined}>{label}</Link>
         </div>
     );
 }
@@ -201,10 +206,10 @@ function SectionLabel({ label, open, onToggle, to }: { label: string; open: bool
 function SettingsNav({ projectId, onSearch }: { projectId: string; onSearch: () => void }) {
     const { t } = useTranslation();
     const location = useLocation();
-    const item = (path: string) => `${ITEM} ${location.pathname === path ? ACTIVE : ""}`;
+    const item = (path: string) => itemClass(location.pathname === path);
     return (
         <div className="min-h-0 flex-1 overflow-y-auto px-3 pt-3">
-            <Link to={projectId ? `/projects/${projectId}` : "/"} className={`${ITEM} mb-3`}>
+            <Link to={projectId ? `/projects/${projectId}` : "/"} className={`${itemClass(false)} mb-3`}>
                 <AppIcons.Back className="size-4" />
                 {t("nav.backToApp")}
             </Link>
@@ -268,14 +273,13 @@ function ProjectNavItem({
     const { t } = useTranslation();
     const current = currentProjectId === project.id;
     const home = location.pathname === `/projects/${project.id}`;
-    const issues = current && /\/issues\/.+/.test(location.pathname);
+    const issues = current && /\/issues(\/|$)/.test(location.pathname);
     const documents = current && location.pathname.includes("/documents");
-    const views = current && (location.pathname === `/projects/${project.id}/issues` || location.pathname.endsWith("/board"));
 
     return (
         <div className="group/project">
             <div className="flex min-w-0 items-center" data-project-context="true" data-project-id={project.id} data-project-name={project.name} data-project-issue-key={project.issueKey}>
-                <Link to={`/projects/${project.id}`} onClick={onOpen} className={`${ITEM} min-w-0 flex-1 ${open ? "text-secondary" : ""}`}>
+                <Link to={`/projects/${project.id}`} onClick={onOpen} className={`${ITEM} min-w-0 flex-1 ${open ? "text-secondary hover:bg-layer-transparent-hover hover:text-primary" : IDLE}`}>
                     <ProjectIcon icon={project.iconAppearance ?? project.icon} className="size-4 shrink-0" />
                     <span className="truncate">{project.name}</span>
                 </Link>
@@ -286,9 +290,9 @@ function ProjectNavItem({
             {open && (
                 <nav aria-label={`${project.name} views`}>
                     <ChildLink to={`/projects/${project.id}`} icon={House} label={t("nav.home")} active={home} />
-                    <ChildLink to={`/projects/${project.id}/issues/list`} icon={Circle} label={t("nav.issues")} active={issues} />
+                    <ChildLink to={`/projects/${project.id}/issues`} icon={Circle} label={t("nav.issues")} active={issues} />
                     <div className="flex min-w-0 items-center">
-                        <Link to={`/projects/${project.id}/documents`} onClick={onOpenDocs} className={`${ITEM} min-w-0 flex-1 pl-7 ${documents && location.pathname === `/projects/${project.id}/documents` ? ACTIVE : ""}`}>
+                        <Link to={`/projects/${project.id}/documents`} onClick={onOpenDocs} className={itemClass(documents && location.pathname === `/projects/${project.id}/documents`, "pl-7")}>
                             <AppIcons.Documents className="size-4 shrink-0" />
                             <span className="truncate">{t("nav.documents")}</span>
                         </Link>
@@ -301,7 +305,6 @@ function ProjectNavItem({
                             <ProjectDocumentsNav projectId={project.id} />
                         </div>
                     )}
-                    <ChildLink to={`/projects/${project.id}/board`} icon={LayoutGrid} label={t("projects.board")} active={views} />
                 </nav>
             )}
         </div>
@@ -310,7 +313,7 @@ function ProjectNavItem({
 
 function ChildLink({ to, icon: Icon, label, active }: { to: string; icon: AppIcon; label: string; active: boolean }) {
     return (
-        <Link to={to} className={`${ITEM} pl-7 ${active ? ACTIVE : ""}`} aria-current={active ? "page" : undefined}>
+        <Link to={to} className={itemClass(active, "pl-7")} aria-current={active ? "page" : undefined}>
             <Icon className="size-4 shrink-0" />
             <span className="truncate">{label}</span>
         </Link>
@@ -328,7 +331,7 @@ function ProjectDocumentsNav({ projectId }: { projectId: string }) {
                     <div className="flex min-w-0 items-center" data-document-context="true" data-project-id={projectId} data-document-id={page.id} data-document-title={page.title} data-document-author-id={page.createdBy}>
                         <Link
                             to={`/projects/${projectId}/documents/${page.id}`}
-                            className={`${ITEM} min-w-0 flex-1 pl-7 text-[12px] ${location.pathname.endsWith(`/documents/${page.id}`) ? ACTIVE : ""}`}
+                            className={itemClass(location.pathname.endsWith(`/documents/${page.id}`), "pl-7 text-[12px]")}
                             aria-current={location.pathname.endsWith(`/documents/${page.id}`) ? "page" : undefined}
                         >
                             {page.iconAppearance ? <ProjectIcon icon={page.iconAppearance} className="size-3 shrink-0" /> : <AppIcons.Documents className="size-3 shrink-0" />}
