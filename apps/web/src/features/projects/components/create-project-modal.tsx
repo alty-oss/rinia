@@ -33,7 +33,7 @@ export const CreateProjectModal = () => {
         <ModalDialog trigger={<Button iconLeading={Plus}>{t("nav.newProject")}</Button>} title={t("nav.newProject")} size="2xl">
             {({ close }) => (
                 <form
-                    className="flex flex-col gap-5"
+                    className="flex flex-col gap-4"
                     noValidate
                     onSubmit={handleSubmit((data) => {
                         mutation.mutate(data, {
@@ -62,11 +62,11 @@ export const CreateProjectModal = () => {
                                                 type="button"
                                                 aria-label={t("projects.chooseIcon")}
                                                 title={t("projects.chooseIcon")}
-                                                className="flex size-15 shrink-0 cursor-pointer items-center justify-center rounded-md border border-subtle bg-layer-2 text-secondary outline-accent-strong transition-colors hover:bg-layer-2-hover hover:text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-strong"
+                                                className="flex size-11 shrink-0 cursor-pointer items-center justify-center rounded-md border border-subtle bg-layer-2 text-secondary outline-accent-strong transition-colors hover:bg-layer-2-hover hover:text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-strong"
                                             />
                                         }
                                     >
-                                        <ProjectIcon icon={field.value} className="size-7" />
+                                        <ProjectIcon icon={field.value} className="size-5" />
                                     </Popover.Trigger>
                                     <Popover.Portal>
                                         <Popover.Positioner side="bottom" align="start" sideOffset={8} collisionPadding={12} className="z-[60]">
@@ -106,7 +106,7 @@ export const CreateProjectModal = () => {
 
                     {formState.errors.root && <p className="text-sm text-danger-primary">{formState.errors.root.message}</p>}
 
-                    <div className="mt-1 flex justify-end gap-2 border-t border-subtle pt-4">
+                    <div className="mt-1 flex justify-end gap-2 border-t border-subtle pt-3">
                         <Button type="button" color="secondary" onClick={close}>
                                 {t("common.cancel")}
                         </Button>

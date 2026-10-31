@@ -47,20 +47,20 @@ export const IssueQuickCreateModal = ({ projectId, columnId, onClose, onCreated 
         <ModalOverlay isOpen onOpenChange={(open) => !open && onClose()} isDismissable>
             <Modal className="max-w-md">
                 <Dialog>
-                    <div className="w-full rounded-xl bg-surface-1 p-6 shadow-xl ring-1 ring-subtle">
-                        <div className="mb-4 flex items-start justify-between gap-4">
+                    <div className="w-full rounded-lg bg-surface-1 p-4 shadow-xl ring-1 ring-subtle">
+                        <div className="mb-3 flex items-start justify-between gap-3">
                             <div>
                                 <div className="flex items-center gap-2 text-accent-primary">
                                     <FilePlus2 className="size-4" aria-hidden="true" />
-                                    <span className="text-xs font-medium uppercase tracking-wide">{t("issue.newIssue")}</span>
+                                    <span className="text-xs font-medium">{t("issue.newIssue")}</span>
                                 </div>
-                                <h2 className="mt-2 text-lg font-semibold text-primary">{t("issue.newIssuePrompt")}</h2>
-                                <p className="mt-1 text-sm text-tertiary">{t("issue.issueStatusAdded")}</p>
+                                <h2 className="mt-1.5 text-base font-semibold text-primary">{t("issue.newIssuePrompt")}</h2>
+                                <p className="mt-1 text-[13px] text-tertiary">{t("issue.issueStatusAdded")}</p>
                             </div>
                             <CloseButton size="sm" onPress={onClose} />
                         </div>
 
-                        <form className="flex flex-col gap-4" onSubmit={submit}>
+                        <form className="flex flex-col gap-3" onSubmit={submit}>
                             <Input autoFocus label={t("issue.title")} placeholder={t("issue.describeWork")} value={title} onChange={setTitle} isRequired />
                             {error && (
                                 <p role="alert" className="flex items-center gap-2 text-sm text-danger-primary">

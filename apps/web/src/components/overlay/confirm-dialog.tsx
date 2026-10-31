@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { AlertTriangle } from "lucide-react";
 import { Dialog, DialogTrigger, Modal, ModalOverlay } from "@/components/application/modals/modal";
 import { Button } from "@/components/base/buttons/button";
+import { useTranslation } from "react-i18next";
 
 interface ConfirmDialogProps {
     /** Element that opens the dialog (usually the destructive action's button). */
@@ -20,6 +21,7 @@ interface ConfirmDialogProps {
  * managing state.
  */
 export const ConfirmDialog = ({ trigger, title, description, confirmLabel, isPending, onConfirm }: ConfirmDialogProps) => {
+    const { t } = useTranslation();
     return (
         <DialogTrigger>
             {trigger}
@@ -27,20 +29,20 @@ export const ConfirmDialog = ({ trigger, title, description, confirmLabel, isPen
                 <Modal className="max-w-md">
                     <Dialog>
                         {({ close }) => (
-                            <div className="w-full rounded-xl bg-surface-1 p-6 shadow-xl ring-1 ring-subtle">
-                                <div className="flex gap-4">
-                                    <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-danger-primary text-fg-white">
-                                        <AlertTriangle className="size-5" />
+                            <div className="w-full rounded-lg bg-surface-1 p-4 shadow-xl ring-1 ring-subtle">
+                                <div className="flex gap-3">
+                                    <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-danger-primary text-fg-white">
+                                        <AlertTriangle className="size-4" />
                                     </span>
                                     <div className="min-w-0 flex-1">
-                                        <h2 className="text-lg font-semibold text-primary">{title}</h2>
-                                        <p className="mt-1 text-sm text-tertiary">{description}</p>
+                                        <h2 className="text-base font-semibold text-primary">{title}</h2>
+                                        <p className="mt-1 text-[13px] text-tertiary">{description}</p>
                                     </div>
                                 </div>
 
-                                <div className="mt-6 flex justify-end gap-3">
+                                <div className="mt-4 flex justify-end gap-2">
                                     <Button type="button" color="secondary" onClick={close}>
-                                        Cancel
+                                        {t("common.cancel")}
                                     </Button>
                                     <Button
                                         type="button"
