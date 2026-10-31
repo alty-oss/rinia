@@ -67,7 +67,7 @@ export const AppShell = () => {
                         </div>
                     </div>
                 </aside>
-                <div className="relative flex min-h-0 min-w-0 flex-1 flex-col p-2 pb-8">
+                <div className={`relative flex min-h-0 min-w-0 flex-1 flex-col p-2 transition-[padding] duration-200 ease-[cubic-bezier(0.2,0,0,1)] ${collapsed ? "md:pb-11" : ""}`}>
                     <SidebarResizeHandle
                         width={width}
                         collapsed={collapsed}
@@ -174,7 +174,7 @@ function SidebarResizeHandle({
                 aria-valuemin={220}
                 aria-valuemax={360}
                 tabIndex={0}
-                className="group absolute top-2 bottom-8 left-1 z-20 hidden w-2 cursor-ew-resize touch-none outline-none md:block"
+                className={`group absolute top-2 left-1 z-20 hidden w-2 cursor-ew-resize touch-none outline-none md:block ${collapsed ? "bottom-11" : "bottom-2"}`}
                 onPointerDown={(event) => {
                     if (event.button !== 0) return;
                     drag.current = { x: event.clientX, width, moved: false };

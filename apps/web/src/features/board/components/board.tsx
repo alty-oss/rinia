@@ -31,6 +31,7 @@ import { useColumns } from "../hooks/use-board";
 import { positionAtIndex } from "../position";
 import { AddColumnForm } from "./add-column-form";
 import { Column } from "./column";
+import { HiddenColumns, useHiddenColumns } from "./hidden-columns";
 import { IssueCardContent } from "./issue-card";
 import { useTranslation } from "react-i18next";
 
@@ -51,6 +52,7 @@ export const Board = ({ projectId, filters = new URLSearchParams() }: { projectI
     const { t } = useTranslation();
     const navigate = useNavigate();
     const { data: columns, isLoading: columnsLoading, isError: columnsError } = useColumns(projectId);
+    const { hidden, hideColumn, showColumn } = useHiddenColumns(projectId);
     const orderBy = readIssueOrder(filters.get("order"));
     const { data: issues, isLoading: issuesLoading, isError: issuesError } = useIssues(projectId, { orderBy });
     const filtered = useMemo(() => filterIssues(issues ?? [], filters), [issues, filters]);
@@ -219,8 +221,9 @@ export const Board = ({ projectId, filters = new URLSearchParams() }: { projectI
                 onDragEnd={handleDragEnd}
                 onDragCancel={handleDragCancel}
             >
-                <div className="flex h-full items-start gap-3 overflow-x-auto">
-                    {columns?.map((column) => (
+                <div className="flex h-full min-w-0 gap-3">
+                <div className="flex h-full min-w-0 flex-1 items-start gap-3 overflow-x-auto">
+                    {columns?.filter((column) => !hidden.has(column.id)).map((column) => (
                         <Column
                             key={column.id}
                             column={column}
@@ -230,9 +233,16 @@ export const Board = ({ projectId, filters = new URLSearchParams() }: { projectI
                             membersById={membersById}
                             onOpenIssue={(identifier) => navigate(urls.issue(identifier))}
                             onCreateIssue={(columnId) => setCreateColumnId(columnId)}
+                            onHide={hideColumn}
                         />
                     ))}
                     <AddColumnForm projectId={projectId} />
+                </div>
+                    <HiddenColumns
+                        columns={(columns ?? []).filter((column) => hidden.has(column.id))}
+                        countFor={(columnId) => board.filter((issue) => issue.columnId === columnId).length}
+                        onShow={showColumn}
+                    />
                 </div>
 
                 <DragOverlay>
