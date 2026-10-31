@@ -1,4 +1,4 @@
-import { ArrowRight, Gauge, ListChecks } from "lucide-react";
+import { ArrowRight, ListChecks } from "lucide-react";
 import { parseProjectCover } from "@rinia/shared";
 import { Link, useParams } from "react-router";
 import { Skeleton } from "@/components/base/feedback/skeleton";
@@ -7,7 +7,7 @@ import { ErrorMessage } from "@/components/feedback/error-message";
 import { AppIcons } from "@/components/foundations/icons";
 import { GradientCover } from "@/components/appearance/gradient-cover";
 import { useColumns } from "@/features/board/hooks/use-board";
-import { useCycles, useIssues } from "@/features/issues/hooks/use-issues";
+import { useIssues } from "@/features/issues/hooks/use-issues";
 import { ProjectCoverControl, ProjectIconControl } from "@/features/projects/components/project-appearance-controls";
 import { ProjectWorkspaceHeader } from "@/features/projects/components/project-workspace-header";
 import { useProject } from "@/features/projects/hooks/use-project";
@@ -21,11 +21,9 @@ export const ProjectOverviewPage = () => {
     const { isProjectOwner } = useProjectPermissions(projectId!);
     const { data: issues, isLoading: issuesLoading, isError: issuesError } = useIssues(projectId!);
     const { data: columns, isLoading: columnsLoading, isError: columnsError } = useColumns(projectId!);
-    const { data: cycles, isLoading: cyclesLoading, isError: cyclesError } = useCycles(projectId!);
-    const activeCycle = cycles?.find((cycle) => cycle.status === "active");
     const totalEstimate = (issues ?? []).reduce((total, issue) => total + (issue.estimate ?? 0), 0);
-    const overviewLoading = isLoading || issuesLoading || columnsLoading || cyclesLoading;
-    const overviewError = isError || issuesError || columnsError || cyclesError;
+    const overviewLoading = isLoading || issuesLoading || columnsLoading;
+    const overviewError = isError || issuesError || columnsError;
 
     return (
         <div className="flex h-full min-h-0 flex-col bg-surface-1">
@@ -94,7 +92,6 @@ export const ProjectOverviewPage = () => {
                         </div>
 
                         <div className="grid grid-cols-2 gap-4 lg:grid-cols-1">
-                            <Fact icon={Gauge} label={t("projects.activeCycle")} value={activeCycle?.name ?? t("projects.noActiveCycle")} />
                             <Fact icon={ListChecks} label={t("projects.estimate")} value={t("projects.points", { count: totalEstimate })} />
                         </div>
                     </section>
@@ -143,7 +140,7 @@ function OverviewSkeleton() {
     );
 }
 
-function Fact({ icon: Icon, label, value }: { icon: typeof Gauge; label: string; value: string }) {
+function Fact({ icon: Icon, label, value }: { icon: typeof ListChecks; label: string; value: string }) {
     return (
         <div className="rounded-lg border border-subtle p-4">
             <div className="flex items-center gap-2 text-xs text-tertiary">

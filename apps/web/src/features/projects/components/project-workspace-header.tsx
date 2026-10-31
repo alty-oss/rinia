@@ -17,7 +17,7 @@ export function ProjectWorkspaceHeader({
 }: {
     projectId: string;
     actions?: ReactNode;
-    activeView: "overview" | "issues" | "board" | "documents" | "cycles" | "settings";
+    activeView: "overview" | "issues" | "board" | "documents" | "settings";
 }) {
     const { data: projectData } = useProject(projectId);
     const { data: projects } = useProjects();
@@ -26,7 +26,7 @@ export function ProjectWorkspaceHeader({
     const location = useLocation();
     const { t } = useTranslation();
     const issues = activeView === "issues" || activeView === "board";
-    const title = issues ? t("nav.issues") : activeView === "overview" ? t("nav.overview") : activeView === "documents" ? t("nav.documents") : activeView === "cycles" ? t("nav.cycles") : t("nav.projectSettings");
+    const title = issues ? t("nav.issues") : activeView === "overview" ? t("nav.overview") : activeView === "documents" ? t("nav.documents") : t("nav.projectSettings");
     return (
         <Topbar
             title={

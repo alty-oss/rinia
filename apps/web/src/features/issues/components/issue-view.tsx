@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import type { TiptapDocument, UpdateIssueInput } from "@rinia/shared";
 import { ArrowLeft, ArrowRight, CheckCircle, Copy, ExternalLink, Link2, Plus, Trash2, X } from "lucide-react";
 import { Link, useBeforeUnload, useNavigate, useParams } from "react-router";
-import { AssigneeOutline, CyclesOutline, EstimateOutline, HistoryOutline, LabelsOutline, MoreHorizontalOutline, ParentOutline, PriorityOutline, StateOutline } from "@makeplane/propel/icons";
+import { AssigneeOutline, EstimateOutline, HistoryOutline, LabelsOutline, MoreHorizontalOutline, ParentOutline, PriorityOutline, StateOutline } from "@makeplane/propel/icons";
 import { Popover } from "@base-ui/react/popover";
 import { IssueAvatar, PriorityIcon, StateIcon } from "@/features/board/components/issue-property-icons";
 import { cx } from "@/utils/cx";
@@ -25,7 +25,6 @@ import {
     useCreateIssue,
     useCreateIssueComment,
     useCreateIssueRelation,
-    useCycles,
     useDeleteIssue,
     useDeleteIssueComment,
     useDeleteIssueRelation,
@@ -83,7 +82,6 @@ export const IssueView = ({ identifier, projectId, mode = "page", onClose }: Iss
     const { data: columns } = useColumns(issue?.projectId ?? resolvedProjectId);
     const { data: members } = useProjectMembers(issue?.projectId ?? resolvedProjectId);
     const { data: categories } = useCategories(issue?.projectId ?? resolvedProjectId);
-    const { data: cycles } = useCycles(issue?.projectId ?? resolvedProjectId);
     const createComment = useCreateIssueComment(issue?.identifier ?? resolvedIdentifier);
     const deleteComment = useDeleteIssueComment(issue?.identifier ?? resolvedIdentifier);
     const updateComment = useUpdateIssueComment(issue?.identifier ?? resolvedIdentifier);
@@ -517,7 +515,7 @@ export const IssueView = ({ identifier, projectId, mode = "page", onClose }: Iss
                         {titleSaveError && <p role="alert" className="mt-1 text-xs text-danger-primary">{titleSaveError}</p>}
 
                         {mode === "page" && <div className="mt-5 lg:hidden">
-                            <IssueProperties issue={issue} projectIssues={projectIssues} columns={columns} members={members} categories={categories} cycles={cycles} save={save} error={propertySaveError} isPending={updateIssue.isPending} />
+                            <IssueProperties issue={issue} projectIssues={projectIssues} columns={columns} members={members} categories={categories} save={save} error={propertySaveError} isPending={updateIssue.isPending} />
                         </div>}
 
                         <section className={mode === "peek" ? "peek-description mt-2" : "mt-6 border-b border-subtle pb-6"}>
@@ -581,7 +579,6 @@ export const IssueView = ({ identifier, projectId, mode = "page", onClose }: Iss
                                             assigneeId: issue.assigneeId,
                                             categoryId: issue.categoryId,
                                             priority: issue.priority,
-                                            cycleId: issue.cycleId,
                                             estimate: issue.estimate,
                                         });
                                         const key = descriptionDraftKey.current;
@@ -612,7 +609,7 @@ export const IssueView = ({ identifier, projectId, mode = "page", onClose }: Iss
                             onAdd={(targetIssueIdentifier, type) => createRelation.mutateAsync({ targetIssueIdentifier, type }).then(() => undefined)}
                             onDelete={(relationId) => deleteRelation.mutate(relationId)}
                         />}
-                        {mode === "peek" && <PeekProperties issue={issue} projectIssues={projectIssues} columns={columns} members={members} categories={categories} cycles={cycles} save={save} error={propertySaveError} isPending={updateIssue.isPending} />}
+                        {mode === "peek" && <PeekProperties issue={issue} projectIssues={projectIssues} columns={columns} members={members} categories={categories} save={save} error={propertySaveError} isPending={updateIssue.isPending} />}
                         <section className="mt-6 border-t border-subtle pt-4">
                             <div role="tablist" aria-label={t("issue.discussion")} className="flex items-center gap-4 border-b border-subtle">
                                 <button type="button" role="tab" id={`issue-discussion-${issue.id}-comments`} aria-controls={`issue-discussion-${issue.id}-panel`} data-discussion-tab="comments" tabIndex={discussionTab === "comments" ? 0 : -1} aria-selected={discussionTab === "comments"} onKeyDown={handleDiscussionTabKeyDown} className={cx("border-b-2 px-0.5 pb-2 text-[13px] font-medium", discussionTab === "comments" ? "border-accent-primary text-primary" : "border-transparent text-tertiary hover:text-secondary")} onClick={() => selectDiscussionTab("comments")}>{t("issue.comments")} <span className="ml-1 text-[11px] text-tertiary">{comments?.length ?? 0}</span></button>
@@ -620,7 +617,7 @@ export const IssueView = ({ identifier, projectId, mode = "page", onClose }: Iss
                             </div>
                         </section>
                         <div role="tabpanel" id={`issue-discussion-${issue.id}-panel`} aria-labelledby={`issue-discussion-${issue.id}-${discussionTab}`}>
-                        {discussionTab === "activity" ? <IssueActivity activity={activity ?? []} isLoading={activityLoading} isError={activityLoadFailed} columns={columns ?? []} members={members ?? []} categories={categories ?? []} cycles={cycles ?? []} projectIssues={projectIssues ?? []} /> : <IssueComments
+                        {discussionTab === "activity" ? <IssueActivity activity={activity ?? []} isLoading={activityLoading} isError={activityLoadFailed} columns={columns ?? []} members={members ?? []} categories={categories ?? []} projectIssues={projectIssues ?? []} /> : <IssueComments
                             compact={mode === "peek"}
                             comments={comments ?? []}
                             isLoading={commentsLoading}
@@ -684,7 +681,7 @@ export const IssueView = ({ identifier, projectId, mode = "page", onClose }: Iss
                     </div>
 
                     {mode === "page" && <aside className="hidden w-64 shrink-0 border-l border-subtle pl-6 lg:block">
-                        <IssueProperties issue={issue} projectIssues={projectIssues} columns={columns} members={members} categories={categories} cycles={cycles} save={save} error={propertySaveError} isPending={updateIssue.isPending} />
+                        <IssueProperties issue={issue} projectIssues={projectIssues} columns={columns} members={members} categories={categories} save={save} error={propertySaveError} isPending={updateIssue.isPending} />
                     </aside>}
                 </div>
             </div>
@@ -757,7 +754,6 @@ function IssueProperties({
     columns,
     members,
     categories,
-    cycles,
     save,
     error,
     isPending,
@@ -767,7 +763,6 @@ function IssueProperties({
     columns?: Array<{ id: string; name: string; color?: string | null }>;
     members?: Array<{ id: string; name: string; avatarUrl?: string | null }>;
     categories?: Array<{ id: string; name: string; color?: string | null }>;
-    cycles?: Array<{ id: string; name: string }>;
     save: (input: UpdateIssueInput) => void;
     error?: string | null;
     isPending: boolean;
@@ -818,15 +813,6 @@ function IssueProperties({
             />
             <PropertySelect
                 className="w-full"
-                value={issue.cycleId ?? ""}
-                label={t("issue.cycle")}
-                options={[{ value: "", label: t("issue.noCycle") }, ...(cycles ?? []).map((cycle) => ({ value: cycle.id, label: cycle.name }))]}
-                searchable
-                isDisabled={isPending}
-                onChange={(value) => save({ cycleId: value || null })}
-            />
-            <PropertySelect
-                className="w-full"
                 value={String(issue.estimate ?? "")}
                 label={t("issue.estimate")}
                 options={[{ value: "", label: t("issue.noEstimate") }, ...[1, 2, 3, 5, 8].map((value) => ({ value: String(value), label: t("projects.points", { count: value }) }))]}
@@ -853,7 +839,7 @@ function IssueProperties({
 }
 
 /** Plane side-peek uses a single property list with 30px controls and 12px row gaps. */
-function PeekProperties({ issue, projectIssues, columns, members, categories, cycles, save, error, isPending }: Parameters<typeof IssueProperties>[0]) {
+function PeekProperties({ issue, projectIssues, columns, members, categories, save, error, isPending }: Parameters<typeof IssueProperties>[0]) {
     const { t } = useTranslation();
     const assignee = members?.find((member) => member.id === issue.assigneeId);
     const rows = [
@@ -862,7 +848,6 @@ function PeekProperties({ issue, projectIssues, columns, members, categories, cy
         { label: t("issue.priority"), Icon: PriorityOutline, value: issue.priority, options: (["low", "medium", "high"] as const).map((value) => ({ value, label: t(`issue.${value}`) })), change: (value: string) => save({ priority: value as "low" | "medium" | "high" }), decoration: <PriorityIcon priority={issue.priority} /> },
         { label: t("issue.createdBy"), Icon: AssigneeOutline, readonly: issue.createdBy.name, decoration: <IssueAvatar name={issue.createdBy.name} avatarUrl={issue.createdBy.avatarUrl} /> },
         { label: t("issue.estimate"), Icon: EstimateOutline, value: String(issue.estimate ?? ""), options: [{ value: "", label: t("issue.noEstimate") }, ...[1, 2, 3, 5, 8].map((n) => ({ value: String(n), label: t("projects.points", { count: n }) }))], change: (value: string) => save({ estimate: value ? Number(value) : null }) },
-        { label: t("issue.cycle"), Icon: CyclesOutline, value: issue.cycleId ?? "", options: [{ value: "", label: t("issue.addCycle") }, ...(cycles ?? []).map((c) => ({ value: c.id, label: c.name }))], change: (value: string) => save({ cycleId: value || null }), searchable: true },
         { label: t("issue.parent"), Icon: ParentOutline, value: issue.parent?.id ?? "", options: [{ value: "", label: t("issue.addParentIssue") }, ...(projectIssues ?? []).filter((i) => i.id !== issue.id).map((i) => ({ value: i.id, label: `${i.identifier} · ${i.title}` }))], change: (value: string) => save({ parentIssueId: value || null }), searchable: true },
         { label: t("issue.label"), Icon: LabelsOutline, value: issue.categoryId ?? "", options: [{ value: "", label: t("issue.addLabel") }, ...(categories ?? []).map((c) => ({ value: c.id, label: c.name }))], change: (value: string) => save({ categoryId: value || null }), searchable: true, decoration: issue.categoryId ? <LabelsOutline className="size-3.5" style={{ color: categories?.find((c) => c.id === issue.categoryId)?.color ?? "#7a5af8" }} /> : null },
     ];
@@ -1048,14 +1033,13 @@ function IssueRelations({
     );
 }
 
-function IssueActivity({ activity, isLoading, isError, columns, members, categories, cycles, projectIssues }: {
+function IssueActivity({ activity, isLoading, isError, columns, members, categories, projectIssues }: {
     activity: Array<{ id: string; type: string; createdAt: string; actor: { name: string; avatarUrl: string | null }; payload: Record<string, unknown> }>;
     isLoading: boolean;
     isError: boolean;
     columns: Array<{ id: string; name: string }>;
     members: Array<{ id: string; name: string }>;
     categories: Array<{ id: string; name: string }>;
-    cycles: Array<{ id: string; name: string }>;
     projectIssues: Array<{ id: string; identifier: string; title: string }>;
 }) {
     const { t, i18n } = useTranslation();
@@ -1067,7 +1051,7 @@ function IssueActivity({ activity, isLoading, isError, columns, members, categor
                 {activity.map((entry) => (
                     <div key={entry.id} className="flex items-start gap-3 py-3 text-sm text-tertiary">
                         <IssueAvatar name={entry.actor.name} avatarUrl={entry.actor.avatarUrl} className="mt-0.5 size-6 text-xs" />
-                        <div className="min-w-0 flex-1"><span className="font-medium text-secondary">{entry.actor.name}</span> <span>{activityLabelKeys[entry.type] ? t(activityLabelKeys[entry.type]) : entry.type}{formatActivityChange(entry.payload, { columns, members, categories, cycles, projectIssues }, t)}</span></div>
+                        <div className="min-w-0 flex-1"><span className="font-medium text-secondary">{entry.actor.name}</span> <span>{activityLabelKeys[entry.type] ? t(activityLabelKeys[entry.type]) : entry.type}{formatActivityChange(entry.payload, { columns, members, categories, projectIssues }, t)}</span></div>
                         <time className="shrink-0 text-xs" title={formatFullIssueDate(entry.createdAt, i18n.language)} dateTime={entry.createdAt}>{formatDistanceToNow(entry.createdAt, i18n.language)}</time>
                     </div>
                 ))}
@@ -1084,14 +1068,13 @@ function formatActivityChange(payload: Record<string, unknown>, lookups: {
     columns: Array<{ id: string; name: string }>;
     members: Array<{ id: string; name: string }>;
     categories: Array<{ id: string; name: string }>;
-    cycles: Array<{ id: string; name: string }>;
     projectIssues: Array<{ id: string; identifier: string; title: string }>;
 }, t: ReturnType<typeof useTranslation>["t"]) {
     if (!("from" in payload) && !("to" in payload)) return "";
     const field = String(payload.field ?? "");
     const resolve = (value: unknown) => {
         if (value === null || value === undefined || value === "") return t("issue.noneValue");
-        const options = field === "columnId" ? lookups.columns : field === "assigneeId" ? lookups.members : field === "categoryId" ? lookups.categories : field === "cycleId" ? lookups.cycles : field === "parentIssueId" ? lookups.projectIssues : [];
+        const options = field === "columnId" ? lookups.columns : field === "assigneeId" ? lookups.members : field === "categoryId" ? lookups.categories : field === "parentIssueId" ? lookups.projectIssues : [];
         const match = options.find((option) => option.id === value);
         if (match && "identifier" in match) return match.identifier;
         if (match) return match.name;

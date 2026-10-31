@@ -1,7 +1,6 @@
 import { index, integer, jsonb, pgEnum, pgTable, real, text, timestamp, uuid, type AnyPgColumn } from "drizzle-orm/pg-core";
 import { boardColumns } from "./board-columns";
 import { categories } from "./categories";
-import { projectCycles } from "./cycles";
 import { projects } from "./projects";
 import { users } from "./users";
 
@@ -34,7 +33,6 @@ export const issues = pgTable(
             .references(() => users.id),
         position: real("position").notNull(),
         parentIssueId: uuid("parent_issue_id").references((): AnyPgColumn => issues.id, { onDelete: "restrict" }),
-        cycleId: uuid("cycle_id").references(() => projectCycles.id, { onDelete: "set null" }),
         estimate: integer("estimate"),
         createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
         updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
@@ -45,6 +43,5 @@ export const issues = pgTable(
         index("issues_assignee_id_idx").on(table.assigneeId),
         index("issues_category_id_idx").on(table.categoryId),
         index("issues_parent_issue_id_idx").on(table.parentIssueId),
-        index("issues_cycle_id_idx").on(table.cycleId),
     ],
 );

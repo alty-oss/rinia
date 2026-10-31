@@ -1,6 +1,6 @@
 import type { ComponentType, SVGProps } from "react";
 import {
-    ArrowNarrowLeftOutline, BoardOutline, ChevronDownOutline, CloseOutline, CyclesOutline,
+    ArrowNarrowLeftOutline, BoardOutline, ChevronDownOutline, CloseOutline,
     GeneralOutline, ListOutline, LogOutOutline, NewTabArrowOutline, OverviewOutline, PagesOutline,
     ProjectsOutline, SearchOutline, SettingsOutline, LeftSidePaneOutline,
 } from "@makeplane/propel/icons";
@@ -11,5 +11,5 @@ export const AppIcons = {
     Board: BoardOutline, Documents: PagesOutline, ExternalLink: NewTabArrowOutline,
     Issues: ListOutline, Menu: LeftSidePaneOutline, Overview: OverviewOutline,
     Projects: ProjectsOutline, Search: SearchOutline, Settings: SettingsOutline,
-    SignOut: LogOutOutline, Cycles: CyclesOutline, General: GeneralOutline,
+    SignOut: LogOutOutline, General: GeneralOutline,
 } satisfies Record<string, AppIcon>;

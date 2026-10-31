@@ -5,7 +5,6 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 import { SignalHigh, SignalMedium, SignalLow } from "lucide-react";
-import { CyclesOutline } from "@makeplane/propel/icons";
 import { cx } from "@/utils/cx";
 
 /** State groups are presentation only; Rinia continues to store project columns. */
@@ -29,5 +28,3 @@ export function IssueAvatar({ name, avatarUrl, className }: { name: string; avat
         {avatarUrl ? <img src={avatarUrl} alt={name} className="size-full object-cover" /> : name.charAt(0).toUpperCase()}
     </span>;
 }
-
-export const CycleIcon = CyclesOutline;

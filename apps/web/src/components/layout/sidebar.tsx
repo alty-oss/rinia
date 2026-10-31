@@ -21,10 +21,9 @@ const PROJECTS_GROUP_KEY = "rinia-projects-expanded";
 const OPEN_PROJECTS_KEY = "rinia-open-projects";
 const OPEN_DOCS_KEY = "rinia-open-project-docs";
 const NAV_CLASS = "flex h-7 items-center gap-2 rounded-md px-2 text-[13px] text-secondary hover:bg-layer-transparent-hover";
-const PROJECT_VIEWS: Array<[string, "overview" | "issues" | "cycles" | "documents", AppIcon]> = [
+const PROJECT_VIEWS: Array<[string, "overview" | "issues" | "documents", AppIcon]> = [
     ["", "overview", AppIcons.Overview],
     ["/issues", "issues", AppIcons.Issues],
-    ["/cycles", "cycles", AppIcons.Cycles],
     ["/documents", "documents", AppIcons.Documents],
 ];
 

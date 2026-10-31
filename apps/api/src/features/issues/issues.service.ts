@@ -1,7 +1,7 @@
 import type { CreateIssueCommentInput, CreateIssueInput, CreateIssueRelationInput, IssueListQuery, TiptapDocument, UpdateIssueCommentInput, UpdateIssueInput } from "@rinia/shared";
 import { and, asc, count, desc, eq, or, sql } from "drizzle-orm";
 import { db } from "../../db";
-import { boardColumns, categories, issueActivities, issueComments, issueRelations, issues, projectCycles, projectMembers, projects, users } from "../../db/schema";
+import { boardColumns, categories, issueActivities, issueComments, issueRelations, issues, projectMembers, projects, users } from "../../db/schema";
 import { HttpError } from "../../lib/http-error";
 
 const EMPTY_DOCUMENT = { type: "doc" as const, content: [] };
@@ -50,7 +50,6 @@ async function findIssue(identifier: string) {
             createdBy: { columns: { id: true, name: true, username: true, avatarUrl: true } },
             category: { columns: { id: true, name: true, color: true } },
             column: { columns: { id: true, name: true } },
-            cycle: { columns: { id: true, number: true, name: true, status: true } },
             parent: { columns: { id: true, number: true, title: true } },
             children: { columns: { id: true, number: true, title: true, columnId: true, priority: true } },
         },
@@ -83,11 +82,6 @@ async function ensureProjectMember(userId: string, projectId: string) {
         columns: { id: true },
     });
     if (!membership) throw new HttpError(400, "User is not a member of this project");
-}
-
-async function ensureCycleInProject(cycleId: string, projectId: string) {
-    const cycle = await db.query.projectCycles.findFirst({ where: and(eq(projectCycles.id, cycleId), eq(projectCycles.projectId, projectId)), columns: { id: true } });
-    if (!cycle) throw new HttpError(400, "Cycle does not belong to this project");
 }
 
 async function ensureAssigneeInProject(assigneeId: string, projectId: string) {
@@ -130,7 +124,6 @@ export async function listIssues(projectId: string, query: IssueListQuery) {
     if (query.priority) filters.push(eq(issues.priority, query.priority));
     if (query.assigneeId) filters.push(eq(issues.assigneeId, query.assigneeId));
     if (query.categoryId) filters.push(eq(issues.categoryId, query.categoryId));
-    if (query.cycleId) filters.push(eq(issues.cycleId, query.cycleId));
 
     const order = query.orderBy === "updated" ? desc(issues.updatedAt) : query.orderBy === "number" ? asc(issues.number) : query.orderBy === "priority" ? asc(issues.priority) : asc(issues.position);
     const rows = await db.query.issues.findMany({ where: and(...filters), orderBy: [order] });
@@ -146,7 +139,6 @@ export async function createIssue(projectId: string, input: CreateIssueInput, ac
     await ensureColumnInProject(input.columnId, projectId);
     if (input.assigneeId) await ensureAssigneeInProject(input.assigneeId, projectId);
     if (input.categoryId) await ensureCategoryInProject(input.categoryId, projectId);
-    if (input.cycleId) await ensureCycleInProject(input.cycleId, projectId);
 
     const issue = await db.transaction(async (tx) => {
         const identity = await nextIssueNumber(projectId, tx);
@@ -162,7 +154,6 @@ export async function createIssue(projectId: string, input: CreateIssueInput, ac
                 assigneeId: input.assigneeId,
                 priority: input.priority,
                 parentIssueId: input.parentIssueId,
-                cycleId: input.cycleId,
                 estimate: input.estimate,
                 createdBy: actorId,
                 position: 1000,
@@ -181,7 +172,6 @@ export async function updateIssue(identifier: string, input: UpdateIssueInput, a
     if (input.columnId) await ensureColumnInProject(input.columnId, current.projectId);
     if (input.assigneeId) await ensureAssigneeInProject(input.assigneeId, current.projectId);
     if (input.categoryId) await ensureCategoryInProject(input.categoryId, current.projectId);
-    if (input.cycleId) await ensureCycleInProject(input.cycleId, current.projectId);
     if (input.parentIssueId) await ensureParentIsValid(input.parentIssueId, current.id, current.projectId);
 
     const { expectedDescriptionRevision, ...values } = input;
@@ -204,7 +194,6 @@ export async function updateIssue(identifier: string, input: UpdateIssueInput, a
         ["priority", "priority_changed"],
         ["assigneeId", "assignee_changed"],
         ["categoryId", "category_changed"],
-        ["cycleId", "cycle_changed"],
         ["estimate", "estimate_changed"],
         ["parentIssueId", "parent_changed"],
     ] as const;

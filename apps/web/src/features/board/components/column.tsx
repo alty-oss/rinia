@@ -23,12 +23,11 @@ interface ColumnProps {
     projectId: string;
     categoriesById: Map<string, { name: string; color: string | null }>;
     membersById: Map<string, IssuePerson>;
-    cyclesById: Map<string, { name: string }>;
     onOpenIssue: (identifier: string) => void;
     onCreateIssue: (columnId: string) => void;
 }
 
-export const Column = ({ column, issues, projectId, categoriesById, membersById, cyclesById, onOpenIssue, onCreateIssue }: ColumnProps) => {
+export const Column = ({ column, issues, projectId, categoriesById, membersById, onOpenIssue, onCreateIssue }: ColumnProps) => {
     const { t } = useTranslation();
     const { setNodeRef: setDropRef, isOver } = useDroppable({ id: column.id });
 
@@ -128,7 +127,6 @@ export const Column = ({ column, issues, projectId, categoriesById, membersById,
                             key={issue.id}
                             issue={issue}
                             projectId={projectId}
-                            cycle={issue.cycleId ? cyclesById.get(issue.cycleId) : undefined}
                             category={issue.categoryId ? categoriesById.get(issue.categoryId) : undefined}
                             assignee={issue.assigneeId ? membersById.get(issue.assigneeId) : undefined}
                             onClick={() => onOpenIssue(issue.identifier)}

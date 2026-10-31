@@ -22,7 +22,7 @@ import { Alert } from "@/components/base/feedback/alert";
 import { Skeleton } from "@/components/base/feedback/skeleton";
 import { useCategories } from "@/features/categories/hooks/use-categories";
 import type { Issue } from "@/features/issues/api";
-import { useCycles, useIssues, useUpdateIssue } from "@/features/issues/hooks/use-issues";
+import { useIssues, useUpdateIssue } from "@/features/issues/hooks/use-issues";
 import { IssueQuickCreateModal } from "@/features/issues/components/issue-quick-create-modal";
 import { useProjectMembers } from "@/features/projects/hooks/use-project-members";
 import { ApiError } from "@/lib/api-client";
@@ -55,7 +55,6 @@ export const Board = ({ projectId, filters = new URLSearchParams() }: { projectI
     const { data: issues, isLoading: issuesLoading, isError: issuesError } = useIssues(projectId, { orderBy });
     const filtered = useMemo(() => filterIssues(issues ?? [], filters), [issues, filters]);
     const { data: categories } = useCategories(projectId);
-    const { data: cycles } = useCycles(projectId);
     const { data: members } = useProjectMembers(projectId);
     const updateIssue = useUpdateIssue(projectId);
 
@@ -70,7 +69,6 @@ export const Board = ({ projectId, filters = new URLSearchParams() }: { projectI
         useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
     );
 
-    const cyclesById = useMemo(() => new Map((cycles ?? []).map((cycle) => [cycle.id, cycle])), [cycles]);
     const categoriesById = useMemo(() => new Map((categories ?? []).map((category) => [category.id, category])), [categories]);
     const membersById = useMemo(() => new Map((members ?? []).map((member) => [member.id, member])), [members]);
 
@@ -230,7 +228,6 @@ export const Board = ({ projectId, filters = new URLSearchParams() }: { projectI
                             projectId={projectId}
                             categoriesById={categoriesById}
                             membersById={membersById}
-                            cyclesById={cyclesById}
                             onOpenIssue={(identifier) => navigate(`/projects/${projectId}/issues/${identifier}`, { state: { backgroundLocation: location } })}
                             onCreateIssue={(columnId) => setCreateColumnId(columnId)}
                         />
@@ -244,7 +241,7 @@ export const Board = ({ projectId, filters = new URLSearchParams() }: { projectI
                             style={{ width: activeIssueWidth }}
                             className="block rotate-1 cursor-grabbing rounded-md border border-accent-strong bg-layer-2 p-2.5 shadow-overlay-200"
                         >
-                            <IssueCardContent issue={activeIssue} category={activeCategory} assignee={activeAssignee} column={columns?.find((column) => column.id === activeIssue.columnId)} cycle={activeIssue.cycleId ? cyclesById.get(activeIssue.cycleId) : undefined} />
+                            <IssueCardContent issue={activeIssue} category={activeCategory} assignee={activeAssignee} column={columns?.find((column) => column.id === activeIssue.columnId)} />
                         </div>
                     )}
                 </DragOverlay>

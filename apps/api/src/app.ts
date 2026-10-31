@@ -5,7 +5,6 @@ import helmet from "helmet";
 import { adminRouter } from "./features/admin/admin.routes";
 import { authRouter } from "./features/auth/auth.routes";
 import { issueCommentsRouter, issueRelationsRouter, issuesRouter } from "./features/issues/issues.routes";
-import { cyclesRouter } from "./features/cycles/cycles.routes";
 import { projectsRouter } from "./features/projects/projects.routes";
 import { usersRouter } from "./features/users/users.routes";
 import { errorHandler } from "./middleware/error-handler.middleware";
@@ -35,7 +34,6 @@ app.use("/api/projects", projectsRouter);
 app.use("/api/issues", issuesRouter);
 app.use("/api/comments", issueCommentsRouter);
 app.use("/api/relations", issueRelationsRouter);
-app.use("/api/cycles", cyclesRouter);
 app.use("/api/users", usersRouter);
 app.use("/api/admin", adminRouter);
 

@@ -6,7 +6,7 @@ import { AssigneeOutline, EstimateOutline } from "@makeplane/propel/icons";
 import { ContextMenuButton } from "@/components/overlay/context-menu-provider";
 import type { Issue, IssuePerson } from "@/features/issues/api";
 import { cx } from "@/utils/cx";
-import { CycleIcon, IssueAvatar, PriorityIcon, StateIcon } from "./issue-property-icons";
+import { IssueAvatar, PriorityIcon, StateIcon } from "./issue-property-icons";
 import { useTranslation } from "react-i18next";
 import { translateStatusName } from "@/i18n/status-label";
 
@@ -15,7 +15,6 @@ interface IssueCardContentProps {
     category?: { name: string; color: string | null };
     assignee?: IssuePerson;
     column?: { name: string; color: string | null };
-    cycle?: { name: string };
 }
 
 const chip = "inline-flex h-5 max-w-full items-center gap-1 rounded-sm border border-subtle px-1 text-[11px] text-secondary";
@@ -48,7 +47,7 @@ function IssuePreviewImage({ src }: { src: string }) {
 }
 
 /** Shared with the drag overlay so picking up an issue preserves its geometry. */
-export const IssueCardContent = ({ issue, category, assignee, column, cycle }: IssueCardContentProps) => {
+export const IssueCardContent = ({ issue, category, assignee, column }: IssueCardContentProps) => {
     const { t } = useTranslation();
     const imagePreview = firstIssueImage(issue.descriptionJson);
     return <>
@@ -60,7 +59,6 @@ export const IssueCardContent = ({ issue, category, assignee, column, cycle }: I
             <PriorityIcon priority={issue.priority} withContainer />
             {assignee ? <IssueAvatar name={assignee.name} avatarUrl={assignee.avatarUrl} /> : <span className={chip} title={t("issue.unassigned")}><AssigneeOutline className="size-3" /></span>}
             {issue.estimate != null && <span className={chip} title={t("projects.points", { count: issue.estimate })}><EstimateOutline className="size-3" />{issue.estimate}</span>}
-            {cycle && <span className={chip}><CycleIcon className="size-3" /><span className="truncate">{cycle.name}</span></span>}
             {category && <span className={chip}><span className="size-1.5 shrink-0 rounded-full" style={{ backgroundColor: category.color ?? "#7a5af8" }} />{category.name}</span>}
         </div>
     </>;
@@ -71,7 +69,7 @@ interface IssueCardProps extends IssueCardContentProps {
     onClick: () => void;
 }
 
-export const IssueCard = ({ issue, category, assignee, column, cycle, projectId, onClick }: IssueCardProps) => {
+export const IssueCard = ({ issue, category, assignee, column, projectId, onClick }: IssueCardProps) => {
     const { attributes, listeners, setActivatorNodeRef, setNodeRef, transform, transition, isDragging } = useSortable({ id: issue.id });
 
     const location = useLocation();
@@ -106,7 +104,7 @@ export const IssueCard = ({ issue, category, assignee, column, cycle, projectId,
                     selected && "border-accent-strong",
                 )}
             >
-                <IssueCardContent issue={issue} category={category} assignee={assignee} column={column} cycle={cycle} />
+                <IssueCardContent issue={issue} category={category} assignee={assignee} column={column} />
             </button>
             <ContextMenuButton
                 entity={{ type: "issue", projectId, identifier: issue.identifier, title: issue.title }}

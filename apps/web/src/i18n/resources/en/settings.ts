@@ -13,9 +13,6 @@ const settings = {
         couldNotRemoveMember: "Could not remove the member.", couldNotAddMember: "Could not add the member.", projectDetailsSaved: "Project details saved.", couldNotSaveProject: "Could not save the project.",
         loadingProject: "Loading project…", couldNotLoadProject: "Could not load the project.", changeProjectIcon: "Change project icon", projectIcon: "Project icon", loadingIcons: "Loading icons…", projectIdLocked: "Locked after the first issue is created.",
         deleteProjectDescription: "Permanently remove this project and all of its data and resources. Deleted projects cannot be recovered.",
-        newCycle: "New cycle", planCycleDescription: "Plan a focused period of work for this project.", cycleName: "Cycle name", starts: "Starts", ends: "Ends", createCycle: "Create cycle", loadingCycles: "Loading cycles…", couldNotLoadCycles: "Could not load the project cycles.",
-        noCycles: "No cycles yet", createCycleHint: "Create a cycle to organize a focused period of work.", noCyclesAvailable: "This project does not have any cycles yet.", couldNotCreateCycle: "Could not create the cycle.", couldNotUpdateCycle: "Could not update the cycle.", couldNotDeleteCycle: "Could not delete the cycle.",
-        deleteCycle: "Delete cycle", deleteCycleDescription: "The cycle “{{name}}” will be deleted. Issues in it will remain available.", editCycle: "Edit cycle", noPeriodSet: "No period set", planned: "Planned", active: "Active", completed: "Completed",
         newColumn: "New column", columnName: "Column name", color: "Color", colorValue: "Color {{color}}", customColor: "Custom color", chooseColor: "Choose color",
     } as const;
 

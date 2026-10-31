@@ -9,7 +9,6 @@ export type TiptapDocument = z.infer<typeof tiptapDocumentSchema>;
 
 export const issuePriorityValues = ["low", "medium", "high"] as const;
 export const issueRelationValues = ["blocks", "blocked_by", "related", "duplicate"] as const;
-export const cycleStatusValues = ["planned", "active", "completed"] as const;
 export const issueEstimateValues = [1, 2, 3, 5, 8] as const;
 const estimateSchema = z.number().int().refine((value) => issueEstimateValues.includes(value as (typeof issueEstimateValues)[number]), "Estimate must be 1, 2, 3, 5, or 8");
 
@@ -21,7 +20,6 @@ export const createIssueSchema = z.object({
     assigneeId: z.string().uuid().nullable().optional(),
     priority: z.enum(issuePriorityValues).default("medium"),
     parentIssueId: z.string().uuid().nullable().optional(),
-    cycleId: z.string().uuid().nullable().optional(),
     estimate: estimateSchema.nullable().optional(),
 });
 export type CreateIssueInput = z.infer<typeof createIssueSchema>;
@@ -37,7 +35,6 @@ export const updateIssueSchema = z
         assigneeId: z.string().uuid().nullable().optional(),
         priority: z.enum(issuePriorityValues).optional(),
         parentIssueId: z.string().uuid().nullable().optional(),
-        cycleId: z.string().uuid().nullable().optional(),
         estimate: estimateSchema.nullable().optional(),
     })
     .strict()
@@ -56,8 +53,7 @@ export const issueListQuerySchema = z.object({
     priority: z.enum(issuePriorityValues).optional(),
     assigneeId: z.string().uuid().optional(),
     categoryId: z.string().uuid().optional(),
-    cycleId: z.string().uuid().optional(),
-    groupBy: z.enum(["status", "assignee", "cycle"]).optional(),
+    groupBy: z.enum(["status", "assignee"]).optional(),
     orderBy: z.enum(["position", "priority", "updated", "number"]).default("position"),
 });
 export type IssueListQuery = z.infer<typeof issueListQuerySchema>;
@@ -72,16 +68,6 @@ export const createIssueRelationSchema = z.object({
     type: z.enum(issueRelationValues),
 });
 export type CreateIssueRelationInput = z.infer<typeof createIssueRelationSchema>;
-
-export const createCycleSchema = z.object({
-    name: z.string().trim().min(1).max(120),
-    status: z.enum(cycleStatusValues).default("planned"),
-    startsAt: z.string().datetime().nullable().optional(),
-    endsAt: z.string().datetime().nullable().optional(),
-});
-export const updateCycleSchema = createCycleSchema.partial();
-export type CreateCycleInput = z.infer<typeof createCycleSchema>;
-export type UpdateCycleInput = z.infer<typeof updateCycleSchema>;
 
 export const updateProjectDocumentSchema = z.object({ contentJson: tiptapDocumentSchema });
 export type UpdateProjectDocumentInput = z.infer<typeof updateProjectDocumentSchema>;
