@@ -47,18 +47,14 @@ function DocumentList({ projectId }: { projectId: string }) {
     return (
         <div className="flex h-full min-h-0 flex-col bg-surface-1">
             <ProjectWorkspaceHeader projectId={projectId} activeView="documents" />
-            <main className="min-h-0 flex-1 overflow-y-auto px-5 py-6 lg:px-8">
-                <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
-                    <div>
-                        <h1 className="text-display-xs font-semibold text-primary">{t("documents.documents")}</h1>
-                        <p className="mt-1 text-sm text-tertiary">{t("documents.pageDescription")}</p>
+            <main className="min-h-0 flex-1 overflow-y-auto px-4 py-3 lg:px-5">
+                <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                    <div className="w-64 max-w-full">
+                        <Input size="sm" aria-label={t("documents.searchPages")} icon={Search} placeholder={`${t("documents.searchPages")}…`} value={search} onChange={setSearch} />
                     </div>
-                    <Button iconLeading={Plus} isLoading={create.isPending} onClick={addPage}>
+                    <Button size="sm" iconLeading={Plus} isLoading={create.isPending} onClick={addPage}>
                         {t("documents.newPage")}
                     </Button>
-                </div>
-                <div className="mb-4 max-w-xs">
-                    <Input aria-label={t("documents.searchPages")} icon={Search} placeholder={`${t("documents.searchPages")}…`} value={search} onChange={setSearch} />
                 </div>
                 {create.isError && <ErrorMessage message={t("documents.createFailed")} />}
                 {isError && <ErrorMessage message={t("documents.loadFailed")} />}
@@ -78,10 +74,10 @@ function DocumentList({ projectId }: { projectId: string }) {
                             >
                                 <Link
                                     to={`/projects/${projectId}/documents/${page.id}`}
-                                    className="flex min-w-0 flex-1 items-center gap-3 px-2 py-4"
+                                    className="flex min-w-0 flex-1 items-center gap-2.5 px-2 py-2"
                                 >
-                                    {page.iconAppearance ? <ProjectIcon icon={page.iconAppearance} className="size-5 shrink-0 text-tertiary" /> : <FileText className="size-5 shrink-0 text-tertiary" />}
-                                    <span className="min-w-0 flex-1 truncate text-sm font-medium text-primary">{page.title}</span>
+                                    {page.iconAppearance ? <ProjectIcon icon={page.iconAppearance} className="size-4 shrink-0 text-tertiary" /> : <FileText className="size-4 shrink-0 text-tertiary" />}
+                                    <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-primary">{page.title}</span>
                                     <span className="hidden text-xs text-tertiary sm:block">
                                         {t("documents.created", { date: new Intl.DateTimeFormat(i18n.language, { dateStyle: "medium" }).format(new Date(page.createdAt)) })}
                                     </span>
@@ -236,7 +232,7 @@ function DocumentWorkspace({ page, userId }: { page: DocumentPage; userId: strin
     }[state.status];
     return (
         <>
-            <div className="flex shrink-0 items-center justify-between gap-3 px-5 py-3 lg:px-8">
+            <div className="flex h-[45px] shrink-0 items-center justify-between gap-3 border-b border-subtle px-4 lg:px-5">
                 <Link to={`/projects/${page.projectId}/documents`} className="inline-flex items-center gap-2 text-sm text-tertiary hover:text-primary">
                     <ArrowLeft className="size-4" />
                     {t("documents.allPages")}
