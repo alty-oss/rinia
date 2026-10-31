@@ -24,6 +24,7 @@ const issue = {
         setParent: "Set parent issue…", addLabelPlaceholder: "Add label…", assign: "Assign", estimateAction: "Estimate",
         addSubIssue: "Add sub-issue", subIssueTitle: "Sub-issue title", couldNotCreateSubIssue: "Could not create the sub-issue.",
         createdByOn: "Created by {{name}} on {{date}}", labels: "Labels",
+        noPriority: "No priority", setPriorityAction: "Set priority",
     } as const;
 
 export default issue;

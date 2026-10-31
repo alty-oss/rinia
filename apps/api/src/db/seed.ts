@@ -129,7 +129,7 @@ const PROJECTS: SeedProject[] = [
             {
                 title: "Backup automático diário do banco",
                 column: 0,
-                priority: "high",
+                priority: "urgent",
                 label: "Infra",
                 assignee: "admin",
                 estimate: 5,
@@ -146,7 +146,7 @@ const PROJECTS: SeedProject[] = [
             {
                 title: "Notificações por e-mail",
                 column: 0,
-                priority: "low",
+                priority: "none",
                 label: "Feature",
             },
         ],

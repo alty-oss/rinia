@@ -6,6 +6,9 @@ import { HttpError } from "../../lib/http-error";
 
 const EMPTY_DOCUMENT = { type: "doc" as const, content: [] };
 
+/** Most urgent first, issues without a priority last. The enum's own order runs low to high, so it cannot sort this. */
+const priorityRank = sql`case ${issues.priority} when 'urgent' then 0 when 'high' then 1 when 'medium' then 2 when 'low' then 3 else 4 end`;
+
 function validateIssueImageUrls(document?: TiptapDocument) {
     if (!document) return;
     const visit = (nodes: unknown[]) => {
@@ -133,7 +136,7 @@ export async function listIssues(projectId: string, query: IssueListQuery) {
     if (query.assigneeId) filters.push(eq(issues.assigneeId, query.assigneeId));
     if (query.categoryId) filters.push(eq(issues.categoryId, query.categoryId));
 
-    const order = query.orderBy === "updated" ? desc(issues.updatedAt) : query.orderBy === "number" ? asc(issues.number) : query.orderBy === "priority" ? asc(issues.priority) : asc(issues.position);
+    const order = query.orderBy === "updated" ? desc(issues.updatedAt) : query.orderBy === "number" ? asc(issues.number) : query.orderBy === "priority" ? asc(priorityRank) : asc(issues.position);
     const rows = await db.query.issues.findMany({ where: and(...filters), orderBy: [order] });
     const project = await db.query.projects.findFirst({ where: eq(projects.id, projectId), columns: { issueKey: true } });
     if (!project) throw new HttpError(404, "Project not found");

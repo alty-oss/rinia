@@ -24,6 +24,7 @@ const issue = {
         setParent: "Definir tarefa pai…", addLabelPlaceholder: "Adicionar etiqueta…", assign: "Atribuir", estimateAction: "Estimar",
         addSubIssue: "Adicionar subtarefa", subIssueTitle: "Título da subtarefa", couldNotCreateSubIssue: "Não foi possível criar a subtarefa.",
         createdByOn: "Criada por {{name}} em {{date}}", labels: "Etiquetas",
+        noPriority: "Sem prioridade", setPriorityAction: "Definir prioridade",
     } as const;
 
 export default issue;

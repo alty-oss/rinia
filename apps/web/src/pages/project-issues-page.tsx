@@ -159,7 +159,7 @@ export const ProjectIssuesPage = () => {
         }
         setCreateError(null);
         createIssue.mutate(
-            { columnId, title: title.trim(), priority: "medium" },
+            { columnId, title: title.trim(), priority: "none" },
             {
                 onSuccess: (issue) => {
                     setTitle("");

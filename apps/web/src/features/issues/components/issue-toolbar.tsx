@@ -14,6 +14,7 @@ import { useCategories } from "@/features/categories/hooks/use-categories";
 import { useProjectMembers } from "@/features/projects/hooks/use-project-members";
 import { readIssueOrder } from "../lib/issue-filters";
 import { useTranslation } from "react-i18next";
+import { PRIORITY_OPTIONS, priorityLabelKey } from "@/features/issues/lib/priority";
 import { translateStatusName } from "@/i18n/status-label";
 
 export function IssueToolbar({ projectId, onCreate, layout = "list", compact = false, chrome = false }: { projectId: string; onCreate: () => void; layout?: "list" | "board"; compact?: boolean; chrome?: boolean }) {
@@ -35,7 +36,7 @@ export function IssueToolbar({ projectId, onCreate, layout = "list", compact = f
     }
     const filters: Array<{ key: string; label: string; items: Array<{ id: string; name: string; icon?: ReactNode; avatarUrl?: string | null }> }> = [
         { key: "status", label: t("issue.status"), items: (columns ?? []).map((item) => ({ id: item.id, name: translateStatusName(item.name, t), icon: <StateIcon name={item.name} color={item.color} /> })) },
-        { key: "priority", label: t("issue.priority"), items: (["high", "medium", "low"] as const).map((id) => ({ id, name: t(`issue.${id}`), icon: <PriorityIcon priority={id} /> })) },
+        { key: "priority", label: t("issue.priority"), items: PRIORITY_OPTIONS.map((id) => ({ id, name: t(priorityLabelKey(id)), icon: <PriorityIcon priority={id} /> })) },
         { key: "assignee", label: t("issue.assignee"), items: (members ?? []).map((member) => ({ id: member.id, name: member.name, avatarUrl: member.avatarUrl, icon: member.avatarUrl ? undefined : <IssueAvatar name={member.name} avatarUrl={member.avatarUrl} /> })) },
         { key: "label", label: t("issue.label"), items: (categories ?? []).map((item) => ({ id: item.id, name: item.name, icon: <LabelsOutline className="size-3.5" style={{ color: item.color ?? "#7a5af8" }} /> })) },
     ];

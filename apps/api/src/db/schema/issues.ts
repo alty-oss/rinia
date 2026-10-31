@@ -9,7 +9,7 @@ export type TiptapDocument = {
     content?: Array<Record<string, unknown>>;
 };
 
-export const issuePriorityEnum = pgEnum("issue_priority", ["low", "medium", "high"]);
+export const issuePriorityEnum = pgEnum("issue_priority", ["none", "low", "medium", "high", "urgent"]);
 
 export const issues = pgTable(
     "issues",

@@ -120,6 +120,13 @@
       "when": 1790008000000,
       "tag": "0016_favorites",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1790009000000,
+      "tag": "0017_issue_priority_levels",
+      "breakpoints": true
     }
   ]
 }

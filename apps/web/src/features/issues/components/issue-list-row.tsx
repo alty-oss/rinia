@@ -11,6 +11,7 @@ import type { Issue } from "@/features/issues/api";
 import { translateStatusName } from "@/i18n/status-label";
 import { cx } from "@/utils/cx";
 import { useTranslation } from "react-i18next";
+import { PRIORITY_OPTIONS, priorityLabelKey } from "@/features/issues/lib/priority";
 
 const menuItem = "flex h-8 cursor-pointer items-center gap-2 rounded px-2 text-[13px] text-secondary outline-none data-highlighted:bg-layer-2-hover";
 
@@ -78,10 +79,10 @@ export function IssueListRow({
                 <button type="button" className="flex size-5 items-center justify-center rounded hover:bg-layer-1-hover" aria-label={t("issue.priority")}>
                     <PriorityIcon priority={issue.priority} />
                 </button>
-                {(["high", "medium", "low"] as const).map((priority, index) => (
+                {PRIORITY_OPTIONS.map((priority, index) => (
                     <Menu.Item key={priority} className={menuItem} onClick={() => onUpdate({ priority })}>
                         <PriorityIcon priority={priority} />
-                        <span className="flex-1">{t(`issue.${priority}`)}</span>
+                        <span className="flex-1">{t(priorityLabelKey(priority))}</span>
                         <span className="text-[11px] text-placeholder">{index + 1}</span>
                     </Menu.Item>
                 ))}

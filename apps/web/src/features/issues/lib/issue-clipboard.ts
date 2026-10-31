@@ -1,4 +1,5 @@
 import type { TiptapDocument } from "@rinia/shared";
+import { priorityLabelKey } from "./priority";
 import i18n from "@/i18n/i18n";
 import type { TranslationKey } from "@/i18n/resources";
 import {
@@ -58,7 +59,7 @@ function buildIssueClipboardContent({
         "",
         `- **${t("issue.project")}:** ${issue.project.name}`,
         `- **${t("issue.status")}:** ${issue.column.name}`,
-        `- **${t("issue.priority")}:** ${t(`issue.${issue.priority}`)}`,
+        `- **${t("issue.priority")}:** ${t(priorityLabelKey(issue.priority))}`,
         `- **${t("issue.assignee")}:** ${issue.assignee?.name ?? t("issue.unassigned")}`,
         `- **${t("issue.category")}:** ${issue.category?.name ?? t("issue.noneValue")}`,
         `- **${t("issue.estimate")}:** ${issue.estimate ?? t("issue.noneValue")}`,
@@ -75,7 +76,7 @@ function buildIssueClipboardContent({
     if (issue.children.length > 0) {
         lines.push("", `## ${t("issue.subIssues")} (${issue.children.length})`, "");
         issue.children.forEach((child) => {
-            lines.push(`- [ ] ${issue.project.issueKey}-${child.number}: ${child.title} — ${t(`issue.${child.priority}`)}`);
+            lines.push(`- [ ] ${issue.project.issueKey}-${child.number}: ${child.title} — ${t(priorityLabelKey(child.priority))}`);
         });
     }
 

@@ -28,6 +28,7 @@ import { ProjectIcon } from "@/features/projects/components/project-icon";
 import { useProject } from "@/features/projects/hooks/use-project";
 import { useCurrentProject } from "@/features/projects/hooks/use-current-project";
 import { urls } from "@/lib/urls";
+import { PRIORITY_OPTIONS, priorityLabelKey } from "@/features/issues/lib/priority";
 import { useProjectMembers } from "@/features/projects/hooks/use-project-members";
 import { useBreakpoint } from "@/hooks/use-breakpoint";
 import { useClipboard } from "@/hooks/use-clipboard";
@@ -460,7 +461,7 @@ export const IssueView = () => {
         );
     };
     const createSubIssue = async (subTitle: string) => {
-        await createIssue.mutateAsync({ columnId: columns?.[0]?.id ?? issue.columnId, title: subTitle, parentIssueId: issue.id, priority: "medium" });
+        await createIssue.mutateAsync({ columnId: columns?.[0]?.id ?? issue.columnId, title: subTitle, parentIssueId: issue.id, priority: "none" });
         await queryClient.invalidateQueries({ queryKey: issueKey(issue.identifier) });
     };
     const saving = updateIssue.isPending || descriptionStatus === "saving";
@@ -941,11 +942,11 @@ function IssueProperties({
                     placeholder={t("issue.setPriority")}
                     shortcut="P"
                     value={issue.priority}
-                    options={(["high", "medium", "low"] as const).map((priority) => ({ value: priority, label: t(`issue.${priority}`), icon: <PriorityIcon priority={priority} /> }))}
+                    options={PRIORITY_OPTIONS.map((priority) => ({ value: priority, label: t(priorityLabelKey(priority)), icon: <PriorityIcon priority={priority} /> }))}
                     onSelect={(value) => save({ priority: value as UpdateIssueInput["priority"] })}
                 >
                     <PropertyIcon><PriorityIcon priority={issue.priority} /></PropertyIcon>
-                    <span className="truncate">{t(`issue.${issue.priority}`)}</span>
+                    <span className={cx("truncate", issue.priority === "none" && "text-tertiary")}>{issue.priority === "none" ? t("issue.setPriorityAction") : t(priorityLabelKey(issue.priority))}</span>
                 </PropertyMenu>
                 <PropertyMenu
                     {...menu("assignee")}
