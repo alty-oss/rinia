@@ -151,6 +151,16 @@ export async function getProjectById(projectId: string) {
     return withParsedCover(project);
 }
 
+/** Finds a project by its current key or a key it used before, so old URLs keep resolving. */
+export async function getProjectByKey(key: string) {
+    const issueKey = key.trim().toUpperCase();
+    const current = await db.query.projects.findFirst({ where: eq(projects.issueKey, issueKey) });
+    if (current) return withParsedCover(current);
+    const alias = await db.query.projectKeyAliases.findFirst({ where: eq(projectKeyAliases.key, issueKey), columns: { projectId: true } });
+    if (!alias) throw new HttpError(404, "Project not found");
+    return getProjectById(alias.projectId);
+}
+
 export async function updateProject(projectId: string, input: UpdateProjectInput) {
     const current = await getProjectById(projectId);
     const renamedKey = input.issueKey && input.issueKey !== current.issueKey ? input.issueKey : null;

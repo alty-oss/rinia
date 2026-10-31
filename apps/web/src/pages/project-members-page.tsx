@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { AddOutline as Plus, UserMinusOutline as UserRoundMinus } from "@makeplane/propel/icons";
 import { ArrowDown, ArrowUp } from "lucide-react";
-import { useParams } from "react-router";
 import { Avatar } from "@/components/base/avatar/avatar";
 import { Button } from "@/components/base/buttons/button";
 import { ButtonUtility } from "@/components/base/buttons/button-utility";
@@ -17,9 +16,10 @@ import { useProjectMembers, useRemoveProjectMember } from "@/features/projects/h
 import { useProjectPermissions } from "@/features/projects/hooks/use-project-permissions";
 import { ApiError } from "@/lib/api-client";
 import { useTranslation } from "react-i18next";
+import { useRouteProject } from "@/features/projects/route-project";
 
 export const ProjectMembersPage = () => {
-    const { projectId = "" } = useParams<{ projectId: string }>();
+    const { projectId, projectKey } = useRouteProject();
     const { t, i18n } = useTranslation();
     const { data: members, isLoading, isError } = useProjectMembers(projectId);
     const { isProjectOwner } = useProjectPermissions(projectId);
@@ -32,7 +32,7 @@ export const ProjectMembersPage = () => {
         <div className="flex h-full min-h-0 flex-col bg-surface-1">
             <ProjectWorkspaceHeader projectId={projectId} activeView="members" />
             <ProjectHomeTabs
-                projectId={projectId}
+                projectKey={projectKey}
                 current="members"
                 actions={
                     isProjectOwner && (

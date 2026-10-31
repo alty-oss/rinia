@@ -15,6 +15,8 @@ import { Collapse } from "@/components/base/collapse";
 import { ProjectIcon } from "@/features/projects/components/project-icon";
 import type { ProjectCardSummary } from "@/features/projects/api";
 import { useProjects } from "@/features/projects/hooks/use-projects";
+import { useCurrentProject } from "@/features/projects/hooks/use-current-project";
+import { urls } from "@/lib/urls";
 import { useTranslation } from "react-i18next";
 
 const OPEN_PROJECTS_KEY = "rinia-open-projects";
@@ -100,8 +102,9 @@ export function Sidebar({ onSearch, onNavigate }: { onSearch: () => void; onNavi
     const navigate = useNavigate();
     const { t } = useTranslation();
     const { data: projects } = useProjects();
-    const projectId = location.pathname.match(/^\/projects\/([^/]+)/)?.[1] ?? readOpenProjectId() ?? "";
-    const routeProjectId = location.pathname.match(/^\/projects\/([^/]+)/)?.[1] ?? "";
+    const currentProject = useCurrentProject();
+    const routeProjectId = currentProject?.id ?? "";
+    const projectId = routeProjectId || readOpenProjectId() || "";
     const { data: columns } = useColumns(routeProjectId);
     const [creatingProjectId, setCreatingProjectId] = useState<string | null>(null);
     const [openProjects, setOpenProjects] = useState(() => {
@@ -191,12 +194,12 @@ export function Sidebar({ onSearch, onNavigate }: { onSearch: () => void; onNavi
                     onClose={() => setCreatingProjectId(null)}
                     onCreated={(identifier) => {
                         setCreatingProjectId(null);
-                        go(`/projects/${creatingProjectId}/issues/${identifier}`);
+                        go(urls.issue(identifier));
                     }}
                 />
             )}
             {creatingProjectId && creatingProjectId !== routeProjectId && (
-                <CreateElsewhere projectId={creatingProjectId} onClose={() => setCreatingProjectId(null)} onCreated={(identifier) => go(`/projects/${creatingProjectId}/issues/${identifier}`)} />
+                <CreateElsewhere projectId={creatingProjectId} onClose={() => setCreatingProjectId(null)} onCreated={(identifier) => go(urls.issue(identifier))} />
             )}
         </div>
     );
@@ -224,10 +227,11 @@ function SettingsNav({ projectId, projects }: { projectId: string; projects: Pro
     const personal = [link("/settings/preferences", t("nav.preferences"), SlidersHorizontal), link("/settings/profile", t("nav.profile"), UserRound)].filter(Boolean);
     const projectLinks = (projects ?? []).filter((project) => matches(project.name));
     const admin = user?.isAdmin ? [link("/settings/admin", t("nav.administration"), ShieldCheck)].filter(Boolean) : [];
+    const backProject = projects?.find((project) => project.id === projectId);
 
     return (
         <div className="min-h-0 flex-1 overflow-y-auto px-3 pt-3 pb-4">
-            <Link to={projectId ? `/projects/${projectId}` : "/"} className={`${itemClass(false)} mb-3`}>
+            <Link to={backProject ? urls.project(backProject.issueKey) : "/"} className={`${itemClass(false)} mb-3`}>
                 <AppIcons.Back className="size-4" />
                 {t("nav.backToApp")}
             </Link>
@@ -246,7 +250,7 @@ function SettingsNav({ projectId, projects }: { projectId: string; projects: Pro
             {projectLinks.length > 0 && (
                 <SettingsNavSection label={t("nav.yourProjects")}>
                     {projectLinks.map((project) => {
-                        const path = `/projects/${project.id}/settings`;
+                        const path = urls.projectSettings(project.issueKey);
                         const active = location.pathname === path || location.pathname.startsWith(`${path}/`);
                         return (
                             <Link key={project.id} to={path} className={itemClass(active)} aria-current={active ? "page" : undefined}>
@@ -312,9 +316,10 @@ function ProjectNavItem({
     const { t } = useTranslation();
     const current = currentProjectId === project.id;
     const viaFavorite = useViaFavorite();
-    const home = !viaFavorite && location.pathname === `/projects/${project.id}`;
-    const issues = !viaFavorite && current && /\/issues(\/|$)/.test(location.pathname);
-    const documentsIndex = !viaFavorite && location.pathname === `/projects/${project.id}/documents`;
+    const key = project.issueKey;
+    const home = !viaFavorite && location.pathname === urls.project(key);
+    const issues = !viaFavorite && current && (location.pathname.startsWith(urls.issues(key)) || location.pathname.startsWith("/issue/"));
+    const documentsIndex = !viaFavorite && location.pathname === urls.documents(key);
 
     return (
         <div className="group/project">
@@ -334,10 +339,10 @@ function ProjectNavItem({
             </button>
             <Collapse open={open}>
                 <nav aria-label={project.name} className="ml-4 flex flex-col gap-px pt-px">
-                    <ChildLink to={`/projects/${project.id}`} icon={House} label={t("nav.home")} active={home} />
-                    <ChildLink to={`/projects/${project.id}/issues`} icon={Circle} label={t("nav.issues")} active={issues} />
+                    <ChildLink to={urls.project(key)} icon={House} label={t("nav.home")} active={home} />
+                    <ChildLink to={urls.issues(key)} icon={Circle} label={t("nav.issues")} active={issues} />
                     <div className={`${ITEM} ${documentsIndex ? ACTIVE : IDLE} pr-1`}>
-                        <Link to={`/projects/${project.id}/documents`} onClick={onOpenDocs} className="flex min-w-0 items-center gap-2.5 self-stretch" aria-current={documentsIndex ? "page" : undefined}>
+                        <Link to={urls.documents(key)} onClick={onOpenDocs} className="flex min-w-0 items-center gap-2.5 self-stretch" aria-current={documentsIndex ? "page" : undefined}>
                             <AppIcons.Documents className="size-4 shrink-0" />
                             <span className="truncate">{t("nav.documents")}</span>
                         </Link>
@@ -350,10 +355,10 @@ function ProjectNavItem({
                         >
                             <Caret open={docsOpen} />
                         </button>
-                        <Link to={`/projects/${project.id}/documents`} onClick={onOpenDocs} tabIndex={-1} aria-hidden="true" className="flex-1 self-stretch" />
+                        <Link to={urls.documents(key)} onClick={onOpenDocs} tabIndex={-1} aria-hidden="true" className="flex-1 self-stretch" />
                     </div>
                     <Collapse open={docsOpen}>
-                        <ProjectDocumentsNav projectId={project.id} />
+                        <ProjectDocumentsNav projectId={project.id} projectKey={key} />
                     </Collapse>
                 </nav>
             </Collapse>
@@ -370,7 +375,7 @@ function ChildLink({ to, icon: Icon, label, active }: { to: string; icon: AppIco
     );
 }
 
-function ProjectDocumentsNav({ projectId }: { projectId: string }) {
+function ProjectDocumentsNav({ projectId, projectKey }: { projectId: string; projectKey: string }) {
     const location = useLocation();
     const viaFavorite = useViaFavorite();
     const { data: documents } = useDocuments(projectId);
@@ -378,10 +383,11 @@ function ProjectDocumentsNav({ projectId }: { projectId: string }) {
     return (
         <div className="ml-4 flex flex-col gap-px">
             {documents?.map((page) => {
-                const active = !viaFavorite && location.pathname.endsWith(`/documents/${page.id}`);
+                const to = urls.document(projectKey, page);
+                const active = !viaFavorite && location.pathname.startsWith(`${urls.documents(projectKey)}/`) && location.pathname.endsWith(page.id.replace(/-/g, "").slice(0, 12));
                 return (
                     <div key={page.id} className="group/doc relative flex min-w-0 items-center" data-document-context="true" data-project-id={projectId} data-document-id={page.id} data-document-title={page.title} data-document-author-id={page.createdBy}>
-                        <Link to={`/projects/${projectId}/documents/${page.id}`} className={itemClass(active, "pr-7 font-normal")} aria-current={active ? "page" : undefined}>
+                        <Link to={to} className={itemClass(active, "pr-7 font-normal")} aria-current={active ? "page" : undefined}>
                             {page.iconAppearance ? <ProjectIcon icon={page.iconAppearance} className="size-3.5 shrink-0" /> : <AppIcons.Documents className="size-3.5 shrink-0" />}
                             <span className="truncate">{page.title}</span>
                         </Link>
@@ -481,19 +487,19 @@ function FavoriteRow({ favorite, leaving, animateIn }: { favorite: Favorite; lea
 
 /** Link, icon, and labels for a favorite. The muted context names the project, or the issue's identifier. */
 function describeFavorite(favorite: Favorite, issuesLabel: string): { to: string; icon: ReactNode; label: string; context?: string } {
-    const base = `/projects/${favorite.projectId}`;
+    const key = favorite.project.issueKey;
     const projectIcon = <ProjectIcon icon={favorite.project.iconAppearance ?? favorite.project.icon} className="size-4 shrink-0" />;
     if (favorite.kind === "document" && favorite.document) {
         return {
-            to: `${base}/documents/${favorite.document.id}`,
+            to: urls.document(key, favorite.document),
             icon: favorite.document.iconAppearance ? <ProjectIcon icon={favorite.document.iconAppearance} className="size-4 shrink-0" /> : <AppIcons.Documents className="size-4 shrink-0" />,
             label: favorite.document.title,
             context: favorite.project.name,
         };
     }
     if (favorite.kind === "issue" && favorite.issue) {
-        return { to: `${base}/issues/${favorite.issue.identifier}`, icon: <Circle className="size-4 shrink-0" />, label: favorite.issue.title, context: favorite.issue.identifier };
+        return { to: urls.issue(favorite.issue.identifier, favorite.issue.title), icon: <Circle className="size-4 shrink-0" />, label: favorite.issue.title, context: favorite.issue.identifier };
     }
-    if (favorite.kind === "issues") return { to: `${base}/issues`, icon: <AppIcons.Issues className="size-4 shrink-0" />, label: issuesLabel, context: favorite.project.name };
-    return { to: base, icon: projectIcon, label: favorite.project.name };
+    if (favorite.kind === "issues") return { to: urls.issues(key), icon: <AppIcons.Issues className="size-4 shrink-0" />, label: issuesLabel, context: favorite.project.name };
+    return { to: urls.project(key), icon: projectIcon, label: favorite.project.name };
 }

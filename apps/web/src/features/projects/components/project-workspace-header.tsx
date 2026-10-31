@@ -12,6 +12,7 @@ import { useProjectPermissions } from "@/features/projects/hooks/use-project-per
 import { useProjects } from "@/features/projects/hooks/use-projects";
 import { ProjectIcon } from "./project-icon";
 import { useTranslation } from "react-i18next";
+import { urls } from "@/lib/urls";
 
 export function ProjectWorkspaceHeader({
     projectId,
@@ -52,7 +53,7 @@ export function ProjectWorkspaceHeader({
                 </span>
                 <span className="flex min-w-0 items-center gap-2" data-project-context="true" data-project-id={projectId} data-project-name={project?.name ?? t("projects.project")} data-project-issue-key={project?.issueKey ?? ""}>
                     <ProjectIcon icon={project?.iconAppearance ?? project?.icon} className="size-4 shrink-0" />
-                    <Link to={`/projects/${projectId}`} className="truncate text-secondary hover:text-primary">{project?.name ?? t("projects.project")}</Link>
+                    <Link to={project ? urls.project(project.issueKey) : "/"} className="truncate text-secondary hover:text-primary">{project?.name ?? t("projects.project")}</Link>
                 </span>
                 {showSection && (
                     <>
@@ -68,8 +69,8 @@ export function ProjectWorkspaceHeader({
                 {!actions && project?.repositoryUrl && (
                     <ButtonUtility icon={AppIcons.ExternalLink} color="tertiary" tooltip={t("projects.openRepository")} href={project.repositoryUrl} target="_blank" rel="noopener noreferrer" />
                 )}
-                {!actions && isProjectOwner && (
-                    <Link to={`/projects/${projectId}/settings/general`} aria-label={t("nav.projectSettings")} className="flex size-6 items-center justify-center rounded text-tertiary hover:bg-layer-1-hover">
+                {!actions && isProjectOwner && project && (
+                    <Link to={urls.projectSettings(project.issueKey, "general")} aria-label={t("nav.projectSettings")} className="flex size-6 items-center justify-center rounded text-tertiary hover:bg-layer-1-hover">
                         <AppIcons.Settings className="size-4" />
                     </Link>
                 )}

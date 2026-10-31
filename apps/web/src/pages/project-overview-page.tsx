@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { AddOutline as Plus } from "@makeplane/propel/icons";
 import { ChevronRight, FileText } from "lucide-react";
-import { Link, useNavigate, useParams } from "react-router";
+import { Link, useNavigate } from "react-router";
+import { urls } from "@/lib/urls";
+import { useRouteProject } from "@/features/projects/route-project";
 import { Avatar } from "@/components/base/avatar/avatar";
 import { Skeleton } from "@/components/base/feedback/skeleton";
 import { ErrorMessage } from "@/components/feedback/error-message";
@@ -20,7 +22,7 @@ import { useUpdateProject } from "@/features/projects/hooks/use-projects";
 import { useTranslation } from "react-i18next";
 
 export const ProjectOverviewPage = () => {
-    const { projectId = "" } = useParams<{ projectId: string }>();
+    const { projectId, projectKey } = useRouteProject();
     const { t, i18n } = useTranslation();
     const navigate = useNavigate();
     const { data: project, isLoading, isError } = useProject(projectId);
@@ -33,13 +35,13 @@ export const ProjectOverviewPage = () => {
 
     async function addDocument() {
         const page = await createDocument.mutateAsync({});
-        navigate(`/projects/${projectId}/documents/${page.id}`);
+        navigate(urls.document(projectKey, page));
     }
 
     return (
         <div className="flex h-full min-h-0 flex-col bg-surface-1">
             <ProjectWorkspaceHeader projectId={projectId} activeView="overview" />
-            <ProjectHomeTabs projectId={projectId} current="overview" />
+            <ProjectHomeTabs projectKey={projectKey} current="overview" />
             <main className="min-h-0 w-full flex-1 overflow-y-auto">
                 {isLoading ? (
                     <OverviewSkeleton />
@@ -80,7 +82,7 @@ export const ProjectOverviewPage = () => {
                                         {documents.map((document) => (
                                             <li key={document.id}>
                                                 <Link
-                                                    to={`/projects/${projectId}/documents/${document.id}`}
+                                                    to={urls.document(projectKey, document)}
                                                     className="flex h-9 items-center gap-2.5 rounded-md px-2 text-[13px] text-secondary hover:bg-layer-transparent-hover hover:text-primary"
                                                     data-document-context="true"
                                                     data-project-id={projectId}
@@ -108,7 +110,7 @@ export const ProjectOverviewPage = () => {
                                 <h2 id="project-members" className="text-[13px] text-tertiary">{t("settings.members")}</h2>
                                 <div className="mt-2.5 flex items-center gap-1.5">
                                     <Link
-                                        to={`/projects/${projectId}/members`}
+                                        to={urls.members(projectKey)}
                                         aria-label={t("projects.viewMembers")}
                                         className="flex h-8 items-center gap-1 rounded-full border border-subtle py-1 pr-1.5 pl-1 text-tertiary hover:bg-layer-transparent-hover hover:text-primary"
                                     >
@@ -138,9 +140,9 @@ export const ProjectOverviewPage = () => {
                             <section aria-labelledby="project-go-to">
                                 <h2 id="project-go-to" className="text-[13px] text-tertiary">{t("projects.goTo")}</h2>
                                 <nav className="mt-2 -mx-1.5 grid gap-0.5">
-                                    {isProjectOwner && <GoTo to={`/projects/${projectId}/settings/general`} icon={AppIcons.Settings} label={t("nav.projectSettings")} />}
-                                    <GoTo to={`/projects/${projectId}/issues`} icon={AppIcons.Issues} label={t("nav.issues")} />
-                                    <GoTo to={`/projects/${projectId}/documents`} icon={AppIcons.Documents} label={t("nav.documents")} />
+                                    {isProjectOwner && <GoTo to={urls.projectSettings(projectKey, "general")} icon={AppIcons.Settings} label={t("nav.projectSettings")} />}
+                                    <GoTo to={urls.issues(projectKey)} icon={AppIcons.Issues} label={t("nav.issues")} />
+                                    <GoTo to={urls.documents(projectKey)} icon={AppIcons.Documents} label={t("nav.documents")} />
                                 </nav>
                             </section>
                         </aside>

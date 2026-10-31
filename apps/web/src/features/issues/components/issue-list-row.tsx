@@ -2,6 +2,7 @@ import type { ReactElement, ReactNode } from "react";
 import { Menu } from "@base-ui/react/menu";
 import { GripVertical } from "lucide-react";
 import { Link } from "react-router";
+import { urls } from "@/lib/urls";
 import type { UpdateIssueInput } from "@rinia/shared";
 import { Avatar } from "@/components/base/avatar/avatar";
 import { overlayChrome } from "@/components/overlay/overlay-chrome";
@@ -49,7 +50,7 @@ export function IssueListRow({
                 <GripVertical className="size-3.5" />
             </button>
             <Link
-                to={`/projects/${projectId}/issues/${issue.identifier}`}
+                to={urls.issue(issue.identifier, issue.title)}
                 onFocus={onSelect}
                 className="flex min-w-0 flex-1 items-center gap-2"
             >
@@ -68,7 +69,7 @@ export function IssueListRow({
                 ))}
             </RowMenu>
             <Link
-                to={`/projects/${projectId}/issues/${issue.identifier}`}
+                to={urls.issue(issue.identifier, issue.title)}
                 className="min-w-0 flex-1 truncate text-secondary"
             >
                 {issue.title}

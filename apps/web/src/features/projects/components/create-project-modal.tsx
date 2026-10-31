@@ -16,6 +16,7 @@ import { ApiError } from "@/lib/api-client";
 import { useCreateProject } from "../hooks/use-projects";
 import { DEFAULT_PROJECT_ICON, ProjectIcon } from "./project-icon";
 import { useTranslation } from "react-i18next";
+import { urls } from "@/lib/urls";
 
 export const CreateProjectModal = () => {
     const mutation = useCreateProject();
@@ -40,7 +41,7 @@ export const CreateProjectModal = () => {
                             onSuccess: (project) => {
                                 reset();
                                 close();
-                                navigate(`/projects/${project.id}`);
+                                navigate(urls.project(project.issueKey));
                             },
                             onError: (error) => {
                                 setError(error instanceof ApiError && error.status === 409 ? "issueKey" : "root", {

@@ -6,6 +6,7 @@ import { ContextMenuButton } from "@/components/overlay/context-menu-provider";
 import type { ProjectCardSummary } from "../api";
 import { ProjectIcon, projectIconColor } from "./project-icon";
 import { useTranslation } from "react-i18next";
+import { urls } from "@/lib/urls";
 
 export const ProjectCard = ({ project }: { project: ProjectCardSummary }) => {
     const { t, i18n } = useTranslation();
@@ -21,7 +22,7 @@ export const ProjectCard = ({ project }: { project: ProjectCardSummary }) => {
             data-project-name={project.name}
             data-project-issue-key={project.issueKey}
         >
-            <Link to={`/projects/${project.id}`} className="flex min-h-0 flex-1 flex-col outline-none focus-visible:ring-2 focus-visible:ring-accent-strong focus-visible:ring-inset">
+            <Link to={urls.project(project.issueKey)} className="flex min-h-0 flex-1 flex-col outline-none focus-visible:ring-2 focus-visible:ring-accent-strong focus-visible:ring-inset">
                 <div className="relative h-24 shrink-0">
                     <GradientCover cover={project.cover} className="absolute inset-0" />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/55 to-transparent" />

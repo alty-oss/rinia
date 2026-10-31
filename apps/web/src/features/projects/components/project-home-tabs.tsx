@@ -1,16 +1,17 @@
 import type { ReactNode } from "react";
 import { Link } from "react-router";
 import { useTranslation } from "react-i18next";
+import { urls } from "@/lib/urls";
 
 export type ProjectHomeTab = "overview" | "documents" | "members";
 
 /** Pill tabs shared by the project's home screens: overview, documents, and members. */
-export function ProjectHomeTabs({ projectId, current, actions }: { projectId: string; current: ProjectHomeTab; actions?: ReactNode }) {
+export function ProjectHomeTabs({ projectKey, current, actions }: { projectKey: string; current: ProjectHomeTab; actions?: ReactNode }) {
     const { t } = useTranslation();
     const tabs: Array<[ProjectHomeTab, string, string]> = [
-        ["overview", t("nav.overview"), `/projects/${projectId}`],
-        ["documents", t("nav.documents"), `/projects/${projectId}/documents`],
-        ["members", t("settings.members"), `/projects/${projectId}/members`],
+        ["overview", t("nav.overview"), urls.project(projectKey)],
+        ["documents", t("nav.documents"), urls.documents(projectKey)],
+        ["members", t("settings.members"), urls.members(projectKey)],
     ];
     return (
         <nav aria-label={t("nav.projectSections")} className="flex h-12 shrink-0 items-center gap-1.5 px-3">

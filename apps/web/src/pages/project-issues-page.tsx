@@ -3,6 +3,8 @@ import type { Issue } from "@/features/issues/api";
 import { AddOutline, ChevronDownOutline } from "@makeplane/propel/icons";
 import { LayoutGrid, List, Plus } from "lucide-react";
 import { useNavigate, useParams, useSearchParams } from "react-router";
+import { urls } from "@/lib/urls";
+import { useRouteProject } from "@/features/projects/route-project";
 import { Button } from "@/components/base/buttons/button";
 import { Input } from "@/components/base/input/input";
 import { EmptyState } from "@/components/feedback/empty-state";
@@ -27,7 +29,8 @@ type Scope = "active" | "backlog" | "all";
 
 export const ProjectIssuesPage = () => {
     const { t } = useTranslation();
-    const { projectId } = useParams<{ projectId: string }>();
+    const { projectId, projectKey } = useRouteProject();
+    const params = useParams<{ scope: string }>();
     const navigate = useNavigate();
     const [searchParams, setSearchParams] = useSearchParams();
     const orderBy = readOrder(searchParams.get("order"));
@@ -37,7 +40,7 @@ export const ProjectIssuesPage = () => {
     const status = searchParams.get("status") ?? "";
     const assignee = searchParams.get("assignee") ?? "";
     const category = searchParams.get("label") ?? "";
-    const scope = readScope(searchParams.get("scope"));
+    const scope = readScope(params.scope ?? null);
     const view = searchParams.get("view") === "board" ? "board" : "list";
     const { data: issues, isLoading, isError } = useIssues(projectId!, { orderBy });
     const updateIssue = useUpdateIssue(projectId!);
@@ -141,7 +144,7 @@ export const ProjectIssuesPage = () => {
 
 
     function openIssue(identifier: string) {
-        navigate(`/projects/${projectId}/issues/${identifier}`);
+        navigate(urls.issue(identifier));
     }
 
     function submitIssue() {
@@ -171,11 +174,8 @@ export const ProjectIssuesPage = () => {
 
 
     function setScope(next: Scope) {
-        setSearchParams((current) => {
-            if (next === "active") current.delete("scope");
-            else current.set("scope", next);
-            return current;
-        }, { replace: true });
+        const query = searchParams.toString();
+        navigate(`${urls.issues(projectKey, next)}${query ? `?${query}` : ""}`, { replace: true });
     }
 
     function setView(next: "list" | "board") {

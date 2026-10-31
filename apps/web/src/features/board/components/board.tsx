@@ -16,6 +16,7 @@ import {
 } from "@dnd-kit/core";
 import { arrayMove, sortableKeyboardCoordinates } from "@dnd-kit/sortable";
 import { useNavigate } from "react-router";
+import { urls } from "@/lib/urls";
 import { filterIssues, readIssueOrder } from "@/features/issues/lib/issue-filters";
 import { ErrorMessage } from "@/components/feedback/error-message";
 import { Alert } from "@/components/base/feedback/alert";
@@ -227,7 +228,7 @@ export const Board = ({ projectId, filters = new URLSearchParams() }: { projectI
                             projectId={projectId}
                             categoriesById={categoriesById}
                             membersById={membersById}
-                            onOpenIssue={(identifier) => navigate(`/projects/${projectId}/issues/${identifier}`)}
+                            onOpenIssue={(identifier) => navigate(urls.issue(identifier))}
                             onCreateIssue={(columnId) => setCreateColumnId(columnId)}
                         />
                     ))}

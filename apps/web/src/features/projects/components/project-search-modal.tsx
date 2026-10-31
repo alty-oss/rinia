@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { ArrowRight, Search } from "lucide-react";
-import { useLocation, useNavigate } from "react-router";
+import { useNavigate } from "react-router";
 import { Dialog, Modal, ModalOverlay } from "@/components/application/modals/modal";
 import { Input } from "@/components/base/input/input";
 import { LoadingState } from "@/components/feedback/loading-state";
 import { useIssues } from "@/features/issues/hooks/use-issues";
 import { useProjects } from "../hooks/use-projects";
+import { useCurrentProject } from "../hooks/use-current-project";
+import { urls } from "@/lib/urls";
 import { ProjectIcon } from "./project-icon";
 import { useTranslation } from "react-i18next";
 import type { EntityIcon } from "@rinia/shared";
@@ -24,9 +26,9 @@ export const ProjectSearchModal = ({ onClose }: ProjectSearchModalProps) => {
     const [query, setQuery] = useState("");
     const [selectedIndex, setSelectedIndex] = useState(0);
     const { data: projects } = useProjects();
-    const location = useLocation();
     const navigate = useNavigate();
-    const activeProjectId = location.pathname.match(/^\/projects\/([^/]+)/)?.[1];
+    const activeProject = useCurrentProject();
+    const activeProjectId = activeProject?.id;
     const { data: issues, isLoading: issuesLoading } = useIssues(activeProjectId ?? "");
 
     const results = useMemo(() => {
@@ -39,13 +41,13 @@ export const ProjectSearchModal = ({ onClose }: ProjectSearchModalProps) => {
             .map((issue) => ({ type: "issue", id: issue.identifier, title: issue.title, key: issue.identifier, description: null, icon: null }));
         const commandResults: SearchResult[] = activeProjectId
             ? [
-                  { type: "command" as const, id: "issues", title: t("search.openIssues"), key: t("search.navigation"), description: t("search.browseIssues"), icon: null, path: `/projects/${activeProjectId}/issues` },
-                  { type: "command" as const, id: "board", title: t("search.openBoard"), key: t("search.navigation"), description: t("search.moveIssues"), icon: null, path: `/projects/${activeProjectId}/issues?view=board` },
-                  { type: "command" as const, id: "documents", title: t("search.openDocuments"), key: t("search.navigation"), description: t("search.openProjectDocument"), icon: null, path: `/projects/${activeProjectId}/documents` },
+                  { type: "command" as const, id: "issues", title: t("search.openIssues"), key: t("search.navigation"), description: t("search.browseIssues"), icon: null, path: urls.issues(activeProject!.issueKey) },
+                  { type: "command" as const, id: "board", title: t("search.openBoard"), key: t("search.navigation"), description: t("search.moveIssues"), icon: null, path: `${urls.issues(activeProject!.issueKey)}?view=board` },
+                  { type: "command" as const, id: "documents", title: t("search.openDocuments"), key: t("search.navigation"), description: t("search.openProjectDocument"), icon: null, path: urls.documents(activeProject!.issueKey) },
               ].filter((command) => !normalized || `${command.title} ${command.description}`.toLowerCase().includes(normalized))
             : [];
         return { projects: projectResults, issues: issueResults, commands: commandResults, all: [...projectResults, ...issueResults, ...commandResults] };
-    }, [activeProjectId, issues, projects, query, t]);
+    }, [activeProject, activeProjectId, issues, projects, query, t]);
 
     useEffect(() => setSelectedIndex(0), [query]);
     useEffect(() => setSelectedIndex((index) => Math.min(index, Math.max(results.all.length - 1, 0))), [results.all.length]);
@@ -57,9 +59,9 @@ export const ProjectSearchModal = ({ onClose }: ProjectSearchModalProps) => {
 
     function openResult(result: SearchResult) {
         if (result.type === "project") {
-            navigate(`/projects/${result.id}`);
+            navigate(urls.project(result.key));
         } else if (activeProjectId) {
-            navigate(result.type === "command" ? result.path : `/projects/${activeProjectId}/issues/${result.id}`);
+            navigate(result.type === "command" ? result.path : urls.issue(result.id, result.title));
         }
         onClose();
     }

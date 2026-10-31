@@ -4,7 +4,7 @@ import type { Request, Response, NextFunction } from "express";
 import { createProjectSchema } from "@rinia/shared";
 import { db } from "../src/db";
 import { projectKeyAliases, projects } from "../src/db/schema";
-import { createProject, updateProject } from "../src/features/projects/projects.service";
+import { createProject, getProjectByKey, updateProject } from "../src/features/projects/projects.service";
 import { isProjectKeyConflict } from "../src/features/projects/project-key";
 import { HttpError } from "../src/lib/http-error";
 import { requireProjectOwner } from "../src/middleware/project-membership.middleware";
@@ -177,4 +177,17 @@ test("project deletion/settings guard permits owner and admin, but not a missing
     assert.equal(await authorize(true), 200);
     project.mock.mockImplementation(async () => undefined);
     await assert.rejects(authorize(true), (error: unknown) => error instanceof HttpError && error.statusCode === 404);
+});
+
+test("a project resolves by its current key or by a key it used before", async () => {
+    const project = { id: "project", issueKey: "NEW", cover: null };
+    const lookup = mock.method(db.query.projects, "findFirst", async () => (lookup.mock.callCount() === 1 ? undefined : project) as never);
+    mock.method(db.query.projectKeyAliases, "findFirst", async () => ({ projectId: "project" }) as never);
+    assert.equal((await getProjectByKey("old")).issueKey, "NEW");
+});
+
+test("an unknown key is a missing project", async () => {
+    mock.method(db.query.projects, "findFirst", async () => undefined);
+    mock.method(db.query.projectKeyAliases, "findFirst", async () => undefined);
+    await assert.rejects(getProjectByKey("NOPE"), (error: unknown) => error instanceof HttpError && error.statusCode === 404);
 });

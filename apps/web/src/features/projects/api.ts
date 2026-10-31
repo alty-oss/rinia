@@ -39,6 +39,11 @@ export function getProject(projectId: string): Promise<Project> {
     return apiClient.get<{ project: Project }>(`/projects/${projectId}`).then((res) => res.project);
 }
 
+/** Resolves a URL key, including keys the project used before a rename. */
+export function getProjectByKey(key: string): Promise<Project> {
+    return apiClient.get<{ project: Project }>(`/projects/by-key/${encodeURIComponent(key)}`).then((res) => res.project);
+}
+
 export function createProject(input: CreateProjectInput): Promise<Project> {
     return apiClient.post<{ project: Project }>("/projects", input).then((res) => res.project);
 }

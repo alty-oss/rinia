@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import type { EntityIcon, TiptapDocument, UpdateIssueInput } from "@rinia/shared";
 import { ArrowDown, ArrowUp, Ban, Check, ChevronRight, Copy, GitBranch, Link2, Pencil, Plus, ShieldOff, Sparkles, Trash2 } from "lucide-react";
-import { Link, useBeforeUnload, useNavigate, useParams } from "react-router";
+import { Link, useBeforeUnload, useLocation, useNavigate, useParams } from "react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { useHotkeys } from "react-hotkeys-hook";
 import { Menu } from "@base-ui/react/menu";
@@ -26,6 +26,8 @@ import { useCategories } from "@/features/categories/hooks/use-categories";
 import { FavoriteStar } from "@/features/favorites/components/favorite-star";
 import { ProjectIcon } from "@/features/projects/components/project-icon";
 import { useProject } from "@/features/projects/hooks/use-project";
+import { useCurrentProject } from "@/features/projects/hooks/use-current-project";
+import { urls } from "@/lib/urls";
 import { useProjectMembers } from "@/features/projects/hooks/use-project-members";
 import { useBreakpoint } from "@/hooks/use-breakpoint";
 import { useClipboard } from "@/hooks/use-clipboard";
@@ -80,17 +82,19 @@ export const IssueView = () => {
     const navigate = useNavigate();
     const params = useParams<{ projectId: string; issueIdentifier: string }>();
     const resolvedIdentifier = params.issueIdentifier ?? "";
-    const resolvedProjectId = params.projectId ?? "";
+    const currentProject = useCurrentProject();
+    const resolvedProjectId = currentProject?.id ?? "";
+    const location = useLocation();
     const { user } = useAuth();
     const { copy } = useClipboard();
     const showToast = useToast();
     const queryClient = useQueryClient();
     const { toggleSidebar } = useAppNavigation();
     const wide = useBreakpoint("lg");
-    const { data: project } = useProject(resolvedProjectId);
     const [openMenu, setOpenMenu] = useState<PropertyMenuId | null>(null);
     const [deleteOpen, setDeleteOpen] = useState(false);
     const { data: issue, isLoading, isError } = useIssue(resolvedIdentifier);
+    const { data: project } = useProject(issue?.projectId ?? resolvedProjectId);
     const updateIssue = useUpdateIssue(issue?.projectId ?? resolvedProjectId);
     const createIssue = useCreateIssue(issue?.projectId ?? resolvedProjectId);
     const deleteIssue = useDeleteIssue(issue?.projectId ?? resolvedProjectId);
@@ -113,11 +117,13 @@ export const IssueView = () => {
     useHotkeys("a", () => setOpenMenu("assignee"), propertyHotkey);
     useHotkeys("l", () => setOpenMenu("label"), propertyHotkey);
 
-    // An identifier from before a project key change still resolves; move the URL to the current one.
+    // Keep the URL canonical: an identifier from before a key change, a missing or stale title slug,
+    // or a lowercase identifier all become `/issue/KEY-12/current-title`.
+    const canonicalUrl = issue ? urls.issue(issue.identifier, issue.title) : null;
     useEffect(() => {
-        if (!issue || !params.issueIdentifier || params.issueIdentifier.toUpperCase() === issue.identifier) return;
-        navigate(`/projects/${issue.projectId}/issues/${issue.identifier}`, { replace: true });
-    }, [issue, navigate, params.issueIdentifier]);
+        if (!canonicalUrl || location.pathname === canonicalUrl) return;
+        navigate(`${canonicalUrl}${location.search}`, { replace: true });
+    }, [canonicalUrl, location.pathname, location.search, navigate]);
     const [relationsOpen, setRelationsOpen] = useState(false);
     const [description, setDescription] = useState<TiptapDocument>(EMPTY_TIPTAP_DOCUMENT);
     const [title, setTitle] = useState("");
@@ -413,7 +419,7 @@ export const IssueView = () => {
         const result = await copy(text, "issue-meta");
         showToast(result.success ? success : { tone: "error", title: t("issue.couldNotCopy") });
     };
-    const copyLink = () => void copyText(`${window.location.origin}/projects/${issue.projectId}/issues/${issue.identifier}`, { tone: "copy", title: t("issue.linkCopied") });
+    const copyLink = () => void copyText(`${window.location.origin}${urls.issue(issue.identifier, currentTitle)}`, { tone: "copy", title: t("issue.linkCopied") });
     const copyId = () => void copyText(issue.identifier, { tone: "copy", title: t("issue.idCopied", { id: issue.identifier }) });
     const copyBranch = () => {
         const branch = gitBranchName(user?.username, issue.identifier, currentTitle);
@@ -485,12 +491,12 @@ export const IssueView = () => {
                     <span className="md:hidden">
                         <ButtonUtility icon={AppIcons.Menu} color="tertiary" tooltip={t("nav.expand")} onClick={toggleSidebar} />
                     </span>
-                    <Link to={`/projects/${issue.projectId}`} className="flex min-w-0 shrink items-center gap-2 text-secondary hover:text-primary">
+                    <Link to={urls.project(issue.project.issueKey)} className="flex min-w-0 shrink items-center gap-2 text-secondary hover:text-primary">
                         <ProjectIcon icon={project?.iconAppearance ?? project?.icon} className="size-4 shrink-0" />
                         <span className="truncate">{issue.project.name}</span>
                     </Link>
                     <ChevronRight className="size-3 shrink-0 text-placeholder" aria-hidden="true" />
-                    <Link to={`/projects/${issue.projectId}/issues`} className="shrink-0 text-secondary hover:text-primary">{t("nav.issues")}</Link>
+                    <Link to={urls.issues(issue.project.issueKey)} className="shrink-0 text-secondary hover:text-primary">{t("nav.issues")}</Link>
                     <ChevronRight className="size-3 shrink-0 text-placeholder" aria-hidden="true" />
                     <span className="min-w-0 truncate text-primary">
                         <span className="text-tertiary">{issue.identifier}</span> {currentTitle}
@@ -505,7 +511,7 @@ export const IssueView = () => {
                 </div>
                 <div className="flex shrink-0 items-center gap-3">
                     {(saving || unsaved) && <span className="text-xs text-tertiary" role="status">{saving ? t("issue.savingIssue") : t("issue.unsavedIssue")}</span>}
-                    {projectIssues && projectIssues.length > 0 && <IssuePager issues={projectIssues} identifier={issue.identifier} onOpen={(next) => navigate(`/projects/${issue.projectId}/issues/${next}`)} />}
+                    {projectIssues && projectIssues.length > 0 && <IssuePager issues={projectIssues} identifier={issue.identifier} onOpen={(next) => navigate(urls.issue(next))} />}
                 </div>
             </header>
 
@@ -587,7 +593,7 @@ export const IssueView = () => {
                                         const key = descriptionDraftKey.current;
                                         if (key) void issueDescriptionDrafts.clearDescription(key).catch(() => undefined);
                                         descriptionDirty.current = false;
-                                        navigate(`/projects/${created.projectId}/issues/${created.identifier}`);
+                                        navigate(urls.issue(created.identifier, created.title));
                                     } catch (reason) {
                                         setDescriptionSaveError(errorMessage(reason, t("issue.couldNotSaveIssue")));
                                     }
@@ -677,7 +683,7 @@ export const IssueView = () => {
                 description={t("issue.deleteIssueDescription", { title: issue.title })}
                 confirmLabel={t("issue.deleteIssue")}
                 isPending={deleteIssue.isPending}
-                onConfirm={() => deleteIssue.mutate(issue.identifier, { onSuccess: () => navigate(`/projects/${issue.projectId}/issues`) })}
+                onConfirm={() => deleteIssue.mutate(issue.identifier, { onSuccess: () => navigate(urls.issues(issue.project.issueKey)) })}
             />
         </main>
     );
@@ -1002,7 +1008,7 @@ function IssueProperties({
             </PropertyGroup>
 
             <PropertyGroup title={t("issue.project")}>
-                <Link to={`/projects/${issue.projectId}`} className={propertyButton}>
+                <Link to={urls.project(issue.project.issueKey)} className={propertyButton}>
                     <ProjectIcon icon={projectIcon} className="size-4 shrink-0" />
                     <span className="truncate">{issue.project.name}</span>
                 </Link>
@@ -1054,7 +1060,7 @@ function IssueSubIssues({ issue, columns, isCreating, onCreate }: { issue: Issue
                             const column = columnOf(child.columnId);
                             return (
                                 <li key={child.id} className="animate-enter" data-issue-id={child.id} data-issue-context="true" data-project-id={issue.projectId} data-issue-identifier={identifier} data-issue-title={child.title}>
-                                    <Link to={`/projects/${issue.projectId}/issues/${identifier}`} className="flex h-9 items-center gap-2.5 rounded-md px-2 text-[13px] transition-colors duration-150 hover:bg-layer-transparent-hover">
+                                    <Link to={urls.issue(identifier, child.title)} className="flex h-9 items-center gap-2.5 rounded-md px-2 text-[13px] transition-colors duration-150 hover:bg-layer-transparent-hover">
                                         <StateIcon name={column?.name ?? ""} color={column?.color} />
                                         <span className="w-16 shrink-0 text-tertiary">{identifier}</span>
                                         <span className="min-w-0 truncate text-primary">{child.title}</span>
@@ -1162,7 +1168,7 @@ function IssueRelations({
                         <li key={relation.id} className="group/relation animate-enter flex h-9 items-center gap-2.5 rounded-md px-2 text-[13px] transition-colors duration-150 hover:bg-layer-transparent-hover">
                             <span className="w-24 shrink-0 truncate text-tertiary">{typeLabels[relation.type as RelationType] ?? relation.type}</span>
                             <Link
-                                to={`/projects/${targetProjectId}/issues/${identifier}`}
+                                to={urls.issue(identifier, relation.target.title)}
                                 className="flex min-w-0 flex-1 items-center gap-2"
                                 data-issue-id={relation.target.id}
                                 data-issue-context="true"

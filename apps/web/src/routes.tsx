@@ -4,6 +4,9 @@ import { LoadingState } from "@/components/feedback/loading-state";
 import { AppShell } from "@/components/layout/app-shell";
 import { AuthLayout } from "@/components/layout/auth-layout";
 import { RequireAuth } from "@/features/auth/components/require-auth";
+import { useProjects } from "@/features/projects/hooks/use-projects";
+import { ProjectRoute } from "@/features/projects/route-project";
+import { urls, type ProjectSettingsSection } from "@/lib/urls";
 import { useTranslation } from "react-i18next";
 
 const ProjectSettingsPage = lazy(() => import("@/pages/project-settings-page").then((module) => ({ default: module.ProjectSettingsPage })));
@@ -23,19 +26,33 @@ const PreferencesSettingsPage = lazy(() => import("@/pages/preferences-settings-
 const ProjectsPage = lazy(() => import("@/pages/projects-page").then((module) => ({ default: module.ProjectsPage })));
 const RegisterPage = lazy(() => import("@/pages/register-page").then((module) => ({ default: module.RegisterPage })));
 
-function IssuesListRedirect() {
-    const { projectId } = useParams();
+/** Old `/projects/<uuid>/...` links (bookmarks, pasted URLs) land on the matching key-based URL. */
+function LegacyProjectRedirect() {
+    const { projectId = "", "*": rest = "" } = useParams();
     const [params] = useSearchParams();
-    const search = params.toString();
-    return <Navigate replace to={`/projects/${projectId}/issues${search ? `?${search}` : ""}`} />;
-}
+    const { t } = useTranslation();
+    const { data: projects, isLoading } = useProjects();
+    const project = projects?.find((candidate) => candidate.id === projectId);
+    if (isLoading) return <LoadingState label={t("common.loadingPage")} className="p-6" />;
+    if (!project) return <NotFound />;
 
-function BoardRedirect() {
-    const { projectId } = useParams();
-    const [params] = useSearchParams();
-    const next = new URLSearchParams(params);
-    next.set("view", "board");
-    return <Navigate replace to={`/projects/${projectId}/issues?${next.toString()}`} />;
+    const [section, item] = rest.split("/").filter(Boolean);
+    const key = project.issueKey;
+    const search = new URLSearchParams(params);
+    let to = urls.project(key);
+    if (section === "issues" && item && item !== "list") to = urls.issue(item);
+    else if (section === "issues") {
+        const scope = search.get("scope");
+        search.delete("scope");
+        to = urls.issues(key, scope === "backlog" || scope === "all" ? scope : "active");
+    } else if (section === "board") {
+        search.set("view", "board");
+        to = urls.issues(key);
+    } else if (section === "documents" || section === "page") to = item ? `${urls.documents(key)}/${item}` : urls.documents(key);
+    else if (section === "members") to = urls.members(key);
+    else if (section === "settings") to = urls.projectSettings(key, item as ProjectSettingsSection | undefined);
+    const query = search.toString();
+    return <Navigate replace to={`${to}${query ? `?${query}` : ""}`} />;
 }
 
 export const AppRoutes = () => {
@@ -60,17 +77,17 @@ export const AppRoutes = () => {
                     <Route path="/settings/profile" element={<ProfileSettingsPage />} />
                     <Route path="/settings/preferences" element={<PreferencesSettingsPage />} />
                     <Route path="/settings/admin" element={<AdminSettingsPage />} />
-                    <Route path="/projects/:projectId/settings" element={<ProjectSettingsPage />} />
-                    <Route path="/projects/:projectId/settings/:section" element={<ProjectSettingsPage />} />
-                    <Route path="/projects/:projectId" element={<ProjectOverviewPage />} />
-                    <Route path="/projects/:projectId/issues" element={<ProjectIssuesPage />} />
-                    <Route path="/projects/:projectId/issues/list" element={<IssuesListRedirect />} />
-                    <Route path="/projects/:projectId/issues/:issueIdentifier" element={<IssueView />} />
-                    <Route path="/projects/:projectId/board" element={<BoardRedirect />} />
-                    <Route path="/projects/:projectId/members" element={<ProjectMembersPage />} />
-                    <Route path="/projects/:projectId/documents" element={<ProjectDocumentsPage />} />
-                    <Route path="/projects/:projectId/documents/:documentId" element={<ProjectDocumentPage />} />
-                    <Route path="/projects/:projectId/page" element={<Navigate replace to="../documents" />} />
+                    <Route path="/settings/project/:projectKey" element={<ProjectRoute><ProjectSettingsPage /></ProjectRoute>} />
+                    <Route path="/settings/project/:projectKey/:section" element={<ProjectRoute><ProjectSettingsPage /></ProjectRoute>} />
+                    <Route path="/project/:projectKey" element={<ProjectRoute><ProjectOverviewPage /></ProjectRoute>} />
+                    <Route path="/project/:projectKey/issues" element={<ProjectRoute><ProjectIssuesPage /></ProjectRoute>} />
+                    <Route path="/project/:projectKey/issues/:scope" element={<ProjectRoute><ProjectIssuesPage /></ProjectRoute>} />
+                    <Route path="/project/:projectKey/members" element={<ProjectRoute><ProjectMembersPage /></ProjectRoute>} />
+                    <Route path="/project/:projectKey/docs" element={<ProjectRoute><ProjectDocumentsPage /></ProjectRoute>} />
+                    <Route path="/project/:projectKey/docs/:documentSlug" element={<ProjectRoute><ProjectDocumentPage /></ProjectRoute>} />
+                    <Route path="/issue/:issueIdentifier" element={<IssueView />} />
+                    <Route path="/issue/:issueIdentifier/:slug" element={<IssueView />} />
+                    <Route path="/projects/:projectId/*" element={<LegacyProjectRedirect />} />
                 </Route>
 
                 {import.meta.env.DEV && (
