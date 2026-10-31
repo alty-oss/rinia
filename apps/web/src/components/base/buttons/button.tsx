@@ -5,18 +5,12 @@ import { cx, sortCx } from "@/utils/cx";
 import { isReactComponent } from "@/utils/is-react-component";
 import { controlScale } from "@/components/base/control-scale";
 
-function emphasisFill(color: string) {
-    return [
-        "text-white",
-        `[--button-emphasis-ring:color-mix(in_oklch,var(${color}),black_10%)]`,
-        `[--button-emphasis-bg:color-mix(in_oklch,var(${color}),white_30%)]`,
-        `[--button-emphasis-gradient-start:color-mix(in_oklch,var(${color}),white_15%)]`,
-        `[--button-emphasis-gradient-end:var(${color})]`,
-        "bg-linear-to-b from-(--button-emphasis-gradient-start) to-(--button-emphasis-gradient-end)",
-        "shadow-[inset_0_1px_0_0_var(--button-emphasis-bg)] ring-1 ring-(--button-emphasis-ring) ring-inset",
-        "hover:from-(--button-emphasis-bg) data-loading:from-(--button-emphasis-bg)",
-    ].join(" ");
-}
+const emphasisFill = [
+    "text-white",
+    "bg-linear-to-b from-(--button-emphasis-gradient-start) to-(--button-emphasis-gradient-end)",
+    "shadow-[inset_0_1px_0_0_var(--button-emphasis-bg)] ring-1 ring-(--button-emphasis-ring) ring-inset",
+    "hover:from-(--button-emphasis-bg) data-loading:from-(--button-emphasis-bg)",
+].join(" ");
 
 export const styles = sortCx({
     common: {
@@ -69,7 +63,14 @@ export const styles = sortCx({
 
     colors: {
         primary: {
-            root: [emphasisFill("--bg-accent-primary"), "*:data-icon:text-white/70 hover:*:data-icon:text-white"].join(" "),
+            root: [
+                emphasisFill,
+                "[--button-emphasis-ring:color-mix(in_oklch,var(--bg-accent-primary),black_10%)]",
+                "[--button-emphasis-bg:color-mix(in_oklch,var(--bg-accent-primary),white_30%)]",
+                "[--button-emphasis-gradient-start:color-mix(in_oklch,var(--bg-accent-primary),white_15%)]",
+                "[--button-emphasis-gradient-end:var(--bg-accent-primary)]",
+                "*:data-icon:text-white/70 hover:*:data-icon:text-white",
+            ].join(" "),
         },
         secondary: {
             root: [
@@ -104,7 +105,15 @@ export const styles = sortCx({
             ].join(" "),
         },
         "primary-destructive": {
-            root: [emphasisFill("--bg-danger-primary"), "outline-error", "*:data-icon:text-white/70 hover:*:data-icon:text-white"].join(" "),
+            root: [
+                emphasisFill,
+                "[--button-emphasis-ring:color-mix(in_oklch,var(--bg-danger-primary),black_10%)]",
+                "[--button-emphasis-bg:color-mix(in_oklch,var(--bg-danger-primary),white_30%)]",
+                "[--button-emphasis-gradient-start:color-mix(in_oklch,var(--bg-danger-primary),white_15%)]",
+                "[--button-emphasis-gradient-end:var(--bg-danger-primary)]",
+                "outline-error",
+                "*:data-icon:text-white/70 hover:*:data-icon:text-white",
+            ].join(" "),
         },
         "secondary-destructive": {
             root: [
