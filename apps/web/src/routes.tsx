@@ -104,7 +104,7 @@ function IssuePeekLoadingFallback({ onClose }: { onClose: () => void }) {
                 <div className="flex h-12 shrink-0 items-center border-b border-subtle px-4">
                     <Skeleton className="h-4 w-24" />
                 </div>
-                <div className="space-y-5 px-8 py-5">
+                <div className="space-y-4 px-6 py-4">
                     <Skeleton className="h-3 w-16" />
                     <Skeleton className="h-7 w-4/5" />
                     <Skeleton className="h-24 w-full" />

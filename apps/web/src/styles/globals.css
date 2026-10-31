@@ -222,7 +222,7 @@ input[type="number"] {
 .peek-comments .ProseMirror { min-height: 60px; padding: 8px; font-size: 13px; }
 @media (max-width: 767px) {
     .plane-board-page > header { height: auto; min-height: 45px; flex-wrap: wrap; padding-block: 8px; }
-    .plane-issue-peek .issue-peek-body { padding: 20px; }
+    .plane-issue-peek .issue-peek-body { padding: 16px; }
     .peek-property-row > span { width: 110px; }
 }
 

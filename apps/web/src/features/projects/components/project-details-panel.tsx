@@ -52,7 +52,7 @@ export const ProjectDetailsPanel = ({ projectId, isProjectOwner }: { projectId: 
                     }),
                 )}
             >
-                <div ref={coverRef} className="relative flex h-44 items-end overflow-hidden rounded-md border border-subtle bg-surface-2 p-4">
+                <div ref={coverRef} className="relative flex h-32 items-end overflow-hidden rounded-md border border-subtle bg-surface-2 p-3">
                     <CoverImage cover={previewCover} className="absolute inset-0" />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
                     <div className="flex min-w-0 items-center gap-3">

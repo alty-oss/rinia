@@ -169,9 +169,9 @@ export const ProjectIssuesPage = () => {
             <ProjectWorkspaceHeader projectId={projectId!} activeView="issues" />
             <IssueToolbar projectId={projectId!} onCreate={() => { setCreateError(null); setIsCreating(true); }} />
             <main className="min-h-0 w-full flex-1 overflow-y-auto">
-                <div className="flex flex-col gap-6">
+                <div className="flex flex-col">
                     {isCreating && (
-                        <div className="flex items-center gap-2 rounded-md border border-subtle bg-surface-2 p-2">
+                        <div className="flex items-center gap-2 border-b border-subtle bg-surface-2 px-3 py-2">
                             <Input
                                 autoFocus
                                 value={title}
@@ -199,7 +199,7 @@ export const ProjectIssuesPage = () => {
                     {isError && <ErrorMessage message={t("issue.couldNotLoadIssues")} />}
                     {!isLoading && !isError && (
                         <div className="overflow-hidden">
-                            <div className="hidden grid-cols-[minmax(0,1fr)_8rem_8rem_10rem] gap-3 border-b border-subtle px-3 py-2 text-xs font-medium text-tertiary sm:grid lg:grid-cols-[minmax(0,1fr)_7rem_7rem_9rem_7rem_7rem_4rem]">
+                            <div className="hidden grid-cols-[minmax(0,1fr)_8rem_8rem_10rem] gap-3 border-b border-subtle px-3 py-1.5 text-[11px] font-medium text-tertiary sm:grid lg:grid-cols-[minmax(0,1fr)_7rem_7rem_9rem_7rem_7rem_4rem]">
                                 <span>{t("issue.title")}</span>
                                 <span>{t("issue.status")}</span>
                                 <span>{t("issue.priority")}</span>
@@ -221,7 +221,7 @@ export const ProjectIssuesPage = () => {
                                                     else next.add(group.key);
                                                     return next;
                                                 })}
-                                                className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs font-medium text-secondary hover:bg-layer-1-hover"
+                                                className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-[11px] font-medium text-secondary hover:bg-layer-1-hover"
                                             >
                                                 <ChevronDown className={`size-3.5 text-placeholder transition-transform ${collapsedGroups.has(group.key) ? "-rotate-90" : ""}`} aria-hidden="true" />
                                                 <span>{group.label === "Unknown status" ? t("issue.unknownStatus") : translateStatusName(group.label, t)}</span>
@@ -274,7 +274,7 @@ function IssueListSkeleton() {
     const { t } = useTranslation();
     return <div className="overflow-hidden" aria-label={t("common.loading")} role="status">
         <div className="hidden h-9 border-b border-subtle bg-surface-2 sm:block" />
-        <div className="divide-y divide-subtle">{["one", "two", "three", "four", "five"].map((key) => <div key={key} className="flex min-h-12 items-center gap-3 px-3 py-2">
+        <div className="divide-y divide-subtle">{["one", "two", "three", "four", "five"].map((key) => <div key={key} className="flex h-9 items-center gap-3 px-3">
             <Skeleton className="size-2 shrink-0 rounded-full" /><Skeleton className="h-3 w-16 shrink-0" /><Skeleton className="h-3 min-w-0 flex-1" /><Skeleton className="hidden h-6 w-16 sm:block" /><Skeleton className="hidden h-3 w-20 lg:block" />
         </div>)}</div>
     </div>;
@@ -324,14 +324,14 @@ function IssueRow({
                 state={{ backgroundLocation }}
                 tabIndex={0}
                 onFocus={onSelect}
-                className={`grid w-full grid-cols-[minmax(0,1fr)_8rem_8rem_10rem] items-center gap-3 border-b border-subtle px-4 py-2 text-left transition-colors last:border-0 hover:bg-layer-1-hover focus-visible:z-10 focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-accent-strong max-sm:grid-cols-1 max-sm:gap-2 max-sm:pr-12 lg:grid-cols-[minmax(0,1fr)_7rem_7rem_9rem_7rem_7rem_4rem] ${
-                    selected ? "bg-surface-2" : ""
+                className={`grid w-full grid-cols-[minmax(0,1fr)_8rem_8rem_10rem] items-center gap-3 border-b border-subtle px-3 py-1.5 text-left transition-colors duration-150 last:border-0 hover:bg-layer-1-hover focus-visible:z-10 focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-accent-strong max-sm:grid-cols-1 max-sm:gap-2 max-sm:pr-12 lg:grid-cols-[minmax(0,1fr)_7rem_7rem_9rem_7rem_7rem_4rem] ${
+                    selected ? "bg-layer-1" : ""
                 }`}
             >
                 <span className="flex min-w-0 items-center gap-2">
                     <span aria-hidden="true" className="size-2 shrink-0 rounded-full" style={{ backgroundColor: column?.color ?? "#71717a" }} />
-                    <span className="w-16 shrink-0 text-xs text-tertiary">{issue.identifier}</span>
-                    <span className="min-w-0 truncate text-sm text-primary">{issue.title}</span>
+                    <span className="w-16 shrink-0 text-[11px] text-tertiary">{issue.identifier}</span>
+                    <span className="min-w-0 truncate text-[13px] text-primary">{issue.title}</span>
                     <span className="ml-auto hidden shrink-0 text-[11px] text-tertiary max-sm:block">{column ? translateStatusName(column.name, t) : ""}</span>
                 </span>
                 <span className="truncate text-xs text-secondary max-sm:hidden">{column ? translateStatusName(column.name, t) : t("issue.unknown")}</span>

@@ -9,7 +9,7 @@ import { clearDocumentDrafts } from "@/features/documents/sessions";
 import { issueDescriptionDrafts } from "@/features/issues/lib/issue-description-drafts";
 import { useTranslation } from "react-i18next";
 
-export function SidebarAccount() {
+export function SidebarAccount({ variant = "icon" }: { variant?: "icon" | "row" }) {
     const { user } = useAuth();
     const queryClient = useQueryClient();
     const navigate = useNavigate();
@@ -28,23 +28,32 @@ export function SidebarAccount() {
         },
     });
     if (!user) return null;
+    const initials = user.name
+        .split(" ")
+        .slice(0, 2)
+        .map((n) => n[0])
+        .join("");
     const item = "flex min-h-7 cursor-pointer items-center gap-2 rounded px-2 py-1 text-sm text-secondary outline-none data-highlighted:bg-layer-2-hover";
     return (
         <Menu.Root>
-            <Menu.Trigger aria-label={t("nav.account")} className="flex size-8 items-center justify-center rounded-md hover:bg-layer-1">
-                <Avatar
-                    key={user.avatarUrl}
-                    src={user.avatarUrl ?? undefined}
-                    initials={user.name
-                        .split(" ")
-                        .slice(0, 2)
-                        .map((n) => n[0])
-                        .join("")}
-                    size="xs"
-                />
+            <Menu.Trigger
+                aria-label={t("nav.account")}
+                className={
+                    variant === "row"
+                        ? "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left hover:bg-layer-1-hover"
+                        : "flex size-7 items-center justify-center rounded-md hover:bg-layer-1"
+                }
+            >
+                <Avatar key={user.avatarUrl} src={user.avatarUrl ?? undefined} initials={initials} size="xs" />
+                {variant === "row" && (
+                    <span className="min-w-0">
+                        <span className="block truncate text-xs font-medium text-primary">{user.name}</span>
+                        <span className="block truncate text-[11px] text-tertiary">{user.email}</span>
+                    </span>
+                )}
             </Menu.Trigger>
             <Menu.Portal>
-                <Menu.Positioner align="end" sideOffset={6} className="z-50">
+                <Menu.Positioner align={variant === "row" ? "start" : "end"} side={variant === "row" ? "top" : "bottom"} sideOffset={6} className="z-50">
                     <Menu.Popup className="w-64 rounded-md border border-subtle bg-layer-2 p-1 shadow-overlay-200 outline-none">
                         <div className="border-b border-subtle px-2 py-2">
                             <p className="truncate text-sm font-medium text-primary">{user.name}</p>

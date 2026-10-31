@@ -7,6 +7,7 @@ import { ButtonUtility } from "@/components/base/buttons/button-utility";
 import { AppIcons } from "@/components/foundations/icons";
 import type { AppIcon } from "@/components/foundations/icons";
 import { ContextMenuButton } from "@/components/overlay/context-menu-provider";
+import { SidebarAccount } from "./sidebar-account";
 import { useAuth } from "@/features/auth/hooks/use-auth";
 import { useColumns } from "@/features/board/hooks/use-board";
 import { useDocuments } from "@/features/documents/hooks/use-documents";
@@ -28,7 +29,7 @@ export function Sidebar({ onCollapse }: { onCollapse: () => void }) {
     const [expanded, setExpanded] = useState(() => localStorage.getItem("rinia-projects-expanded") !== "false");
     const settings = location.pathname === "/settings/profile";
     const projectSettings = location.pathname.includes("/settings/");
-    const navClass = "flex min-h-7 items-center gap-2 rounded-md px-2 py-1 text-sm text-secondary hover:bg-layer-transparent-hover";
+    const navClass = "flex h-7 items-center gap-2 rounded-md px-2 text-[13px] text-secondary hover:bg-layer-transparent-hover";
     useEffect(() => setCreatingProjectId(null), [projectId]);
     const views: Array<[string, "overview" | "issues" | "cycles" | "documents", AppIcon]> = [
         ["", "overview", AppIcons.Overview],
@@ -37,12 +38,12 @@ export function Sidebar({ onCollapse }: { onCollapse: () => void }) {
         ["/documents", "documents", AppIcons.Documents],
     ];
     return (
-        <div className="flex h-full flex-col pt-3">
-            <div className="flex items-center justify-between px-5 pb-3">
-                <span className="text-lg font-medium">{settings ? t("nav.settings") : projectSettings ? t("nav.projectSettings") : t("nav.projects")}</span>
+        <div className="flex h-full flex-col">
+            <div className="flex h-11 shrink-0 items-center justify-between px-3">
+                <span className="truncate text-sm font-medium">{settings ? t("nav.settings") : projectSettings ? t("nav.projectSettings") : t("nav.projects")}</span>
                 <ButtonUtility icon={AppIcons.Menu} tooltip={t("nav.collapse")} color="tertiary" onClick={onCollapse} />
             </div>
-            <div className="min-h-0 flex-1 overflow-y-auto px-3">
+            <div className="min-h-0 flex-1 overflow-y-auto px-2">
                 {settings ? (
                     <>
                         <div className="mb-6 flex min-w-0 items-center gap-3 px-2 py-2">
@@ -84,7 +85,7 @@ export function Sidebar({ onCollapse }: { onCollapse: () => void }) {
                 ) : (
                     <>
                         {projectId && (
-                            <Button color="secondary" className="mb-3 w-full justify-start" iconLeading={AddOutline} onClick={() => setCreatingProjectId(projectId)}>
+                            <Button size="sm" color="secondary" className="mb-2 w-full justify-start" iconLeading={AddOutline} onClick={() => setCreatingProjectId(projectId)}>
                                 {t("nav.newIssue")}
                             </Button>
                         )}
@@ -97,7 +98,7 @@ export function Sidebar({ onCollapse }: { onCollapse: () => void }) {
                             {t("nav.allProjects")}
                         </Link>
                         <button
-                            className="mt-5 mb-1 flex w-full items-center gap-1 px-2 py-1 text-xs font-medium text-tertiary"
+                            className="mt-3 mb-0.5 flex w-full items-center gap-1 px-2 py-1 text-[11px] font-medium tracking-wide text-tertiary uppercase"
                             aria-expanded={expanded}
                             onClick={() =>
                                 setExpanded((value) => {
@@ -111,7 +112,7 @@ export function Sidebar({ onCollapse }: { onCollapse: () => void }) {
                         </button>
                         {expanded &&
                             (projects ?? []).map((project) => (
-                                <div key={project.id} className="group/project mb-1">
+                                <div key={project.id} className="group/project">
                                     <div
                                         className="flex min-w-0 items-center"
                                         data-project-context="true"
@@ -180,7 +181,7 @@ export function Sidebar({ onCollapse }: { onCollapse: () => void }) {
                                             })}
                                             <Link to={`/projects/${projectId}/settings/general`} className={navClass}>
                                                 <AppIcons.Settings className="size-4" />
-                                                Settings
+                                                {t("nav.settings")}
                                             </Link>
                                         </nav>
                                     )}
@@ -188,6 +189,9 @@ export function Sidebar({ onCollapse }: { onCollapse: () => void }) {
                             ))}
                     </>
                 )}
+            </div>
+            <div className="shrink-0 border-t border-subtle px-2 py-2">
+                <SidebarAccount variant="row" />
             </div>
             {creatingProjectId === projectId && projectId && columns?.[0] && (
                 <IssueQuickCreateModal

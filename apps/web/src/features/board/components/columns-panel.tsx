@@ -109,7 +109,7 @@ export const ColumnsPanel = ({ projectId, isProjectOwner }: { projectId: string;
                                             onClose={() => setEditor(null)}
                                         />
                                     ) : (
-                                        <div className="group flex min-h-12 items-center justify-between gap-3 rounded-sm border border-subtle bg-surface-1 px-3.5 py-3">
+                                        <div className="group flex min-h-9 items-center justify-between gap-3 rounded-sm border border-subtle bg-surface-1 px-3 py-1.5">
                                             <div className="flex min-w-0 items-center gap-3">
                                                 <CircleDashed className="size-4 shrink-0" style={{ color: column.color ?? "#87888c" }} />
                                                 <span className="truncate text-sm text-secondary">{column.name}</span>

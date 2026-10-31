@@ -29,8 +29,8 @@ interface ModalOverlayProps extends Omit<ComponentProps<typeof BaseDialog.Root>,
 
 const OverlayContent = ({ children, className }: Pick<ModalOverlayProps, "children" | "className">) => (
     <BaseDialog.Portal>
-        <BaseDialog.Backdrop className={cx("fixed inset-0 z-50 flex min-h-dvh w-full items-end justify-center overflow-y-auto bg-overlay/70 px-4 pt-4 pb-[clamp(16px,8vh,64px)] outline-hidden backdrop-blur-[6px] sm:items-center sm:p-8", className)} />
-        <BaseDialog.Viewport className="fixed inset-0 z-50 flex items-end justify-center overflow-y-auto px-4 pt-4 pb-[clamp(16px,8vh,64px)] sm:items-center sm:p-8">
+        <BaseDialog.Backdrop className={cx("fixed inset-0 z-50 flex min-h-dvh w-full items-end justify-center overflow-y-auto bg-overlay/70 px-4 pt-4 pb-[clamp(16px,8vh,64px)] outline-hidden backdrop-blur-[6px] transition-opacity duration-200 data-[ending-style]:opacity-0 data-[starting-style]:opacity-0 sm:items-center sm:p-8", className)} />
+        <BaseDialog.Viewport className={cx("fixed inset-0 z-50 flex items-end justify-center overflow-y-auto px-4 pt-4 pb-[clamp(16px,8vh,64px)] sm:items-center sm:p-8", className)}>
             {children}
         </BaseDialog.Viewport>
     </BaseDialog.Portal>
@@ -52,7 +52,7 @@ export const ModalOverlay = ({ isOpen, onOpenChange, children, className, ...pro
 };
 
 export const Modal = ({ className, children }: { className?: string; children: ReactNode }) => (
-    <BaseDialog.Popup className={cx("max-h-full w-full align-middle outline-hidden max-sm:overflow-y-auto max-sm:rounded-xl", className)}>{children}</BaseDialog.Popup>
+    <BaseDialog.Popup className={cx("max-h-full w-full align-middle outline-hidden transition-[transform,opacity] duration-200 ease-[cubic-bezier(0.2,0,0,1)] data-[ending-style]:translate-y-2 data-[ending-style]:opacity-0 data-[starting-style]:translate-y-2 data-[starting-style]:opacity-0 max-sm:overflow-y-auto max-sm:rounded-xl", className)}>{children}</BaseDialog.Popup>
 );
 
 export const Dialog = ({ className, children }: { className?: string; children: ReactNode | ((args: CloseContext) => ReactNode) }) => {

@@ -9,12 +9,12 @@ export function AuthLayout() {
     const { t } = useTranslation();
     return (
         <div className="flex min-h-dvh flex-col bg-canvas text-primary">
-            <header className="flex items-center justify-between px-6 py-6 md:px-10">
+            <header className="flex h-12 items-center justify-between px-4 md:px-6">
                 <RiniaLogo />
                 <LanguageSelector compact />
             </header>
-            <main className="flex flex-1 items-center justify-center px-6 pb-16">
-                <div className="w-full max-w-[360px]">
+            <main className="flex flex-1 items-center justify-center px-4 pb-12">
+                <div className="w-full max-w-[360px] rounded-lg border border-subtle bg-surface-1 p-6">
                     <Suspense
                         fallback={
                             <div className="space-y-4" role="status" aria-label={t("auth.loadingPage")}>

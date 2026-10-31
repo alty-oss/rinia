@@ -27,26 +27,26 @@ export const ProjectOverviewPage = () => {
     return (
         <div className="flex h-full min-h-0 flex-col bg-surface-1">
             <ProjectWorkspaceHeader projectId={projectId!} activeView="overview" />
-            <main className="mx-auto min-h-0 w-full max-w-6xl flex-1 overflow-y-auto px-4 py-6 lg:px-8 lg:py-8">
+            <main className="mx-auto min-h-0 w-full max-w-6xl flex-1 overflow-y-auto px-4 py-4 lg:px-6 lg:py-5">
                 {overviewLoading ? (
                     <OverviewSkeleton />
                 ) : overviewError || !project ? (
                     <ErrorMessage message={t("errors.requestFailed")} />
                 ) : (
                 <div className="flex flex-col">
-                    <header className="overflow-hidden rounded-lg border border-subtle">
-                        <CoverImage cover={project.cover} className="h-36 sm:h-48" />
-                        <div className={`relative px-5 pb-6 sm:px-6 ${project.cover ? "-mt-8" : "pt-6"}`}>
-                            <span className="grid size-16 place-items-center rounded-lg border border-subtle bg-layer-2 text-primary shadow-raised-100"><ProjectIcon icon={project.iconAppearance ?? project.icon} className="size-9" /></span>
-                            <div className="mt-4 min-w-0">
-                                <p className="font-mono text-xs text-accent-primary">{project.issueKey}</p>
-                                <h1 className="mt-1 text-display-sm font-semibold tracking-tight text-primary">{project.name}</h1>
-                                {project.description && <p className="mt-2 max-w-2xl text-sm leading-6 text-tertiary">{project.description}</p>}
+                    <header className="overflow-hidden rounded-md border border-subtle">
+                        <CoverImage cover={project.cover} className="h-28 sm:h-36" />
+                        <div className={`relative px-4 pb-4 sm:px-5 ${project.cover ? "-mt-6" : "pt-4"}`}>
+                            <span className="grid size-12 place-items-center rounded-md border border-subtle bg-layer-2 text-primary shadow-raised-100"><ProjectIcon icon={project.iconAppearance ?? project.icon} className="size-6" /></span>
+                            <div className="mt-3 min-w-0">
+                                <p className="font-mono text-[11px] text-accent-primary">{project.issueKey}</p>
+                                <h1 className="mt-0.5 text-xl font-semibold tracking-tight text-primary">{project.name}</h1>
+                                {project.description && <p className="mt-1.5 max-w-2xl text-[13px] leading-5 text-tertiary">{project.description}</p>}
                             </div>
                         </div>
                     </header>
 
-                    <section className="grid gap-6 border-b border-subtle py-6 lg:grid-cols-[minmax(0,1fr)_16rem]">
+                    <section className="grid gap-4 border-b border-subtle py-4 lg:grid-cols-[minmax(0,1fr)_16rem]">
                         <div>
                             <div className="flex items-center justify-between gap-3">
                                 <div>
@@ -78,8 +78,8 @@ export const ProjectOverviewPage = () => {
                         </div>
                     </section>
 
-                    <section className="py-6">
-                        <div className="mb-4">
+                    <section className="py-4">
+                        <div className="mb-3">
                             <h2 className="text-sm font-semibold text-primary">{t("projects.views")}</h2>
                             <p className="mt-1 text-sm text-tertiary">{t("projects.viewsDescription")}</p>
                         </div>

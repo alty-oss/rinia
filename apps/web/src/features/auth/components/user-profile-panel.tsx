@@ -50,7 +50,7 @@ export const UserProfilePanel = () => {
     return (
         <div className="w-full">
             <div className="relative">
-                <div ref={coverRef} data-profile-cover className="relative h-44 overflow-hidden rounded-lg border border-subtle bg-surface-2">
+                <div ref={coverRef} data-profile-cover className="relative h-36 overflow-hidden rounded-md border border-subtle bg-surface-2">
                     <CoverImage cover={previewCover} className="absolute inset-0" />
                     <div className="absolute right-3 top-3"><Controller control={control} name="cover" render={({ field }) => <CoverPicker cover={field.value} onChange={field.onChange} disabled={mutation.isPending} containerRef={coverRef} />} /></div>
                 </div>
@@ -59,7 +59,7 @@ export const UserProfilePanel = () => {
                     <Controller control={control} name="avatarUrl" render={({ field }) => <AvatarUrlPicker value={field.value} initials={initials} onChange={field.onChange} disabled={mutation.isPending} />} />
                 </div>
             </div>
-            <div className="mt-10 mb-8 space-y-1">
+            <div className="mt-8 mb-5 space-y-1">
                 <h1 className="text-base font-medium text-secondary">{user.name}</h1>
                 <p className="text-sm text-tertiary">{user.email}</p>
             </div>
@@ -71,7 +71,7 @@ export const UserProfilePanel = () => {
                 </div>
                 {formState.errors.root && <Alert tone="error">{formState.errors.root.message}</Alert>}
                 {mutation.isSuccess && !formState.isDirty && <Alert tone="success">{t("profile.profileSaved")}</Alert>}
-                <Button type="submit" size="lg" isLoading={mutation.isPending} isDisabled={!formState.isDirty}>
+                <Button type="submit" isLoading={mutation.isPending} isDisabled={!formState.isDirty}>
                     {t("common.saveChanges")}
                 </Button>
             </form>

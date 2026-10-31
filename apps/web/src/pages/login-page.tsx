@@ -37,24 +37,24 @@ export const LoginPage = () => {
     }
 
     return (
-        <div className="flex flex-col gap-6">
-            <div className="flex flex-col gap-2 text-center">
-                <h1 className="text-display-xs font-semibold text-primary">{t("auth.signIn")}</h1>
-                <p className="text-sm text-tertiary">{t("auth.signInContinue")}</p>
+        <div className="flex flex-col gap-5">
+            <div className="flex flex-col gap-1 text-center">
+                <h1 className="text-lg font-semibold text-primary">{t("auth.signIn")}</h1>
+                <p className="text-[13px] text-tertiary">{t("auth.signInContinue")}</p>
             </div>
 
-            <form className="flex flex-col gap-4" onSubmit={handleSubmit((data) => mutation.mutate(data))} noValidate>
+            <form className="flex flex-col gap-3" onSubmit={handleSubmit((data) => mutation.mutate(data))} noValidate>
                 <ControlledInput control={control} name="identifier" label={t("auth.usernameOrEmail")} isRequired autoFocus />
                 <ControlledInput control={control} name="password" label={t("auth.password")} type="password" isRequired />
 
                 {formState.errors.root && <p className="text-sm text-danger-primary">{formState.errors.root.message}</p>}
 
-                <Button type="submit" size="lg" isLoading={mutation.isPending}>
+                <Button type="submit" className="mt-1" isLoading={mutation.isPending}>
                     {t("auth.signIn")}
                 </Button>
             </form>
 
-            <p className="text-center text-sm text-tertiary">
+            <p className="text-center text-[13px] text-tertiary">
                 {t("auth.noAccount")}{" "}
                 <Link to="/register" className="font-semibold text-accent-primary hover:underline">
                     {t("auth.createAccount")}

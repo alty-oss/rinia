@@ -6,11 +6,11 @@ export function WorkspaceLoadingFallback() {
     const { t } = useTranslation();
     return (
         <div className="flex min-h-0 flex-1 flex-col" role="status" aria-label={t("common.loadingPage")} aria-live="polite">
-            <div className="flex h-12 shrink-0 items-center border-b border-subtle px-4">
+            <div className="flex h-[45px] shrink-0 items-center border-b border-subtle px-3.5">
                 <Skeleton className="h-4 w-48" />
             </div>
-            <div className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-6 overflow-hidden px-4 py-6 lg:px-8 lg:py-8">
-                <div className="space-y-3 border-b border-subtle pb-6">
+            <div className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-4 overflow-hidden px-4 py-4 lg:px-6 lg:py-5">
+                <div className="space-y-3 border-b border-subtle pb-4">
                     <Skeleton className="h-3 w-16" />
                     <Skeleton className="h-7 w-64 max-w-full" />
                     <Skeleton className="h-4 w-96 max-w-full" />

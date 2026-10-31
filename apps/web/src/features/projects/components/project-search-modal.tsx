@@ -89,11 +89,11 @@ export const ProjectSearchModal = ({ onClose }: ProjectSearchModalProps) => {
     const isLoading = !projects || (Boolean(activeProjectId) && issuesLoading);
 
     return (
-        <ModalOverlay isOpen onOpenChange={(open) => !open && onClose()} isDismissable>
-            <Modal className="max-w-lg">
+        <ModalOverlay isOpen onOpenChange={(open) => !open && onClose()} isDismissable className="sm:items-start sm:pt-[12vh] sm:pb-8">
+            <Modal className="max-w-xl">
                 <Dialog>
-                    <div className="flex max-h-[70vh] w-full flex-col overflow-hidden rounded-xl bg-surface-1 shadow-xl ring-1 ring-subtle">
-                        <div className="border-b border-subtle p-3">
+                    <div className="flex max-h-[70vh] w-full flex-col overflow-hidden rounded-lg bg-surface-1 shadow-xl ring-1 ring-subtle">
+                        <div className="border-b border-subtle p-2">
                             <Input
                                 autoFocus
                                 aria-label={t("search.searchProjectsAndIssues")}
@@ -111,7 +111,7 @@ export const ProjectSearchModal = ({ onClose }: ProjectSearchModalProps) => {
                             />
                         </div>
 
-                        <div id="rinia-search-results" role="listbox" aria-label={t("search.results")} className="flex flex-col overflow-y-auto p-2">
+                        <div id="rinia-search-results" role="listbox" aria-label={t("search.results")} className="flex flex-col overflow-y-auto p-1.5">
                             {isLoading ? (
                                 <LoadingState label={t("search.searching")} className="px-3 py-4" />
                             ) : results.all.length === 0 ? (
@@ -142,7 +142,7 @@ export const ProjectSearchModal = ({ onClose }: ProjectSearchModalProps) => {
 function ResultGroup({ label, results, selectedIndex, offset, onOpen }: { label: string; results: SearchResult[]; selectedIndex: number; offset: number; onOpen: (result: SearchResult) => void }) {
     return (
         <section aria-label={label}>
-            <p className="px-3 pb-1 pt-2 text-[11px] font-medium uppercase tracking-[0.08em] text-tertiary">{label}</p>
+            <p className="px-2.5 pb-1 pt-1.5 text-[11px] font-medium text-tertiary">{label}</p>
             <div className="flex flex-col">
                 {results.map((result, index) => {
                     const isSelected = selectedIndex === offset + index;
@@ -154,12 +154,12 @@ function ResultGroup({ label, results, selectedIndex, offset, onOpen }: { label:
                             role="option"
                             aria-selected={isSelected}
                             onClick={() => onOpen(result)}
-                            className={`flex items-center gap-2 rounded-md px-3 py-2 text-left transition duration-100 ease-linear hover:bg-layer-1-hover ${isSelected ? "bg-surface-2" : ""}`}
+                            className={`flex items-center gap-2 rounded-md px-2.5 py-1.5 text-left transition duration-100 ease-linear hover:bg-layer-1-hover ${isSelected ? "bg-surface-2" : ""}`}
                         >
                             {result.type === "project" ? <ProjectIcon icon={result.icon} className="size-4 shrink-0 text-placeholder" /> : result.type === "command" ? <ArrowRight aria-hidden="true" className="size-4 shrink-0 text-placeholder" /> : <span className="flex size-4 shrink-0 items-center justify-center rounded border border-subtle text-[9px] text-placeholder">#</span>}
                             <span className="flex min-w-0 flex-1 flex-col gap-0.5">
                                 <span className="flex min-w-0 items-baseline gap-2">
-                                    <span className="truncate text-sm font-medium text-primary">{result.title}</span>
+                                    <span className="truncate text-[13px] font-medium text-primary">{result.title}</span>
                                     <span className="shrink-0 font-mono text-[11px] text-tertiary">{result.key}</span>
                                 </span>
                                 {result.description && <span className="line-clamp-1 text-xs text-tertiary">{result.description}</span>}

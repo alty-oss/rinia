@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 /** Geometry and typography: Plane 01064a7 settings/{heading,boxed-control-item}. */
 export function SettingsHeading({ title, description, control }: { title: string; description?: string; control?: ReactNode }) {
     return (
-        <header className="flex flex-col items-start justify-between gap-4 md:flex-row md:items-center">
+        <header className="flex flex-col items-start justify-between gap-3 md:flex-row md:items-center">
             <div className="flex flex-col gap-1">
                 <h1 className="text-h3-medium text-primary">{title}</h1>
                 {description && <p className="text-body-xs-regular text-tertiary">{description}</p>}
