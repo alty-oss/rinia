@@ -39,7 +39,7 @@ interface MenuAction {
 
 const ContextMenuContext = createContext<ContextMenuApi>({ open: () => undefined });
 const menuClass = "fixed z-[100] max-h-[calc(100dvh-16px)] min-w-56 max-w-[calc(100vw-16px)] overflow-y-auto rounded-lg border border-subtle bg-layer-2 p-1 shadow-overlay-200 outline-none";
-const itemClass = "flex min-h-9 w-full items-center gap-2 rounded-md px-2.5 py-2 text-left text-sm text-secondary transition duration-100 ease-linear hover:bg-layer-1-hover hover:text-primary focus-visible:bg-layer-1-hover focus-visible:text-primary focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50";
+const itemClass = "flex min-h-7 w-full items-center gap-2 rounded-md px-2 py-1 text-left text-[13px] text-secondary transition duration-100 ease-linear hover:bg-layer-1-hover hover:text-primary focus-visible:bg-layer-1-hover focus-visible:text-primary focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50";
 
 /** A mobile action button that opens the same entity menu used by desktop context clicks. */
 export function ContextMenuButton({ entity, className }: { entity: ContextMenuEntity; className?: string }) {
