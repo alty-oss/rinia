@@ -1,5 +1,6 @@
 import { Popover } from "@base-ui/react/popover";
 import type { ReactNode } from "react";
+import type { IssueView } from "@rinia/shared";
 import { AddOutline, AssigneeOutline, CloseOutline, DisplayOutline, FilterOutline, HistoryOutline, LabelsOutline, ListOutline, PriorityOutline, SearchOutline, StateOutline } from "@makeplane/propel/icons";
 import { Hash, Minus } from "lucide-react";
 import { IssueAvatar, PriorityIcon, StateIcon } from "@/features/board/components/issue-property-icons";
@@ -17,7 +18,7 @@ import { useTranslation } from "react-i18next";
 import { PRIORITY_OPTIONS, priorityLabelKey } from "@/features/issues/lib/priority";
 import { translateStatusName } from "@/i18n/status-label";
 
-export function IssueToolbar({ projectId, onCreate, layout = "list", compact = false, chrome = false }: { projectId: string; onCreate: () => void; layout?: "list" | "board"; compact?: boolean; chrome?: boolean }) {
+export function IssueToolbar({ projectId, onCreate, layout = "list", compact = false, chrome = false }: { projectId: string; onCreate: () => void; layout?: IssueView; compact?: boolean; chrome?: boolean }) {
     const [query, setQuery] = useSearchParams();
     const { t } = useTranslation();
     const { data: columns } = useColumns(projectId);

@@ -1,4 +1,4 @@
-import type { IssuePriority } from "@rinia/shared";
+import type { IssuePriority, IssueView } from "@rinia/shared";
 import type {
     CreateIssueCommentInput,
     CreateIssueInput,
@@ -7,6 +7,7 @@ import type {
     TiptapDocument,
     UpdateIssueCommentInput,
     UpdateIssueInput,
+    UpdateViewPreferenceInput,
 } from "@rinia/shared";
 import { apiClient } from "@/lib/api-client";
 
@@ -131,4 +132,16 @@ export function createIssueRelation(identifier: string, input: CreateIssueRelati
 
 export function deleteIssueRelation(relationId: string): Promise<void> {
     return apiClient.delete<void>(`/relations/${relationId}`);
+}
+
+export interface ViewPreference {
+    issueView: IssueView;
+}
+
+export function getViewPreference(projectId: string): Promise<ViewPreference> {
+    return apiClient.get<{ preference: ViewPreference }>(`/projects/${projectId}/view-preference`).then((res) => res.preference);
+}
+
+export function updateViewPreference(projectId: string, input: UpdateViewPreferenceInput): Promise<ViewPreference> {
+    return apiClient.patch<{ preference: ViewPreference }>(`/projects/${projectId}/view-preference`, input).then((res) => res.preference);
 }

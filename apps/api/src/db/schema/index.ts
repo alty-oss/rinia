@@ -23,6 +23,7 @@ export * from "./project-documents";
 export * from "./project-key-aliases";
 export * from "./project-members";
 export * from "./projects";
+export * from "./project-view-preferences";
 export * from "./users";
 
 export const usersRelations = relations(users, ({ many }) => ({

@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import type { Issue } from "@/features/issues/api";
+import type { IssueView } from "@rinia/shared";
 import { AddOutline, ChevronDownOutline } from "@makeplane/propel/icons";
-import { LayoutGrid, List, Plus } from "lucide-react";
+import { Plus } from "lucide-react";
 import { useNavigate, useParams, useSearchParams } from "react-router";
 import { urls } from "@/lib/urls";
 import { useRouteProject } from "@/features/projects/route-project";
@@ -18,6 +19,8 @@ import { IssueListRow } from "@/features/issues/components/issue-list-row";
 import { useCreateIssue, useIssues, useUpdateIssue } from "@/features/issues/hooks/use-issues";
 import { ProjectWorkspaceHeader } from "@/features/projects/components/project-workspace-header";
 import { IssueToolbar } from "@/features/issues/components/issue-toolbar";
+import { useIssueView } from "@/features/issues/hooks/use-issue-view";
+import { issueViews } from "@/features/issues/views";
 import { useProjectMembers } from "@/features/projects/hooks/use-project-members";
 import { ApiError } from "@/lib/api-client";
 import { useTranslation } from "react-i18next";
@@ -41,7 +44,7 @@ export const ProjectIssuesPage = () => {
     const assignee = searchParams.get("assignee") ?? "";
     const category = searchParams.get("label") ?? "";
     const scope = readScope(params.scope ?? null);
-    const view = searchParams.get("view") === "board" ? "board" : "list";
+    const { view, setView } = useIssueView(projectId!);
     const { data: issues, isLoading, isError } = useIssues(projectId!, { orderBy });
     const updateIssue = useUpdateIssue(projectId!);
     const { data: columns } = useColumns(projectId!);
@@ -178,14 +181,6 @@ export const ProjectIssuesPage = () => {
         navigate(`${urls.issues(projectKey, next)}${query ? `?${query}` : ""}`, { replace: true });
     }
 
-    function setView(next: "list" | "board") {
-        setSearchParams((current) => {
-            if (next === "board") current.set("view", "board");
-            else current.delete("view");
-            return current;
-        }, { replace: true });
-    }
-
     const pill = "flex h-6 items-center rounded-md px-2 text-[13px]";
     const pillOff = "text-tertiary hover:bg-layer-transparent-hover hover:text-primary";
     const pillOn = "bg-layer-1-selected text-primary";
@@ -220,13 +215,16 @@ export const ProjectIssuesPage = () => {
                         {label}
                     </button>
                 ))}
-                <div className="ml-auto flex items-center gap-2">
-                    <ViewSwitch view={view} onChange={setView} />
-                    <IssueToolbar chrome layout={view} projectId={projectId!} onCreate={() => setIsCreating(true)} />
-                </div>
+                {view && (
+                    <div className="animate-enter ml-auto flex items-center gap-2">
+                        <ViewSwitch view={view} onChange={setView} />
+                        <IssueToolbar chrome layout={view} projectId={projectId!} onCreate={() => setIsCreating(true)} />
+                    </div>
+                )}
             </div>
-            {view === "board" ? (
-                <div className="min-h-0 flex-1 overflow-x-auto bg-surface-2 px-4 pt-3 pb-3">
+            {/* Each view eases in when it opens, so switching (or a first-time preference arriving) never pops. */}
+            {view === "board" && (
+                <div key="board" className="animate-enter min-h-0 flex-1 overflow-x-auto bg-surface-2 px-4 pt-3 pb-3">
                     <Board projectId={projectId!} filters={searchParams} />
                     {isCreating && columns?.[0] && (
                         <IssueQuickCreateModal
@@ -241,8 +239,9 @@ export const ProjectIssuesPage = () => {
                         />
                     )}
                 </div>
-            ) : (
-            <main className="min-h-0 w-full flex-1 overflow-y-auto">
+            )}
+            {view === "list" && (
+            <main key="list" className="animate-enter min-h-0 w-full flex-1 overflow-y-auto">
                 <div className="flex flex-col">
                     {isCreating && !creatingColumnId && (
                         <CreateRow
@@ -343,19 +342,17 @@ export const ProjectIssuesPage = () => {
     );
 };
 
-function ViewSwitch({ view, onChange }: { view: "list" | "board"; onChange: (view: "list" | "board") => void }) {
+function ViewSwitch({ view, onChange }: { view: IssueView; onChange: (view: IssueView) => void }) {
     const { t } = useTranslation();
     const button = "flex h-6 items-center gap-1 rounded px-2 text-[13px]";
     return (
         <div role="group" aria-label={t("issue.view")} className="flex items-center gap-0.5 rounded-md bg-layer-1 p-0.5">
-            <button type="button" aria-pressed={view === "list"} className={`${button} ${view === "list" ? "bg-layer-1-selected text-primary" : "text-tertiary hover:text-primary"}`} onClick={() => onChange("list")}>
-                <List className="size-3.5" />
-                {t("issue.list")}
-            </button>
-            <button type="button" aria-pressed={view === "board"} className={`${button} ${view === "board" ? "bg-layer-1-selected text-primary" : "text-tertiary hover:text-primary"}`} onClick={() => onChange("board")}>
-                <LayoutGrid className="size-3.5" />
-                {t("projects.board")}
-            </button>
+            {issueViews.map(({ value, icon: Icon, label }) => (
+                <button key={value} type="button" aria-pressed={view === value} className={`${button} ${view === value ? "bg-layer-1-selected text-primary" : "text-tertiary hover:text-primary"}`} onClick={() => onChange(value)}>
+                    <Icon className="size-3.5" />
+                    {t(label)}
+                </button>
+            ))}
         </div>
     );
 }

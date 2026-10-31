@@ -5,6 +5,7 @@ import { documentsRouter } from "../documents/documents.routes";
 import { projectIssuesRouter } from "../issues/issues.routes";
 import { categoriesRouter } from "../categories/categories.routes";
 import { columnsRouter } from "../columns/columns.routes";
+import { viewPreferencesRouter } from "../view-preferences/view-preferences.routes";
 import { requireAuth } from "../../middleware/auth.middleware";
 import {
   requireProjectMember,
@@ -56,3 +57,4 @@ projectsRouter.delete(
 projectsRouter.use("/:projectId/categories", categoriesRouter);
 projectsRouter.use("/:projectId/columns", columnsRouter);
 projectsRouter.use("/:projectId/issues", projectIssuesRouter);
+projectsRouter.use("/:projectId/view-preference", viewPreferencesRouter);
