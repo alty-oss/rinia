@@ -2,7 +2,6 @@ import type { ReactElement, ReactNode } from "react";
 import { Menu } from "@base-ui/react/menu";
 import { GripVertical } from "lucide-react";
 import { Link } from "react-router";
-import type { Location } from "react-router";
 import type { UpdateIssueInput } from "@rinia/shared";
 import { Avatar } from "@/components/base/avatar/avatar";
 import { overlayChrome } from "@/components/overlay/overlay-chrome";
@@ -22,7 +21,6 @@ export function IssueListRow({
     member,
     members,
     selected,
-    backgroundLocation,
     onSelect,
     onUpdate,
 }: {
@@ -33,7 +31,6 @@ export function IssueListRow({
     member?: { id: string; name: string; avatarUrl: string | null };
     members: Array<{ id: string; name: string; avatarUrl: string | null }>;
     selected: boolean;
-    backgroundLocation: Location;
     onSelect: () => void;
     onUpdate: (input: UpdateIssueInput) => void;
 }) {
@@ -53,7 +50,6 @@ export function IssueListRow({
             </button>
             <Link
                 to={`/projects/${projectId}/issues/${issue.identifier}`}
-                state={{ backgroundLocation }}
                 onFocus={onSelect}
                 className="flex min-w-0 flex-1 items-center gap-2"
             >
@@ -73,7 +69,6 @@ export function IssueListRow({
             </RowMenu>
             <Link
                 to={`/projects/${projectId}/issues/${issue.identifier}`}
-                state={{ backgroundLocation }}
                 className="min-w-0 flex-1 truncate text-secondary"
             >
                 {issue.title}

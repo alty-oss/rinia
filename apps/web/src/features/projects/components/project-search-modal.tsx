@@ -59,7 +59,7 @@ export const ProjectSearchModal = ({ onClose }: ProjectSearchModalProps) => {
         if (result.type === "project") {
             navigate(`/projects/${result.id}`);
         } else if (activeProjectId) {
-            navigate(result.type === "command" ? result.path : `/projects/${activeProjectId}/issues/${result.id}`, result.type === "command" ? undefined : { state: { backgroundLocation: location } });
+            navigate(result.type === "command" ? result.path : `/projects/${activeProjectId}/issues/${result.id}`);
         }
         onClose();
     }

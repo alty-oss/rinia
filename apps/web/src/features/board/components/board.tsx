@@ -15,7 +15,7 @@ import {
     useSensors,
 } from "@dnd-kit/core";
 import { arrayMove, sortableKeyboardCoordinates } from "@dnd-kit/sortable";
-import { useLocation, useNavigate } from "react-router";
+import { useNavigate } from "react-router";
 import { filterIssues, readIssueOrder } from "@/features/issues/lib/issue-filters";
 import { ErrorMessage } from "@/components/feedback/error-message";
 import { Alert } from "@/components/base/feedback/alert";
@@ -48,7 +48,6 @@ const measuring = { droppable: { strategy: MeasuringStrategy.Always } };
 
 export const Board = ({ projectId, filters = new URLSearchParams() }: { projectId: string; filters?: URLSearchParams }) => {
     const { t } = useTranslation();
-    const location = useLocation();
     const navigate = useNavigate();
     const { data: columns, isLoading: columnsLoading, isError: columnsError } = useColumns(projectId);
     const orderBy = readIssueOrder(filters.get("order"));
@@ -228,7 +227,7 @@ export const Board = ({ projectId, filters = new URLSearchParams() }: { projectI
                             projectId={projectId}
                             categoriesById={categoriesById}
                             membersById={membersById}
-                            onOpenIssue={(identifier) => navigate(`/projects/${projectId}/issues/${identifier}`, { state: { backgroundLocation: location } })}
+                            onOpenIssue={(identifier) => navigate(`/projects/${projectId}/issues/${identifier}`)}
                             onCreateIssue={(columnId) => setCreateColumnId(columnId)}
                         />
                     ))}

@@ -284,7 +284,7 @@ export const ContextMenuProvider = ({ children }: { children: ReactNode }) => {
             key: "open",
             label: t("contextMenu.open"),
             icon: ExternalLink,
-            onSelect: () => navigate(entityUrl, entity.type === "issue" ? { state: { backgroundLocation: location } } : undefined),
+            onSelect: () => navigate(entityUrl),
         };
         const newTabItem: MenuAction = { key: "new-tab", label: t("common.openInNewTab"), icon: ExternalLink, onSelect: () => window.open(entityUrl, "_blank", "noopener,noreferrer") };
         const copyLinkItem: MenuAction = {

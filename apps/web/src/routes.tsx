@@ -1,7 +1,5 @@
 import { Suspense, lazy } from "react";
-import { Navigate, Route, Routes, useLocation, useNavigate, useParams, useSearchParams } from "react-router";
-import { Skeleton } from "@/components/base/feedback/skeleton";
-import { Sheet } from "@/components/base/sheet/sheet";
+import { Navigate, Route, Routes, useParams, useSearchParams } from "react-router";
 import { LoadingState } from "@/components/feedback/loading-state";
 import { AppShell } from "@/components/layout/app-shell";
 import { AuthLayout } from "@/components/layout/auth-layout";
@@ -42,13 +40,10 @@ function BoardRedirect() {
 
 export const AppRoutes = () => {
     const { t } = useTranslation();
-    const location = useLocation();
-    const navigate = useNavigate();
-    const backgroundLocation = (location.state as { backgroundLocation?: typeof location } | null)?.backgroundLocation;
 
     return (
         <Suspense fallback={<div className="min-h-dvh bg-canvas" aria-hidden="true" />}>
-            <Routes location={backgroundLocation || location}>
+            <Routes>
                 <Route element={<AuthLayout />}>
                     <Route path="/login" element={<LoginPage />} />
                     <Route path="/register" element={<RegisterPage />} />
@@ -70,7 +65,7 @@ export const AppRoutes = () => {
                     <Route path="/projects/:projectId" element={<ProjectOverviewPage />} />
                     <Route path="/projects/:projectId/issues" element={<ProjectIssuesPage />} />
                     <Route path="/projects/:projectId/issues/list" element={<IssuesListRedirect />} />
-                    <Route path="/projects/:projectId/issues/:issueIdentifier" element={<IssueView mode="page" />} />
+                    <Route path="/projects/:projectId/issues/:issueIdentifier" element={<IssueView />} />
                     <Route path="/projects/:projectId/board" element={<BoardRedirect />} />
                     <Route path="/projects/:projectId/members" element={<ProjectMembersPage />} />
                     <Route path="/projects/:projectId/documents" element={<ProjectDocumentsPage />} />
@@ -98,32 +93,6 @@ export const AppRoutes = () => {
                 />
             </Routes>
 
-            {backgroundLocation && (
-                <Suspense fallback={<IssuePeekLoadingFallback onClose={() => navigate(-1)} />}>
-                    <Routes>
-                        <Route path="/projects/:projectId/issues/:issueIdentifier" element={<IssueView mode="peek" onClose={() => navigate(-1)} />} />
-                    </Routes>
-                </Suspense>
-            )}
         </Suspense>
     );
 };
-
-function IssuePeekLoadingFallback({ onClose }: { onClose: () => void }) {
-    const { t } = useTranslation();
-    return (
-        <Sheet open onOpenChange={(open) => !open && onClose()} title={t("issue.loadingIssue")}>
-            <div className="flex h-full min-h-0 flex-col" role="status" aria-label={t("issue.loadingIssue")}>
-                <div className="flex h-12 shrink-0 items-center border-b border-subtle px-4">
-                    <Skeleton className="h-4 w-24" />
-                </div>
-                <div className="space-y-4 px-6 py-4">
-                    <Skeleton className="h-3 w-16" />
-                    <Skeleton className="h-7 w-4/5" />
-                    <Skeleton className="h-24 w-full" />
-                    <Skeleton className="h-28 w-full" />
-                </div>
-            </div>
-        </Sheet>
-    );
-}

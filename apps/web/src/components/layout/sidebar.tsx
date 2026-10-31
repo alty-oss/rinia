@@ -11,6 +11,7 @@ import { useDocuments } from "@/features/documents/hooks/use-documents";
 import { IssueQuickCreateModal } from "@/features/issues/components/issue-quick-create-modal";
 import type { Favorite } from "@/features/favorites/api";
 import { useFavorites, useMigrateLegacyFavorites, useRemoveFavorite } from "@/features/favorites/hooks/use-favorites";
+import { Collapse } from "@/components/base/collapse";
 import { ProjectIcon } from "@/features/projects/components/project-icon";
 import type { ProjectCardSummary } from "@/features/projects/api";
 import { useProjects } from "@/features/projects/hooks/use-projects";
@@ -278,25 +279,6 @@ function SectionLabel({ label, open, onToggle }: { label: string; open: boolean;
 /** Thin chevron after a label; points down when its group is open. */
 function Caret({ open }: { open: boolean }) {
     return <ChevronDown strokeWidth={2.5} className={`size-3 shrink-0 transition-transform duration-200 ease-out ${open ? "" : "-rotate-90"}`} aria-hidden="true" />;
-}
-
-/**
- * Animates a group open and closed by easing its height and opacity.
- * Content mounts on first open, so collapsed projects do not fetch their documents.
- */
-function Collapse({ open, lazy = true, animate = true, children }: { open: boolean; lazy?: boolean; animate?: boolean; children: ReactNode }) {
-    const [mounted, setMounted] = useState(open || !lazy);
-    useEffect(() => {
-        if (open) setMounted(true);
-    }, [open]);
-    return (
-        <div
-            inert={!open}
-            className={`grid ${animate ? "transition-[grid-template-rows,opacity] duration-200 ease-[cubic-bezier(0.2,0,0,1)] motion-reduce:transition-none" : ""} ${open ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"}`}
-        >
-            <div className="min-h-0 overflow-hidden">{mounted && children}</div>
-        </div>
-    );
 }
 
 function ProjectNavItem({

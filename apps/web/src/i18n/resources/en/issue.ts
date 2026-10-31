@@ -16,6 +16,14 @@ const issue = {
         copyContent: "Copy all issue content", copyIdentifier: "Copy issue identifier", copyIssueLink: "Copy issue link",
         openIssue: "Open issue", deleteIssue: "Delete issue", filter: "Filter", sort: "Sort", searchIssues: "Search issues", issues: "Issue layout", list: "List", layout: "layout", view: "View",
         descriptionPlaceholder: "Add a description…", comment: "Comment", addComment: "Add a comment…",
+        couldNotCopy: "Could not copy to the clipboard", linkCopied: "Issue link copied", idCopied: "{{id}} copied",
+        branchCopied: "Branch name copied. Paste it into your git client.", promptCopied: "Issue copied as a prompt",
+        copyBranchName: "Copy git branch name", copyAsPrompt: "Copy as prompt",
+        titleRequired: "Title cannot be empty", titleReverted: "Reverted the title to its previous value",
+        changeStatus: "Change status…", setPriority: "Set priority…", assignTo: "Assign to…", setEstimate: "Estimate…",
+        setParent: "Set parent issue…", addLabelPlaceholder: "Add label…", assign: "Assign", estimateAction: "Estimate",
+        addSubIssue: "Add sub-issue", subIssueTitle: "Sub-issue title", couldNotCreateSubIssue: "Could not create the sub-issue.",
+        createdByOn: "Created by {{name}} on {{date}}", labels: "Labels",
     } as const;
 
 export default issue;

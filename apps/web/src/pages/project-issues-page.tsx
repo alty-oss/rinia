@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { Issue } from "@/features/issues/api";
 import { AddOutline, ChevronDownOutline } from "@makeplane/propel/icons";
 import { LayoutGrid, List, Plus } from "lucide-react";
-import { useLocation, useNavigate, useParams, useSearchParams } from "react-router";
+import { useNavigate, useParams, useSearchParams } from "react-router";
 import { Button } from "@/components/base/buttons/button";
 import { Input } from "@/components/base/input/input";
 import { EmptyState } from "@/components/feedback/empty-state";
@@ -28,7 +28,6 @@ type Scope = "active" | "backlog" | "all";
 export const ProjectIssuesPage = () => {
     const { t } = useTranslation();
     const { projectId } = useParams<{ projectId: string }>();
-    const location = useLocation();
     const navigate = useNavigate();
     const [searchParams, setSearchParams] = useSearchParams();
     const orderBy = readOrder(searchParams.get("order"));
@@ -142,7 +141,7 @@ export const ProjectIssuesPage = () => {
 
 
     function openIssue(identifier: string) {
-        navigate(`/projects/${projectId}/issues/${identifier}`, { state: { backgroundLocation: location } });
+        navigate(`/projects/${projectId}/issues/${identifier}`);
     }
 
     function submitIssue() {
@@ -310,7 +309,6 @@ export const ProjectIssuesPage = () => {
                                             columns={columns ?? []}
                                             member={issue.assigneeId ? memberById.get(issue.assigneeId) : undefined}
                                             members={members ?? []}
-                                            backgroundLocation={location}
                                             selected={selectedIssueId === issue.id}
                                             onSelect={() => setSelectedIssueId(issue.id)}
                                             onUpdate={(input) => updateIssue.mutate({ identifier: issue.identifier, input })}

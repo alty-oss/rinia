@@ -16,6 +16,14 @@ const issue = {
         copyContent: "Copiar todo o conteúdo da tarefa", copyIdentifier: "Copiar identificador da tarefa", copyIssueLink: "Copiar link da tarefa",
         openIssue: "Abrir tarefa", deleteIssue: "Excluir tarefa", filter: "Filtrar", sort: "Ordenar", searchIssues: "Buscar tarefas", issues: "Visualização de tarefas", list: "Lista", layout: "visualização", view: "Visualização",
         descriptionPlaceholder: "Adicione uma descrição…", comment: "Comentário", addComment: "Adicione um comentário…",
+        couldNotCopy: "Não foi possível copiar", linkCopied: "Link da tarefa copiado", idCopied: "{{id}} copiado",
+        branchCopied: "Nome da branch copiado. Cole no seu cliente git.", promptCopied: "Tarefa copiada como prompt",
+        copyBranchName: "Copiar nome da branch", copyAsPrompt: "Copiar como prompt",
+        titleRequired: "O título não pode ficar vazio", titleReverted: "O título voltou ao valor anterior",
+        changeStatus: "Mudar estado…", setPriority: "Definir prioridade…", assignTo: "Atribuir a…", setEstimate: "Estimar…",
+        setParent: "Definir tarefa pai…", addLabelPlaceholder: "Adicionar etiqueta…", assign: "Atribuir", estimateAction: "Estimar",
+        addSubIssue: "Adicionar subtarefa", subIssueTitle: "Título da subtarefa", couldNotCreateSubIssue: "Não foi possível criar a subtarefa.",
+        createdByOn: "Criada por {{name}} em {{date}}", labels: "Etiquetas",
     } as const;
 
 export default issue;

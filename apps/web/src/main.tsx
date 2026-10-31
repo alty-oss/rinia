@@ -3,6 +3,7 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { BrowserRouter } from "react-router";
 import { AppErrorBoundary } from "@/components/feedback/app-error-boundary";
+import { ToastProvider } from "@/components/feedback/toaster";
 import { ContextMenuProvider } from "@/components/overlay/context-menu-provider";
 import { AuthProvider } from "@/features/auth/hooks/use-auth";
 import { queryClient } from "@/lib/query-client";
@@ -26,9 +27,11 @@ createRoot(document.getElementById("root")!).render(
                         <LanguageProvider>
                             <BrowserRouter>
                                 <RouteProvider>
-                                    <ContextMenuProvider>
-                                        <AppRoutes />
-                                    </ContextMenuProvider>
+                                    <ToastProvider>
+                                        <ContextMenuProvider>
+                                            <AppRoutes />
+                                        </ContextMenuProvider>
+                                    </ToastProvider>
                                 </RouteProvider>
                             </BrowserRouter>
                         </LanguageProvider>
