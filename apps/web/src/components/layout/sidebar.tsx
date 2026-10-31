@@ -1,5 +1,4 @@
-import { Fragment, useEffect, useState, type Dispatch, type ReactNode, type SetStateAction } from "react";
-import { ChevronRightOutline } from "@makeplane/propel/icons";
+import { useEffect, useState, type Dispatch, type ReactNode, type SetStateAction } from "react";
 import { Circle, House, Search, ShieldCheck, SlidersHorizontal, SquarePen, UserRound } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router";
 import { AppIcons } from "@/components/foundations/icons";
@@ -18,8 +17,8 @@ import { useTranslation } from "react-i18next";
 const OPEN_PROJECTS_KEY = "rinia-open-projects";
 const OPEN_DOCS_KEY = "rinia-open-project-docs";
 const SECTIONS_KEY = "rinia-sidebar-sections";
-const ITEM = "flex h-7 w-full min-w-0 items-center gap-2 rounded-md px-2 text-left text-[13px]";
-const IDLE = "text-tertiary hover:bg-layer-transparent-hover hover:text-primary";
+const ITEM = "flex h-7 w-full min-w-0 items-center gap-2.5 rounded-md px-2 text-left text-[13px] font-medium";
+const IDLE = "text-secondary hover:bg-layer-transparent-hover hover:text-primary";
 const ACTIVE = "bg-layer-1-selected text-white [&_svg]:text-white";
 
 function itemClass(active: boolean, extra = "") {
@@ -131,7 +130,7 @@ export function Sidebar({ onSearch, onNavigate }: { onSearch: () => void; onNavi
                         <button
                             type="button"
                             aria-label={t("nav.newIssue")}
-                            className="flex size-7 items-center justify-center rounded-md text-tertiary hover:bg-layer-transparent-hover hover:text-primary"
+                            className="flex size-7 items-center justify-center rounded-lg bg-layer-1 text-secondary hover:bg-layer-1-hover hover:text-primary"
                             onClick={(event) => {
                                 event.stopPropagation();
                                 if (createTarget) setCreatingProjectId(createTarget);
@@ -140,8 +139,12 @@ export function Sidebar({ onSearch, onNavigate }: { onSearch: () => void; onNavi
                             <SquarePen className="size-4" />
                         </button>
                     </div>
-                    <div className="min-h-0 flex-1 overflow-y-auto px-3 pb-2">
-                        <SectionLabel label={t("nav.projects")} open={sections.projects} to="/" onToggle={toggleProjects} />
+                    <div className="min-h-0 flex-1 overflow-y-auto px-3 pt-1 pb-2">
+                        <Link to="/" className={itemClass(location.pathname === "/")} aria-current={location.pathname === "/" ? "page" : undefined}>
+                            <AppIcons.Projects className="size-4 shrink-0" />
+                            <span className="truncate">{t("nav.allProjects")}</span>
+                        </Link>
+                        <SectionLabel label={t("nav.yourProjects")} open={sections.projects} onToggle={toggleProjects} />
                         {sections.projects && (projects ?? []).map((project) => (
                             <ProjectNavItem
                                 key={project.id}
@@ -149,10 +152,6 @@ export function Sidebar({ onSearch, onNavigate }: { onSearch: () => void; onNavi
                                 currentProjectId={routeProjectId}
                                 open={openProjectId === project.id}
                                 docsOpen={openDocs.has(project.id)}
-                                onOpen={() => {
-                                    setOpenProjectId(project.id);
-                                    storeOpenProject(project.id);
-                                }}
                                 onToggle={() => {
                                     setOpenProjectId((current) => {
                                         if (current === project.id) return null;
@@ -189,19 +188,6 @@ function CreateElsewhere({ projectId, onClose, onCreated }: { projectId: string;
     const { data: columns } = useColumns(projectId);
     if (!columns?.[0]) return null;
     return <IssueQuickCreateModal projectId={projectId} columnId={columns[0].id} onClose={onClose} onCreated={onCreated} />;
-}
-
-function SectionLabel({ label, open, onToggle, to }: { label: string; open: boolean; onToggle: () => void; to: string }) {
-    const location = useLocation();
-    const active = location.pathname === to;
-    return (
-        <div className="mt-3 flex h-7 w-full items-center gap-1 px-2 text-[12px] text-tertiary">
-            <button type="button" aria-expanded={open} aria-label={label} className="flex size-4 items-center justify-center hover:text-secondary" onClick={(event) => { event.stopPropagation(); onToggle(); }}>
-                <ChevronRightOutline className={`size-3 shrink-0 transition-transform ${open ? "rotate-90" : ""}`} />
-            </button>
-            <Link to={to} className={`min-w-0 flex-1 truncate text-left ${active ? "text-white" : "text-tertiary hover:text-secondary"}`} aria-current={active ? "page" : undefined}>{label}</Link>
-        </div>
-    );
 }
 
 function SettingsNav({ projectId, projects }: { projectId: string; projects: ProjectCardSummary[] | undefined }) {
@@ -268,12 +254,34 @@ function SettingsNavSection({ label, children }: { label: string; children: Reac
     );
 }
 
+function SectionLabel({ label, open, onToggle }: { label: string; open: boolean; onToggle: () => void }) {
+    return (
+        <button
+            type="button"
+            aria-expanded={open}
+            onClick={onToggle}
+            className="mt-5 mb-0.5 flex h-6 items-center gap-1 rounded-md px-2 text-[12px] font-medium text-tertiary hover:text-secondary"
+        >
+            {label}
+            <Caret open={open} />
+        </button>
+    );
+}
+
+/** Small solid triangle placed after a label, as in Linear's section and team headers. */
+function Caret({ open }: { open: boolean }) {
+    return (
+        <svg viewBox="0 0 8 8" className={`size-2 shrink-0 transition-transform ${open ? "" : "-rotate-90"}`} aria-hidden="true">
+            <path d="M1 2.25h6L4 6.25z" fill="currentColor" />
+        </svg>
+    );
+}
+
 function ProjectNavItem({
     project,
     currentProjectId,
     open,
     docsOpen,
-    onOpen,
     onToggle,
     onToggleDocs,
     onOpenDocs,
@@ -282,7 +290,6 @@ function ProjectNavItem({
     currentProjectId: string;
     open: boolean;
     docsOpen: boolean;
-    onOpen: () => void;
     onToggle: () => void;
     onToggleDocs: () => void;
     onOpenDocs: () => void;
@@ -292,37 +299,45 @@ function ProjectNavItem({
     const current = currentProjectId === project.id;
     const home = location.pathname === `/projects/${project.id}`;
     const issues = current && /\/issues(\/|$)/.test(location.pathname);
-    const documents = current && location.pathname.includes("/documents");
+    const documentsIndex = location.pathname === `/projects/${project.id}/documents`;
 
     return (
         <div className="group/project">
-            <div className="flex min-w-0 items-center" data-project-context="true" data-project-id={project.id} data-project-name={project.name} data-project-issue-key={project.issueKey}>
-                <Link to={`/projects/${project.id}`} onClick={onOpen} className={`${ITEM} min-w-0 flex-1 ${open ? "text-secondary hover:bg-layer-transparent-hover hover:text-primary" : IDLE}`}>
-                    <ProjectIcon icon={project.iconAppearance ?? project.icon} className="size-4 shrink-0" />
-                    <span className="truncate">{project.name}</span>
-                </Link>
-                <button type="button" aria-expanded={open} aria-label={open ? t("nav.collapseProject") : t("nav.expandProject")} className="flex size-6 items-center justify-center rounded-md text-tertiary hover:bg-layer-transparent-hover" onClick={onToggle}>
-                    <ChevronRightOutline className={`size-3 transition-transform ${open ? "rotate-90" : ""}`} />
-                </button>
-            </div>
+            <button
+                type="button"
+                aria-expanded={open}
+                onClick={onToggle}
+                className={`${ITEM} ${IDLE}`}
+                data-project-context="true"
+                data-project-id={project.id}
+                data-project-name={project.name}
+                data-project-issue-key={project.issueKey}
+            >
+                <ProjectIcon icon={project.iconAppearance ?? project.icon} className="size-4 shrink-0" />
+                <span className="truncate">{project.name}</span>
+                <span className="text-tertiary"><Caret open={open} /></span>
+            </button>
             {open && (
-                <nav aria-label={`${project.name} views`}>
+                <nav aria-label={project.name} className="ml-4 flex flex-col gap-px">
                     <ChildLink to={`/projects/${project.id}`} icon={House} label={t("nav.home")} active={home} />
                     <ChildLink to={`/projects/${project.id}/issues`} icon={Circle} label={t("nav.issues")} active={issues} />
-                    <div className="flex min-w-0 items-center">
-                        <Link to={`/projects/${project.id}/documents`} onClick={onOpenDocs} className={itemClass(documents && location.pathname === `/projects/${project.id}/documents`, "pl-7")}>
+                    <div className={`${ITEM} ${documentsIndex ? ACTIVE : IDLE} pr-1`}>
+                        <Link to={`/projects/${project.id}/documents`} onClick={onOpenDocs} className="flex min-w-0 items-center gap-2.5 self-stretch" aria-current={documentsIndex ? "page" : undefined}>
                             <AppIcons.Documents className="size-4 shrink-0" />
                             <span className="truncate">{t("nav.documents")}</span>
                         </Link>
-                        <button type="button" aria-expanded={docsOpen} aria-label={docsOpen ? t("nav.collapsePages") : t("nav.expandPages")} className="flex size-6 items-center justify-center rounded-md text-tertiary hover:bg-layer-transparent-hover" onClick={onToggleDocs}>
-                            <ChevronRightOutline className={`size-3 transition-transform ${docsOpen ? "rotate-90" : ""}`} />
+                        <button
+                            type="button"
+                            aria-expanded={docsOpen}
+                            aria-label={docsOpen ? t("nav.collapsePages") : t("nav.expandPages")}
+                            className="grid size-5 shrink-0 place-items-center rounded text-tertiary hover:text-primary"
+                            onClick={onToggleDocs}
+                        >
+                            <Caret open={docsOpen} />
                         </button>
+                        <Link to={`/projects/${project.id}/documents`} onClick={onOpenDocs} tabIndex={-1} aria-hidden="true" className="flex-1 self-stretch" />
                     </div>
-                    {docsOpen && (
-                        <div className="pl-4">
-                            <ProjectDocumentsNav projectId={project.id} />
-                        </div>
-                    )}
+                    {docsOpen && <ProjectDocumentsNav projectId={project.id} />}
                 </nav>
             )}
         </div>
@@ -331,7 +346,7 @@ function ProjectNavItem({
 
 function ChildLink({ to, icon: Icon, label, active }: { to: string; icon: AppIcon; label: string; active: boolean }) {
     return (
-        <Link to={to} className={itemClass(active, "pl-7")} aria-current={active ? "page" : undefined}>
+        <Link to={to} className={itemClass(active)} aria-current={active ? "page" : undefined}>
             <Icon className="size-4 shrink-0" />
             <span className="truncate">{label}</span>
         </Link>
@@ -343,25 +358,22 @@ function ProjectDocumentsNav({ projectId }: { projectId: string }) {
     const { data: documents } = useDocuments(projectId);
 
     return (
-        <>
-            {documents?.map((page) => (
-                <Fragment key={page.id}>
-                    <div className="flex min-w-0 items-center" data-document-context="true" data-project-id={projectId} data-document-id={page.id} data-document-title={page.title} data-document-author-id={page.createdBy}>
-                        <Link
-                            to={`/projects/${projectId}/documents/${page.id}`}
-                            className={itemClass(location.pathname.endsWith(`/documents/${page.id}`), "pl-7 text-[12px]")}
-                            aria-current={location.pathname.endsWith(`/documents/${page.id}`) ? "page" : undefined}
-                        >
-                            {page.iconAppearance ? <ProjectIcon icon={page.iconAppearance} className="size-3 shrink-0" /> : <AppIcons.Documents className="size-3 shrink-0" />}
+        <div className="ml-4 flex flex-col gap-px">
+            {documents?.map((page) => {
+                const active = location.pathname.endsWith(`/documents/${page.id}`);
+                return (
+                    <div key={page.id} className="group/doc relative flex min-w-0 items-center" data-document-context="true" data-project-id={projectId} data-document-id={page.id} data-document-title={page.title} data-document-author-id={page.createdBy}>
+                        <Link to={`/projects/${projectId}/documents/${page.id}`} className={itemClass(active, "pr-7 font-normal")} aria-current={active ? "page" : undefined}>
+                            {page.iconAppearance ? <ProjectIcon icon={page.iconAppearance} className="size-3.5 shrink-0" /> : <AppIcons.Documents className="size-3.5 shrink-0" />}
                             <span className="truncate">{page.title}</span>
                         </Link>
                         <ContextMenuButton
                             entity={{ type: "document", projectId, documentId: page.id, title: page.title, authorId: page.createdBy }}
-                            className="size-6 opacity-100 md:opacity-0 md:group-hover/project:opacity-100"
+                            className="absolute right-0.5 size-6 opacity-100 md:opacity-0 md:group-hover/doc:opacity-100 md:group-focus-within/doc:opacity-100"
                         />
                     </div>
-                </Fragment>
-            ))}
-        </>
+                );
+            })}
+        </div>
     );
 }
