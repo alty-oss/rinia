@@ -5,13 +5,6 @@ import { cx, sortCx } from "@/utils/cx";
 import { isReactComponent } from "@/utils/is-react-component";
 import { controlScale } from "@/components/base/control-scale";
 
-const emphasisFill = [
-    "text-white",
-    "bg-linear-to-b from-(--button-emphasis-gradient-start) to-(--button-emphasis-gradient-end)",
-    "shadow-[inset_0_1px_0_0_var(--button-emphasis-bg)] ring-1 ring-(--button-emphasis-ring) ring-inset",
-    "hover:from-(--button-emphasis-bg) data-loading:from-(--button-emphasis-bg)",
-].join(" ");
-
 export const styles = sortCx({
     common: {
         root: [
@@ -64,11 +57,11 @@ export const styles = sortCx({
     colors: {
         primary: {
             root: [
-                emphasisFill,
-                "[--button-emphasis-ring:color-mix(in_oklch,var(--bg-accent-primary),black_10%)]",
-                "[--button-emphasis-bg:color-mix(in_oklch,var(--bg-accent-primary),white_30%)]",
-                "[--button-emphasis-gradient-start:color-mix(in_oklch,var(--bg-accent-primary),white_15%)]",
-                "[--button-emphasis-gradient-end:var(--bg-accent-primary)]",
+                "border border-(--bg-accent-primary) bg-accent-primary text-white",
+                "shadow-[0_1px_2px_0_color-mix(in_oklch,var(--bg-accent-primary),transparent_75%)]",
+                "inset-shadow-[0_1px_rgb(255_255_255/0.2)]",
+                "hover:bg-accent-primary-hover",
+                "active:bg-accent-primary-active active:inset-shadow-[0_1px_rgb(0_0_0/0.12)] active:shadow-none",
                 "*:data-icon:text-white/70 hover:*:data-icon:text-white",
             ].join(" "),
         },
@@ -106,12 +99,11 @@ export const styles = sortCx({
         },
         "primary-destructive": {
             root: [
-                emphasisFill,
-                "[--button-emphasis-ring:color-mix(in_oklch,var(--bg-danger-primary),black_10%)]",
-                "[--button-emphasis-bg:color-mix(in_oklch,var(--bg-danger-primary),white_30%)]",
-                "[--button-emphasis-gradient-start:color-mix(in_oklch,var(--bg-danger-primary),white_15%)]",
-                "[--button-emphasis-gradient-end:var(--bg-danger-primary)]",
-                "outline-error",
+                "border border-(--bg-danger-primary) bg-danger-primary text-white outline-error",
+                "shadow-[0_1px_2px_0_color-mix(in_oklch,var(--bg-danger-primary),transparent_75%)]",
+                "inset-shadow-[0_1px_rgb(255_255_255/0.18)]",
+                "hover:bg-danger-primary-hover",
+                "active:bg-danger-primary-active active:inset-shadow-[0_1px_rgb(0_0_0/0.12)] active:shadow-none",
                 "*:data-icon:text-white/70 hover:*:data-icon:text-white",
             ].join(" "),
         },
