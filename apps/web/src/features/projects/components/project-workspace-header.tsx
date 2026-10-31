@@ -15,10 +15,13 @@ export function ProjectWorkspaceHeader({
     projectId,
     activeView,
     actions,
+    hideSection = false,
 }: {
     projectId: string;
     actions?: ReactNode;
-    activeView: "overview" | "issues" | "board" | "documents" | "settings";
+    /** Tabbed home screens already name the section in their tabs. */
+    hideSection?: boolean;
+    activeView: "overview" | "members" | "issues" | "board" | "documents" | "settings";
 }) {
     const { data: projectData } = useProject(projectId);
     const { data: projects } = useProjects();
@@ -26,7 +29,7 @@ export function ProjectWorkspaceHeader({
     const project = projectData ?? projects?.find((candidate) => candidate.id === projectId);
     const { t } = useTranslation();
     const { toggleSidebar } = useAppNavigation();
-    const showSection = activeView !== "overview";
+    const showSection = !hideSection && activeView !== "overview" && activeView !== "members";
     const title = activeView === "issues" || activeView === "board" ? t("nav.issues") : activeView === "documents" ? t("nav.documents") : activeView === "settings" ? t("nav.projectSettings") : t("nav.overview");
     return (
         <header className="flex h-11 shrink-0 items-center justify-between gap-3 border-b border-subtle px-3">

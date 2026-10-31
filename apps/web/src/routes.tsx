@@ -17,6 +17,7 @@ const LoginPage = lazy(() => import("@/pages/login-page").then((module) => ({ de
 const NotFound = lazy(() => import("@/pages/not-found").then((module) => ({ default: module.NotFound })));
 const ProjectDocumentPage = lazy(() => import("@/pages/project-documents-page").then((module) => ({ default: module.ProjectDocumentPage })));
 const ProjectDocumentsPage = lazy(() => import("@/pages/project-documents-page").then((module) => ({ default: module.ProjectDocumentsPage })));
+const ProjectMembersPage = lazy(() => import("@/pages/project-members-page").then((module) => ({ default: module.ProjectMembersPage })));
 const ProjectIssuesPage = lazy(() => import("@/pages/project-issues-page").then((module) => ({ default: module.ProjectIssuesPage })));
 const ProjectOverviewPage = lazy(() => import("@/pages/project-overview-page").then((module) => ({ default: module.ProjectOverviewPage })));
 const PreferencesSettingsPage = lazy(() => import("@/pages/preferences-settings-page").then((module) => ({ default: module.PreferencesSettingsPage })));
@@ -74,6 +75,7 @@ export const AppRoutes = () => {
                     <Route path="/projects/:projectId/issues/list" element={<IssuesListRedirect />} />
                     <Route path="/projects/:projectId/issues/:issueIdentifier" element={<IssueView mode="page" />} />
                     <Route path="/projects/:projectId/board" element={<BoardRedirect />} />
+                    <Route path="/projects/:projectId/members" element={<ProjectMembersPage />} />
                     <Route path="/projects/:projectId/documents" element={<ProjectDocumentsPage />} />
                     <Route path="/projects/:projectId/documents/:documentId" element={<ProjectDocumentPage />} />
                     <Route path="/projects/:projectId/page" element={<Navigate replace to="../documents" />} />

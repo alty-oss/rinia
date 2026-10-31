@@ -96,16 +96,7 @@ export const MembersPanel = ({ projectId, isProjectOwner }: { projectId: string;
                                 <tr key={member.id} className="group hover:bg-layer-transparent-hover">
                                     <td className="px-3 py-3">
                                         <div className="flex items-center gap-2">
-                                            <Avatar
-                                                src={member.avatarUrl ?? undefined}
-                                                initials={member.name
-                                                    .split(" ")
-                                                    .filter(Boolean)
-                                                    .slice(0, 2)
-                                                    .map((part) => part[0])
-                                                    .join("")}
-                                                size="xs"
-                                            />
+                                            <Avatar src={member.avatarUrl ?? undefined} initials={memberInitials(member.name)} size="xs" />
                                             <span className="max-w-64 truncate">{member.name}</span>
                                         </div>
                                     </td>
@@ -148,7 +139,7 @@ export const MembersPanel = ({ projectId, isProjectOwner }: { projectId: string;
     );
 };
 
-function AddMemberForm({ projectId, onClose }: { projectId: string; onClose: () => void }) {
+export function AddMemberForm({ projectId, onClose }: { projectId: string; onClose: () => void }) {
     const { t } = useTranslation();
     const mutation = useAddProjectMember(projectId);
     const { control, handleSubmit, setError, formState } = useForm<AddProjectMemberInput>({
@@ -178,4 +169,13 @@ function AddMemberForm({ projectId, onClose }: { projectId: string; onClose: () 
             </div>
         </form>
     );
+}
+
+export function memberInitials(name: string) {
+    return name
+        .split(" ")
+        .filter(Boolean)
+        .slice(0, 2)
+        .map((part) => part[0])
+        .join("");
 }

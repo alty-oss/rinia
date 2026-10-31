@@ -15,6 +15,7 @@ import { type DocumentPage, deleteDocument, getDocument } from "@/features/docum
 import { DocumentEditor } from "@/features/documents/components/document-editor";
 import { documentKey, documentsKey, useCreateDocument, useDocument, useDocuments } from "@/features/documents/hooks/use-documents";
 import { clearDocumentSession, getDocumentSession } from "@/features/documents/sessions";
+import { ProjectHomeTabs } from "@/features/projects/components/project-home-tabs";
 import { ProjectWorkspaceHeader } from "@/features/projects/components/project-workspace-header";
 import { ProjectIcon } from "@/features/projects/components/project-icon";
 import { useProjectMembers } from "@/features/projects/hooks/use-project-members";
@@ -44,8 +45,9 @@ function DocumentList({ projectId }: { projectId: string }) {
     }
     return (
         <div className="flex h-full min-h-0 flex-col bg-surface-1">
-            <ProjectWorkspaceHeader projectId={projectId} activeView="documents" />
-            <main className="min-h-0 flex-1 overflow-y-auto px-4 py-3 lg:px-5">
+            <ProjectWorkspaceHeader projectId={projectId} activeView="documents" hideSection />
+            <ProjectHomeTabs projectId={projectId} current="documents" />
+            <main className="min-h-0 flex-1 overflow-y-auto px-4 pb-3 lg:px-5">
                 <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
                     <div className="w-64 max-w-full">
                         <Input size="sm" aria-label={t("documents.searchPages")} icon={Search} placeholder={`${t("documents.searchPages")}…`} value={search} onChange={setSearch} />
