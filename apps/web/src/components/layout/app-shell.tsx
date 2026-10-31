@@ -174,7 +174,7 @@ function SidebarResizeHandle({
                 aria-valuemin={220}
                 aria-valuemax={360}
                 tabIndex={0}
-                className="group absolute inset-y-4 left-1 z-20 hidden w-2 cursor-ew-resize touch-none outline-none md:block"
+                className="group absolute top-2 bottom-8 left-1 z-20 hidden w-2 cursor-ew-resize touch-none outline-none md:block"
                 onPointerDown={(event) => {
                     if (event.button !== 0) return;
                     drag.current = { x: event.clientX, width, moved: false };
@@ -209,7 +209,11 @@ function SidebarResizeHandle({
             >
                 <span
                     aria-hidden="true"
-                    className={`absolute inset-y-0 left-1/2 w-px -translate-x-1/2 transition-colors ${resizing ? "bg-accent-primary" : "bg-transparent group-hover:bg-[var(--border-strong-1)] group-focus-visible:bg-accent-primary"}`}
+                    className={`absolute inset-y-0 left-1/2 w-px -translate-x-1/2 transition-[opacity,color] duration-150 ${
+                        resizing ? "text-accent-primary opacity-100" : "text-[var(--border-strong-1)] opacity-0 group-hover:opacity-100 group-focus-visible:text-accent-primary group-focus-visible:opacity-100"
+                    }`}
+                    // Fades in and out at both ends so the highlight blends into the panel's rounded corners.
+                    style={{ background: "linear-gradient(to bottom, transparent, currentColor 18%, currentColor 82%, transparent)" }}
                 />
             </div>
             {hint && !resizing && (
