@@ -1,29 +1,26 @@
-import { Popover } from "@base-ui/react/popover";
-import { updateProjectSchema, type UpdateProjectInput } from "@rinia/shared";
+import { updateProjectSchema } from "@rinia/shared";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRef } from "react";
-import { Controller, useForm } from "react-hook-form";
+import { useForm } from "react-hook-form";
 import { Button } from "@/components/base/buttons/button";
 import { Alert } from "@/components/base/feedback/alert";
 import { ErrorMessage } from "@/components/feedback/error-message";
 import { LoadingState } from "@/components/feedback/loading-state";
 import { ControlledSettingsInput as ControlledInput, ControlledSettingsDescription } from "@/components/settings/settings-input";
 import { SettingsControl } from "@/components/settings/settings-layout";
-import { AppearancePicker } from "@/components/appearance/appearance-picker";
 import { CoverImage } from "@/components/appearance/cover-image";
-import { CoverPicker } from "@/components/appearance/cover-picker";
 import { ApiError } from "@/lib/api-client";
 import { useProject } from "../hooks/use-project";
 import { useUpdateProject } from "../hooks/use-projects";
 import { DeleteProjectDialog } from "./delete-project-dialog";
+import { ProjectCoverControl, ProjectIconControl } from "./project-appearance-controls";
 import { useTranslation } from "react-i18next";
-import { DEFAULT_PROJECT_ICON, ProjectIcon } from "./project-icon";
 
 export const ProjectDetailsPanel = ({ projectId, isProjectOwner }: { projectId: string; isProjectOwner: boolean }) => {
     const { t } = useTranslation();
     const { data: project, isLoading, isError } = useProject(projectId);
     const mutation = useUpdateProject(projectId);
-    const { control, handleSubmit, setError, watch, formState } = useForm({
+    const { control, handleSubmit, setError, formState } = useForm({
         resolver: zodResolver(updateProjectSchema),
         values: project
             ? {
@@ -31,19 +28,43 @@ export const ProjectDetailsPanel = ({ projectId, isProjectOwner }: { projectId: 
                   issueKey: project.issueKey,
                   description: project.description ?? "",
                   repositoryUrl: project.repositoryUrl ?? "",
-                  iconAppearance: (project.iconAppearance ?? { type: "icon" as const, key: (project.icon as typeof DEFAULT_PROJECT_ICON | null) ?? DEFAULT_PROJECT_ICON }) as NonNullable<UpdateProjectInput["iconAppearance"]>,
-                  cover: project.cover,
               }
             : undefined,
+        resetOptions: { keepDirtyValues: true },
     });
     const coverRef = useRef<HTMLDivElement>(null);
     if (isLoading) return <LoadingState label={t("settings.loadingProject")} />;
     if (isError || !project) return <ErrorMessage message={t("settings.couldNotLoadProject")} />;
     const disabled = !isProjectOwner || mutation.isPending;
-    const previewCover = watch("cover");
 
     return (
         <div>
+            <div ref={coverRef} className="relative flex h-32 items-end overflow-hidden rounded-md border border-subtle bg-surface-2 p-3">
+                <CoverImage cover={project.cover} className="absolute inset-0" />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
+                <div className="flex min-w-0 items-center gap-3">
+                    <ProjectIconControl
+                        projectId={projectId}
+                        icon={project.iconAppearance ?? project.icon}
+                        isProjectOwner={isProjectOwner}
+                        className="flex size-11 shrink-0 items-center justify-center rounded-md border border-subtle bg-layer-2 outline-accent-strong hover:bg-layer-2-hover"
+                        iconClassName="size-6"
+                    />
+                    <div className="min-w-0">
+                        <h1 className="text-base truncate font-semibold">{project.name}</h1>
+                        <p className="mt-1 text-sm text-tertiary">{project.issueKey}</p>
+                    </div>
+                </div>
+                <div className="absolute right-3 top-3">
+                    <ProjectCoverControl
+                        projectId={projectId}
+                        cover={project.cover}
+                        isProjectOwner={isProjectOwner}
+                        containerRef={coverRef}
+                        triggerClassName="inline-flex h-8 items-center gap-2 rounded px-2 text-xs font-medium text-white hover:bg-white/15 disabled:opacity-50"
+                    />
+                </div>
+            </div>
             <form
                 noValidate
                 onSubmit={handleSubmit((data) =>
@@ -52,40 +73,6 @@ export const ProjectDetailsPanel = ({ projectId, isProjectOwner }: { projectId: 
                     }),
                 )}
             >
-                <div ref={coverRef} className="relative flex h-32 items-end overflow-hidden rounded-md border border-subtle bg-surface-2 p-3">
-                    <CoverImage cover={previewCover} className="absolute inset-0" />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
-                    <div className="flex min-w-0 items-center gap-3">
-                        <Controller
-                            control={control}
-                            name="iconAppearance"
-                            render={({ field }) => (
-                                <Popover.Root>
-                                    <Popover.Trigger
-                                        disabled={disabled}
-                                        aria-label={t("settings.changeProjectIcon")}
-                                        className="flex size-11 shrink-0 items-center justify-center rounded-md border border-subtle bg-layer-2 outline-accent-strong hover:bg-layer-2-hover"
-                                    >
-                                        <ProjectIcon icon={field.value} className="size-6" />
-                                    </Popover.Trigger>
-                                    <Popover.Portal>
-                                        <Popover.Positioner sideOffset={8} className="z-50">
-                                            <Popover.Popup className="max-h-[calc(100dvh-2rem)] w-80 max-w-[90vw] overflow-hidden rounded-md border border-subtle bg-layer-2 p-4 shadow-overlay-200 outline-none">
-                                                <Popover.Title className="sr-only">{t("settings.projectIcon")}</Popover.Title>
-                                                <AppearancePicker value={field.value} onChange={field.onChange} />
-                                            </Popover.Popup>
-                                        </Popover.Positioner>
-                                    </Popover.Portal>
-                                </Popover.Root>
-                            )}
-                        />
-                        <div className="min-w-0">
-                            <h1 className="text-base truncate font-semibold">{project.name}</h1>
-                            <p className="mt-1 text-sm text-tertiary">{project.issueKey}</p>
-                        </div>
-                    </div>
-                    <div className="absolute right-3 top-3"><Controller control={control} name="cover" render={({ field }) => <CoverPicker cover={field.value} onChange={field.onChange} disabled={disabled} containerRef={coverRef} />} /></div>
-                </div>
                 <div className="mt-8 flex flex-col gap-8">
                     <ControlledInput control={control} name="name" label={t("projects.projectName")} isRequired isDisabled={disabled} />
                     <ControlledSettingsDescription control={control} name="description" isDisabled={disabled} />

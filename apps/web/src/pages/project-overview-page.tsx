@@ -1,4 +1,5 @@
 import { ArrowRight, Gauge, ListChecks } from "lucide-react";
+import { useRef } from "react";
 import { Link, useParams } from "react-router";
 import { Skeleton } from "@/components/base/feedback/skeleton";
 import { EmptyState } from "@/components/feedback/empty-state";
@@ -7,15 +8,18 @@ import { AppIcons } from "@/components/foundations/icons";
 import { CoverImage } from "@/components/appearance/cover-image";
 import { useColumns } from "@/features/board/hooks/use-board";
 import { useCycles, useIssues } from "@/features/issues/hooks/use-issues";
+import { ProjectCoverControl, ProjectIconControl } from "@/features/projects/components/project-appearance-controls";
 import { ProjectWorkspaceHeader } from "@/features/projects/components/project-workspace-header";
-import { ProjectIcon } from "@/features/projects/components/project-icon";
 import { useProject } from "@/features/projects/hooks/use-project";
+import { useProjectPermissions } from "@/features/projects/hooks/use-project-permissions";
 import { useTranslation } from "react-i18next";
 
 export const ProjectOverviewPage = () => {
     const { projectId } = useParams<{ projectId: string }>();
     const { t } = useTranslation();
     const { data: project, isLoading, isError } = useProject(projectId!);
+    const { isProjectOwner } = useProjectPermissions(projectId!);
+    const coverRef = useRef<HTMLDivElement>(null);
     const { data: issues, isLoading: issuesLoading, isError: issuesError } = useIssues(projectId!);
     const { data: columns, isLoading: columnsLoading, isError: columnsError } = useColumns(projectId!);
     const { data: cycles, isLoading: cyclesLoading, isError: cyclesError } = useCycles(projectId!);
@@ -35,9 +39,28 @@ export const ProjectOverviewPage = () => {
                 ) : (
                 <div className="flex flex-col">
                     <header className="overflow-hidden rounded-md border border-subtle">
-                        <CoverImage cover={project.cover} className="h-28 sm:h-36" />
+                        <div ref={coverRef} className="relative">
+                            <CoverImage cover={project.cover} className="h-28 sm:h-36" />
+                            <div className="absolute right-3 top-3">
+                                <ProjectCoverControl
+                                    projectId={project.id}
+                                    cover={project.cover}
+                                    isProjectOwner={isProjectOwner}
+                                    containerRef={coverRef}
+                                    triggerClassName={project.cover
+                                        ? "inline-flex h-8 items-center gap-2 rounded px-2 text-xs font-medium text-white hover:bg-white/15 disabled:opacity-50"
+                                        : undefined}
+                                />
+                            </div>
+                        </div>
                         <div className={`relative px-4 pb-4 sm:px-5 ${project.cover ? "-mt-6" : "pt-4"}`}>
-                            <span className="grid size-12 place-items-center rounded-md border border-subtle bg-layer-2 text-primary shadow-raised-100"><ProjectIcon icon={project.iconAppearance ?? project.icon} className="size-6" /></span>
+                            <ProjectIconControl
+                                projectId={project.id}
+                                icon={project.iconAppearance ?? project.icon}
+                                isProjectOwner={isProjectOwner}
+                                className="grid size-12 place-items-center rounded-md border border-subtle bg-layer-2 text-primary shadow-raised-100 outline-accent-strong hover:bg-layer-2-hover"
+                                iconClassName="size-6"
+                            />
                             <div className="mt-3 min-w-0">
                                 <p className="font-mono text-[11px] text-accent-primary">{project.issueKey}</p>
                                 <h1 className="mt-0.5 text-xl font-semibold tracking-tight text-primary">{project.name}</h1>

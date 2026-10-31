@@ -35,8 +35,12 @@ export function useUpdateProject(projectId: string) {
             ]);
             const previousProject = queryClient.getQueryData<Project>(projectQueryKey(projectId));
             const previousProjects = queryClient.getQueryData<ProjectCardSummary[]>(PROJECTS_QUERY_KEY);
-            queryClient.setQueryData<Project>(projectQueryKey(projectId), (current) => current ? { ...current, ...input } : current);
-            queryClient.setQueryData<ProjectCardSummary[]>(PROJECTS_QUERY_KEY, (current) => current?.map((project) => project.id === projectId ? { ...project, ...input } : project));
+            const nextAppearance =
+                input.iconAppearance === undefined
+                    ? {}
+                    : { icon: input.iconAppearance?.type === "icon" ? input.iconAppearance.key : null };
+            queryClient.setQueryData<Project>(projectQueryKey(projectId), (current) => current ? { ...current, ...input, ...nextAppearance } : current);
+            queryClient.setQueryData<ProjectCardSummary[]>(PROJECTS_QUERY_KEY, (current) => current?.map((project) => project.id === projectId ? { ...project, ...input, ...nextAppearance } : project));
             return { previousProject, previousProjects };
         },
         onError: (_error, _input, context) => {
