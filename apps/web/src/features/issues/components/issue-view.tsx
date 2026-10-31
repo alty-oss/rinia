@@ -476,7 +476,7 @@ export const IssueView = ({ identifier, projectId, mode = "page", onClose }: Iss
             </div>
 
             <div className="min-h-0 flex-1 overflow-y-auto">
-                <div className={mode === "peek" ? "issue-peek-body px-8 py-5" : "mx-auto flex w-full max-w-5xl flex-col gap-6 px-4 py-6 lg:flex-row lg:items-start lg:gap-6 lg:px-8"}>
+                <div className={mode === "peek" ? "issue-peek-body px-6 py-4" : "mx-auto flex w-full max-w-5xl flex-col gap-6 px-4 py-5 lg:flex-row lg:items-start lg:gap-6 lg:px-8"}>
                     <div className="min-w-0 flex-1">
                         {mode === "peek" && <div className="mb-2 text-caption-md-regular text-tertiary">{issue.identifier}</div>}
                         <textarea
@@ -511,7 +511,7 @@ export const IssueView = ({ identifier, projectId, mode = "page", onClose }: Iss
                                     titleDirty.current = false;
                                 }
                             }}
-                            className="min-h-8 w-full resize-none overflow-hidden border-0 bg-transparent text-[22px] leading-[30px] font-semibold text-primary outline-none placeholder:text-tertiary focus-visible:ring-1 focus-visible:ring-accent-strong md:text-2xl md:leading-8"
+                            className="min-h-7 w-full resize-none overflow-hidden border-0 bg-transparent text-xl leading-7 font-semibold text-primary outline-none placeholder:text-tertiary focus-visible:ring-1 focus-visible:ring-accent-strong"
                             aria-label={t("issue.title")}
                         />
                         {titleSaveError && <p role="alert" className="mt-1 text-xs text-danger-primary">{titleSaveError}</p>}
@@ -596,10 +596,10 @@ export const IssueView = ({ identifier, projectId, mode = "page", onClose }: Iss
                         </section>
 
                         {mode === "peek" && <>
-                            <div className="mt-8 flex justify-end gap-1 text-caption-md-regular text-tertiary"><HistoryOutline className="size-3.5" />{t("issue.updatedAgo", { time: formatDistanceToNow(issue.updatedAt, i18n.language) })}</div>
-                            <div className="mt-10 mb-12 flex flex-wrap items-center gap-2">
-                                <Button size="md" color="secondary" iconLeading={Link2} onClick={() => setRelationsOpen(!relationsOpen)} aria-expanded={relationsOpen}>{t("issue.addRelation")}</Button>
-                                <Button size="md" color="secondary" iconLeading={ParentOutline} onClick={() => document.querySelector<HTMLInputElement>(`.plane-issue-peek [aria-label='${t("issue.parent")}']`)?.focus()}>{t("issue.addParent")}</Button>
+                            <div className="mt-5 flex justify-end gap-1 text-caption-md-regular text-tertiary"><HistoryOutline className="size-3.5" />{t("issue.updatedAgo", { time: formatDistanceToNow(issue.updatedAt, i18n.language) })}</div>
+                            <div className="mt-5 mb-6 flex flex-wrap items-center gap-2">
+                                <Button size="sm" color="secondary" iconLeading={Link2} onClick={() => setRelationsOpen(!relationsOpen)} aria-expanded={relationsOpen}>{t("issue.addRelation")}</Button>
+                                <Button size="sm" color="secondary" iconLeading={ParentOutline} onClick={() => document.querySelector<HTMLInputElement>(`.plane-issue-peek [aria-label='${t("issue.parent")}']`)?.focus()}>{t("issue.addParent")}</Button>
                             </div>
                         </>}
                         <IssueSubIssues issue={issue} columns={columns ?? []} />
@@ -613,10 +613,10 @@ export const IssueView = ({ identifier, projectId, mode = "page", onClose }: Iss
                             onDelete={(relationId) => deleteRelation.mutate(relationId)}
                         />}
                         {mode === "peek" && <PeekProperties issue={issue} projectIssues={projectIssues} columns={columns} members={members} categories={categories} cycles={cycles} save={save} error={propertySaveError} isPending={updateIssue.isPending} />}
-                        <section className="mt-8 border-t border-subtle pt-5">
-                            <div role="tablist" aria-label={t("issue.discussion")} className="flex items-center gap-5 border-b border-subtle">
-                                <button type="button" role="tab" id={`issue-discussion-${issue.id}-comments`} aria-controls={`issue-discussion-${issue.id}-panel`} data-discussion-tab="comments" tabIndex={discussionTab === "comments" ? 0 : -1} aria-selected={discussionTab === "comments"} onKeyDown={handleDiscussionTabKeyDown} className={cx("border-b-2 px-0.5 pb-3 text-sm font-medium", discussionTab === "comments" ? "border-accent-primary text-primary" : "border-transparent text-tertiary hover:text-secondary")} onClick={() => selectDiscussionTab("comments")}>{t("issue.comments")} <span className="ml-1 text-xs text-tertiary">{comments?.length ?? 0}</span></button>
-                                <button type="button" role="tab" id={`issue-discussion-${issue.id}-activity`} aria-controls={`issue-discussion-${issue.id}-panel`} data-discussion-tab="activity" tabIndex={discussionTab === "activity" ? 0 : -1} aria-selected={discussionTab === "activity"} onKeyDown={handleDiscussionTabKeyDown} className={cx("border-b-2 px-0.5 pb-3 text-sm font-medium", discussionTab === "activity" ? "border-accent-primary text-primary" : "border-transparent text-tertiary hover:text-secondary")} onClick={() => selectDiscussionTab("activity")}>{t("issue.activity")} <span className="ml-1 text-xs text-tertiary">{activity?.length ?? 0}</span></button>
+                        <section className="mt-6 border-t border-subtle pt-4">
+                            <div role="tablist" aria-label={t("issue.discussion")} className="flex items-center gap-4 border-b border-subtle">
+                                <button type="button" role="tab" id={`issue-discussion-${issue.id}-comments`} aria-controls={`issue-discussion-${issue.id}-panel`} data-discussion-tab="comments" tabIndex={discussionTab === "comments" ? 0 : -1} aria-selected={discussionTab === "comments"} onKeyDown={handleDiscussionTabKeyDown} className={cx("border-b-2 px-0.5 pb-2 text-[13px] font-medium", discussionTab === "comments" ? "border-accent-primary text-primary" : "border-transparent text-tertiary hover:text-secondary")} onClick={() => selectDiscussionTab("comments")}>{t("issue.comments")} <span className="ml-1 text-[11px] text-tertiary">{comments?.length ?? 0}</span></button>
+                                <button type="button" role="tab" id={`issue-discussion-${issue.id}-activity`} aria-controls={`issue-discussion-${issue.id}-panel`} data-discussion-tab="activity" tabIndex={discussionTab === "activity" ? 0 : -1} aria-selected={discussionTab === "activity"} onKeyDown={handleDiscussionTabKeyDown} className={cx("border-b-2 px-0.5 pb-2 text-[13px] font-medium", discussionTab === "activity" ? "border-accent-primary text-primary" : "border-transparent text-tertiary hover:text-secondary")} onClick={() => selectDiscussionTab("activity")}>{t("issue.activity")} <span className="ml-1 text-[11px] text-tertiary">{activity?.length ?? 0}</span></button>
                             </div>
                         </section>
                         <div role="tabpanel" id={`issue-discussion-${issue.id}-panel`} aria-labelledby={`issue-discussion-${issue.id}-${discussionTab}`}>
@@ -1269,7 +1269,7 @@ function IssueLoadingSkeleton({ mode }: { mode: "page" | "peek" }) {
             <div
                 className={
                     mode === "peek"
-                        ? "issue-peek-body flex-1 space-y-5 overflow-y-auto px-8 py-5"
+                        ? "issue-peek-body flex-1 space-y-4 overflow-y-auto px-6 py-4"
                         : "mx-auto flex w-full max-w-5xl flex-1 flex-col gap-6 overflow-y-auto px-4 py-6 lg:flex-row lg:items-start lg:gap-6 lg:px-8"
                 }
             >
