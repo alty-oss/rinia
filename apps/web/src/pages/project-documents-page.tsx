@@ -9,7 +9,7 @@ import { Skeleton } from "@/components/base/feedback/skeleton";
 import { Input } from "@/components/base/input/input";
 import { ErrorMessage } from "@/components/feedback/error-message";
 import { ContextMenuButton } from "@/components/overlay/context-menu-provider";
-import { AppearancePicker } from "@/components/appearance/appearance-picker";
+import { AppearancePicker, appearancePopupClass } from "@/components/appearance/appearance-picker";
 import { useAuth } from "@/features/auth/hooks/use-auth";
 import { type DocumentPage, deleteDocument, getDocument } from "@/features/documents/api";
 import { DocumentEditor } from "@/features/documents/components/document-editor";
@@ -297,7 +297,14 @@ function DocumentWorkspace({ page, userId }: { page: DocumentPage; userId: strin
                                 <Popover.Trigger disabled={busy || state.status === "deleted"} aria-label={state.iconAppearance ? t("appearance.changePageIcon") : t("appearance.addPageIcon")} className={`flex items-center justify-center rounded-md border border-subtle bg-layer-2 text-secondary hover:bg-layer-2-hover ${state.iconAppearance ? "size-12" : "h-7 gap-1.5 px-2 text-xs font-medium"}`}>
                                     {state.iconAppearance ? <ProjectIcon icon={state.iconAppearance} className="size-6" /> : <><Sparkles className="size-3.5" /> {t("appearance.addPageIcon")}</>}
                                 </Popover.Trigger>
-                                <Popover.Portal><Popover.Positioner sideOffset={8} collisionPadding={12} className="z-[60]"><Popover.Popup className="max-h-[calc(100dvh-2rem)] overflow-y-auto rounded-lg border border-subtle bg-layer-2 p-3 shadow-overlay-200 outline-none"><Popover.Title className="sr-only">{t("appearance.pageIcon")}</Popover.Title><AppearancePicker value={state.iconAppearance} onChange={(iconAppearance) => session.edit({ iconAppearance })} onComplete={() => setIconPickerOpen(false)} /></Popover.Popup></Popover.Positioner></Popover.Portal>
+                                <Popover.Portal>
+                                    <Popover.Positioner sideOffset={8} collisionPadding={12} className="z-[60]">
+                                        <Popover.Popup className={appearancePopupClass}>
+                                            <Popover.Title className="sr-only">{t("appearance.pageIcon")}</Popover.Title>
+                                            <AppearancePicker value={state.iconAppearance} onChange={(iconAppearance) => session.edit({ iconAppearance })} onComplete={() => setIconPickerOpen(false)} />
+                                        </Popover.Popup>
+                                    </Popover.Positioner>
+                                </Popover.Portal>
                             </Popover.Root>
                         </div>
                         <textarea
