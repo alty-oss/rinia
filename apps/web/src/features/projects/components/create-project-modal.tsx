@@ -11,7 +11,7 @@ import { ControlledInput } from "@/components/form/controlled-input";
 import { ControlledTextarea } from "@/components/form/controlled-textarea";
 import { ModalDialog } from "@/components/overlay/modal-dialog";
 import { AppearancePicker } from "@/components/appearance/appearance-picker";
-import { CoverPicker } from "@/components/appearance/cover-picker";
+import { GradientPicker } from "@/components/appearance/gradient-picker";
 import { ApiError } from "@/lib/api-client";
 import { useCreateProject } from "../hooks/use-projects";
 import { DEFAULT_PROJECT_ICON, ProjectIcon } from "./project-icon";
@@ -102,7 +102,7 @@ export const CreateProjectModal = () => {
                     />
                     <ControlledTextarea control={control} name="description" label={t("projects.description")} rows={3} />
                     <ControlledInput control={control} name="repositoryUrl" label={t("projects.repository")} placeholder="https://github.com/..." />
-                    <Controller control={control} name="cover" render={({ field }) => <CoverPicker cover={field.value} onChange={field.onChange} />} />
+                    <Controller control={control} name="cover" render={({ field }) => <GradientPicker cover={field.value} onChange={field.onChange} />} />
 
                     {formState.errors.root && <p className="text-sm text-danger-primary">{formState.errors.root.message}</p>}
 

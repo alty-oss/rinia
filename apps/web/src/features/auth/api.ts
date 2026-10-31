@@ -1,4 +1,4 @@
-import type { EntityCover, LoginInput, RegisterInput, UpdateLocaleInput, UpdateProfileInput } from "@rinia/shared";
+import type { LoginInput, RegisterInput, UpdateLocaleInput, UpdateProfileInput } from "@rinia/shared";
 import { apiClient } from "@/lib/api-client";
 
 export interface AuthUser {
@@ -7,7 +7,6 @@ export interface AuthUser {
     username: string;
     email: string;
     avatarUrl: string | null;
-    cover: EntityCover | null;
     locale: "pt-BR" | "en";
     isAdmin: boolean;
     createdAt: string;

@@ -1,6 +1,5 @@
-import { updateProjectSchema } from "@rinia/shared";
+import { parseProjectCover, updateProjectSchema } from "@rinia/shared";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useRef } from "react";
 import { useForm } from "react-hook-form";
 import { Button } from "@/components/base/buttons/button";
 import { Alert } from "@/components/base/feedback/alert";
@@ -8,7 +7,7 @@ import { ErrorMessage } from "@/components/feedback/error-message";
 import { LoadingState } from "@/components/feedback/loading-state";
 import { ControlledSettingsInput as ControlledInput, ControlledSettingsDescription } from "@/components/settings/settings-input";
 import { SettingsControl } from "@/components/settings/settings-layout";
-import { CoverImage } from "@/components/appearance/cover-image";
+import { GradientCover } from "@/components/appearance/gradient-cover";
 import { ApiError } from "@/lib/api-client";
 import { useProject } from "../hooks/use-project";
 import { useUpdateProject } from "../hooks/use-projects";
@@ -32,16 +31,16 @@ export const ProjectDetailsPanel = ({ projectId, isProjectOwner }: { projectId: 
             : undefined,
         resetOptions: { keepDirtyValues: true },
     });
-    const coverRef = useRef<HTMLDivElement>(null);
     if (isLoading) return <LoadingState label={t("settings.loadingProject")} />;
     if (isError || !project) return <ErrorMessage message={t("settings.couldNotLoadProject")} />;
     const disabled = !isProjectOwner || mutation.isPending;
+    const hasBanner = !!parseProjectCover(project.cover);
 
     return (
         <div>
-            <div ref={coverRef} className="relative flex h-32 items-end overflow-hidden rounded-md border border-subtle bg-surface-2 p-3">
-                <CoverImage cover={project.cover} className="absolute inset-0" />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
+            <div className="relative flex h-32 items-end overflow-hidden rounded-md border border-subtle bg-surface-2 p-3">
+                <GradientCover cover={project.cover} className="absolute inset-0" />
+                {hasBanner && <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />}
                 <div className="flex min-w-0 items-center gap-3">
                     <ProjectIconControl
                         projectId={projectId}
@@ -60,8 +59,9 @@ export const ProjectDetailsPanel = ({ projectId, isProjectOwner }: { projectId: 
                         projectId={projectId}
                         cover={project.cover}
                         isProjectOwner={isProjectOwner}
-                        containerRef={coverRef}
-                        triggerClassName="inline-flex h-8 items-center gap-2 rounded px-2 text-xs font-medium text-white hover:bg-white/15 disabled:opacity-50"
+                        triggerClassName={hasBanner
+                            ? "inline-flex h-8 items-center gap-2 rounded px-2 text-xs font-medium text-white hover:bg-white/15 disabled:opacity-50"
+                            : undefined}
                     />
                 </div>
             </div>

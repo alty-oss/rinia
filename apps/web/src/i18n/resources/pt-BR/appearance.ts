@@ -4,6 +4,9 @@ const appearance = {
     httpImageUrl: "Use uma URL de imagem HTTP ou HTTPS.", imageLoadFailed: "Não foi possível carregar esta imagem.", directImage: "As imagens são carregadas diretamente desta URL.",
     addCover: "Adicionar capa", changeCover: "Alterar capa", cover: "Capa", coverImageUrl: "URL da imagem de capa", dragCover: "Arraste a prévia para escolher o enquadramento.",
     removeCover: "Remover capa", apply: "Aplicar", addPageIcon: "Adicionar ícone", changePageIcon: "Alterar ícone", pageIcon: "Ícone da página",
+    projectBanner: "Banner do projeto", addBanner: "Adicionar banner", changeBanner: "Alterar banner", noBanner: "Sem banner",
+    gradientAurora: "Aurora", gradientDusk: "Entardecer", gradientEmber: "Brasa", gradientLagoon: "Lagoa",
+    gradientMidnight: "Meia-noite", gradientOrchid: "Orquídea", gradientPine: "Pinheiro", gradientSlate: "Ardósia",
 } as const;
 
 export default appearance;

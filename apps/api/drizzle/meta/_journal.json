@@ -85,6 +85,13 @@
       "when": 1789953139066,
       "tag": "0011_bouncy_ezekiel",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1790004000000,
+      "tag": "0012_remove_user_cover",
+      "breakpoints": true
     }
   ]
 }

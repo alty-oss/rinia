@@ -1,8 +1,9 @@
 import { Popover } from "@base-ui/react/popover";
-import type { EntityCover, EntityIcon, UpdateProjectInput } from "@rinia/shared";
-import { useState, type RefObject } from "react";
+import type { EntityIcon, ProjectCover, UpdateProjectInput } from "@rinia/shared";
+import { useState } from "react";
 import { AppearancePicker } from "@/components/appearance/appearance-picker";
-import { CoverPicker } from "@/components/appearance/cover-picker";
+import { GradientPicker } from "@/components/appearance/gradient-picker";
+import { parseProjectCover } from "@rinia/shared";
 import { useUpdateProject } from "../hooks/use-projects";
 import { DEFAULT_PROJECT_ICON, ProjectIcon } from "./project-icon";
 import { useTranslation } from "react-i18next";
@@ -64,24 +65,34 @@ export function ProjectCoverControl({
     projectId,
     cover,
     isProjectOwner,
-    containerRef,
     triggerClassName,
 }: {
     projectId: string;
-    cover: EntityCover | null | undefined;
+    cover: ProjectCover | null | undefined;
     isProjectOwner: boolean;
-    containerRef?: RefObject<HTMLElement | null>;
     triggerClassName?: string;
 }) {
+    const { t } = useTranslation();
     const update = useUpdateProject(projectId);
+    const [open, setOpen] = useState(false);
     if (!isProjectOwner) return null;
+    const hasBanner = !!parseProjectCover(cover);
     return (
-        <CoverPicker
-            cover={cover}
-            onChange={(next) => update.mutate({ cover: next })}
-            disabled={update.isPending}
-            containerRef={containerRef}
-            triggerClassName={triggerClassName}
-        />
+        <Popover.Root open={open} onOpenChange={setOpen}>
+            <Popover.Trigger
+                disabled={update.isPending}
+                className={triggerClassName ?? "inline-flex h-8 items-center gap-2 rounded px-2 text-xs font-medium text-tertiary hover:bg-layer-1-hover hover:text-secondary disabled:opacity-50"}
+            >
+                {hasBanner ? t("appearance.changeBanner") : t("appearance.addBanner")}
+            </Popover.Trigger>
+            <Popover.Portal>
+                <Popover.Positioner sideOffset={8} collisionPadding={12} className="z-[60]">
+                    <Popover.Popup className="w-72 max-w-[calc(100vw-2rem)] rounded-lg border border-subtle bg-layer-2 p-3 shadow-overlay-200 outline-none">
+                        <Popover.Title className="sr-only">{t("appearance.projectBanner")}</Popover.Title>
+                        <GradientPicker cover={cover} onChange={(next) => update.mutate({ cover: next })} disabled={update.isPending} />
+                    </Popover.Popup>
+                </Popover.Positioner>
+            </Popover.Portal>
+        </Popover.Root>
     );
 }

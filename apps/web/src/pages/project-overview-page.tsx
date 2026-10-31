@@ -1,11 +1,11 @@
 import { ArrowRight, Gauge, ListChecks } from "lucide-react";
-import { useRef } from "react";
+import { parseProjectCover } from "@rinia/shared";
 import { Link, useParams } from "react-router";
 import { Skeleton } from "@/components/base/feedback/skeleton";
 import { EmptyState } from "@/components/feedback/empty-state";
 import { ErrorMessage } from "@/components/feedback/error-message";
 import { AppIcons } from "@/components/foundations/icons";
-import { CoverImage } from "@/components/appearance/cover-image";
+import { GradientCover } from "@/components/appearance/gradient-cover";
 import { useColumns } from "@/features/board/hooks/use-board";
 import { useCycles, useIssues } from "@/features/issues/hooks/use-issues";
 import { ProjectCoverControl, ProjectIconControl } from "@/features/projects/components/project-appearance-controls";
@@ -19,7 +19,6 @@ export const ProjectOverviewPage = () => {
     const { t } = useTranslation();
     const { data: project, isLoading, isError } = useProject(projectId!);
     const { isProjectOwner } = useProjectPermissions(projectId!);
-    const coverRef = useRef<HTMLDivElement>(null);
     const { data: issues, isLoading: issuesLoading, isError: issuesError } = useIssues(projectId!);
     const { data: columns, isLoading: columnsLoading, isError: columnsError } = useColumns(projectId!);
     const { data: cycles, isLoading: cyclesLoading, isError: cyclesError } = useCycles(projectId!);
@@ -39,21 +38,20 @@ export const ProjectOverviewPage = () => {
                 ) : (
                 <div className="flex flex-col">
                     <header className="overflow-hidden rounded-md border border-subtle">
-                        <div ref={coverRef} className="relative">
-                            <CoverImage cover={project.cover} className="h-28 sm:h-36" />
+                        <div className="relative">
+                            <GradientCover cover={project.cover} className="h-28 sm:h-36" />
                             <div className="absolute right-3 top-3">
                                 <ProjectCoverControl
                                     projectId={project.id}
                                     cover={project.cover}
                                     isProjectOwner={isProjectOwner}
-                                    containerRef={coverRef}
-                                    triggerClassName={project.cover
+                                    triggerClassName={parseProjectCover(project.cover)
                                         ? "inline-flex h-8 items-center gap-2 rounded px-2 text-xs font-medium text-white hover:bg-white/15 disabled:opacity-50"
                                         : undefined}
                                 />
                             </div>
                         </div>
-                        <div className={`relative px-4 pb-4 sm:px-5 ${project.cover ? "-mt-6" : "pt-4"}`}>
+                        <div className={`relative px-4 pb-4 sm:px-5 ${parseProjectCover(project.cover) ? "-mt-6" : "pt-4"}`}>
                             <ProjectIconControl
                                 projectId={project.id}
                                 icon={project.iconAppearance ?? project.icon}
