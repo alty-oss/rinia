@@ -10,8 +10,6 @@ import { Input } from "@/components/base/input/input";
 import { ErrorMessage } from "@/components/feedback/error-message";
 import { ContextMenuButton } from "@/components/overlay/context-menu-provider";
 import { AppearancePicker } from "@/components/appearance/appearance-picker";
-import { CoverImage } from "@/components/appearance/cover-image";
-import { CoverPicker } from "@/components/appearance/cover-picker";
 import { useAuth } from "@/features/auth/hooks/use-auth";
 import { type DocumentPage, deleteDocument, getDocument } from "@/features/documents/api";
 import { DocumentEditor } from "@/features/documents/components/document-editor";
@@ -152,7 +150,6 @@ function DocumentWorkspace({ page, userId }: { page: DocumentPage; userId: strin
     const [actionError, setActionError] = useState("");
     const [iconPickerOpen, setIconPickerOpen] = useState(false);
     const titleRef = useRef<HTMLTextAreaElement>(null);
-    const coverRef = useRef<HTMLDivElement>(null);
     useEffect(() => session.observe(page), [session, page]);
     useEffect(() => {
         const save = (event: KeyboardEvent) => {
@@ -213,7 +210,7 @@ function DocumentWorkspace({ page, userId }: { page: DocumentPage; userId: strin
         setActionError("");
         try {
             const draft = session.getSnapshot();
-            const copy = await create.mutateAsync({ title: `${draft.title || t("documents.untitled")} ${t("documents.localCopy")}`.slice(0, 200), contentJson: draft.contentJson, iconAppearance: draft.iconAppearance, cover: draft.cover });
+            const copy = await create.mutateAsync({ title: `${draft.title || t("documents.untitled")} ${t("documents.localCopy")}`.slice(0, 200), contentJson: draft.contentJson, iconAppearance: draft.iconAppearance });
             // The source draft remains intact until the user explicitly opens the saved version.
             navigate(`/projects/${page.projectId}/documents/${copy.id}`);
         } catch (error) {
@@ -295,15 +292,7 @@ function DocumentWorkspace({ page, userId }: { page: DocumentPage; userId: strin
                             </div>
                         )}
                         {actionError && !confirm && <ErrorMessage message={actionError} />}
-                        <div className="mb-3 flex justify-end">
-                            <CoverPicker cover={state.cover} disabled={busy || state.status === "deleted"} onChange={(cover) => session.edit({ cover })} containerRef={coverRef} />
-                        </div>
-                        {state.cover && (
-                            <div ref={coverRef} className="document-cover-shell -mx-5 sm:-mx-8 lg:-mx-16">
-                                <CoverImage cover={state.cover} className="h-32 sm:h-40" />
-                            </div>
-                        )}
-                        <div className={`relative z-10 mb-5 flex flex-wrap items-end gap-2 ${state.cover ? "-mt-8" : ""}`}>
+                        <div className="relative z-10 mb-5 flex flex-wrap items-end gap-2">
                             <Popover.Root open={iconPickerOpen} onOpenChange={setIconPickerOpen}>
                                 <Popover.Trigger disabled={busy || state.status === "deleted"} aria-label={state.iconAppearance ? t("appearance.changePageIcon") : t("appearance.addPageIcon")} className={`flex items-center justify-center rounded-md border border-subtle bg-layer-2 text-secondary hover:bg-layer-2-hover ${state.iconAppearance ? "size-12" : "h-7 gap-1.5 px-2 text-xs font-medium"}`}>
                                     {state.iconAppearance ? <ProjectIcon icon={state.iconAppearance} className="size-6" /> : <><Sparkles className="size-3.5" /> {t("appearance.addPageIcon")}</>}

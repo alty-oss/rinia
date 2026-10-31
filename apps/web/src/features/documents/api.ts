@@ -1,4 +1,4 @@
-import type { CreateDocumentInput, EntityCover, EntityIcon, TiptapDocument, UpdateDocumentInput } from "@rinia/shared";
+import type { CreateDocumentInput, EntityIcon, TiptapDocument, UpdateDocumentInput } from "@rinia/shared";
 import { apiClient } from "@/lib/api-client";
 
 export interface DocumentPage {
@@ -6,7 +6,6 @@ export interface DocumentPage {
     projectId: string;
     title: string;
     iconAppearance: EntityIcon | null;
-    cover: EntityCover | null;
     contentJson: TiptapDocument;
     createdBy: string;
     createdAt: string;

@@ -1,4 +1,4 @@
-import type { EntityCover, EntityIcon, TiptapDocument, UpdateDocumentInput } from "@rinia/shared";
+import type { EntityIcon, TiptapDocument, UpdateDocumentInput } from "@rinia/shared";
 import type { DocumentPage } from "./api";
 import type { DocumentDraft } from "./draft-store";
 
@@ -7,7 +7,6 @@ export interface SessionState {
     title: string;
     contentJson: TiptapDocument;
     iconAppearance: EntityIcon | null;
-    cover: EntityCover | null;
     revision: number;
     contentVersion: number;
     status: SaveStatus;
@@ -17,14 +16,14 @@ export interface SessionState {
 }
 interface Dependencies {
     read: () => Promise<DocumentDraft | undefined>;
-    write: (value: Pick<DocumentDraft, "title" | "contentJson" | "iconAppearance" | "cover" | "revision">) => Promise<unknown>;
+    write: (value: Pick<DocumentDraft, "title" | "contentJson" | "iconAppearance" | "revision">) => Promise<unknown>;
     remove: () => Promise<unknown>;
     save: (input: UpdateDocumentInput, signal: AbortSignal) => Promise<DocumentPage>;
     online: () => boolean;
     onSaved: (page: DocumentPage) => void;
 }
-const equivalent = (a: { title: string; contentJson: TiptapDocument; iconAppearance: EntityIcon | null; cover: EntityCover | null }, b: { title: string; contentJson: TiptapDocument; iconAppearance: EntityIcon | null; cover: EntityCover | null }) =>
-    a.title === b.title && JSON.stringify(a.contentJson) === JSON.stringify(b.contentJson) && JSON.stringify(a.iconAppearance) === JSON.stringify(b.iconAppearance) && JSON.stringify(a.cover) === JSON.stringify(b.cover);
+const equivalent = (a: { title: string; contentJson: TiptapDocument; iconAppearance: EntityIcon | null }, b: { title: string; contentJson: TiptapDocument; iconAppearance: EntityIcon | null }) =>
+    a.title === b.title && JSON.stringify(a.contentJson) === JSON.stringify(b.contentJson) && JSON.stringify(a.iconAppearance) === JSON.stringify(b.iconAppearance);
 
 /** Route-independent single-flight saves. The revision always belongs to the last server acknowledgement. */
 export class DocumentSession {
@@ -43,7 +42,7 @@ export class DocumentSession {
         page: DocumentPage,
         private deps: Dependencies,
     ) {
-        this.state = { title: page.title, contentJson: page.contentJson, iconAppearance: page.iconAppearance, cover: page.cover, revision: page.revision, contentVersion: 0, status: "loading", dirty: false };
+        this.state = { title: page.title, contentJson: page.contentJson, iconAppearance: page.iconAppearance, revision: page.revision, contentVersion: 0, status: "loading", dirty: false };
         this.ready = this.restore(page);
     }
     getSnapshot = () => this.state;
@@ -61,13 +60,12 @@ export class DocumentSession {
         try {
             const draft = await this.deps.read();
             if (this.suspended) return;
-            const restored = draft && { ...draft, iconAppearance: draft.iconAppearance ?? page.iconAppearance, cover: draft.cover ?? page.cover };
+            const restored = draft && { ...draft, iconAppearance: draft.iconAppearance ?? page.iconAppearance };
             if (restored && !equivalent(restored, page)) {
                 this.emit({
                     title: draft.title,
                     contentJson: draft.contentJson,
                     iconAppearance: restored.iconAppearance,
-                    cover: restored.cover,
                     revision: draft.revision,
                     dirty: true,
                     status: draft.revision === page.revision ? "pending" : "conflict",
@@ -82,12 +80,12 @@ export class DocumentSession {
         }
     }
     private persist() {
-        const { title, contentJson, iconAppearance, cover, revision } = this.state;
+        const { title, contentJson, iconAppearance, revision } = this.state;
         void this.deps
-            .write({ title, contentJson, iconAppearance, cover, revision })
+            .write({ title, contentJson, iconAppearance, revision })
             .catch(() => this.emit({ storageError: "documents.localDraftFailed" }));
     }
-    edit(patch: { title?: string; contentJson?: TiptapDocument; iconAppearance?: EntityIcon | null; cover?: EntityCover | null }) {
+    edit(patch: { title?: string; contentJson?: TiptapDocument; iconAppearance?: EntityIcon | null }) {
         if (this.suspended || this.state.status === "loading" || this.state.status === "deleted") return;
         this.changes++;
         this.lastEditAt = Date.now();
@@ -128,7 +126,7 @@ export class DocumentSession {
         }
         const changes = this.changes,
             generation = this.generation;
-        const input = { title: this.state.title, contentJson: this.state.contentJson, iconAppearance: this.state.iconAppearance, cover: this.state.cover, expectedRevision: this.state.revision };
+        const input = { title: this.state.title, contentJson: this.state.contentJson, iconAppearance: this.state.iconAppearance, expectedRevision: this.state.revision };
         this.controller = new AbortController();
         this.emit({ status: "saving", error: undefined });
         this.flight = (async () => {
@@ -137,7 +135,7 @@ export class DocumentSession {
                 if (generation !== this.generation) return;
                 this.deps.onSaved(page);
                 if (changes === this.changes) {
-                    this.emit({ title: page.title, contentJson: page.contentJson, iconAppearance: page.iconAppearance, cover: page.cover, revision: page.revision, dirty: false, status: "saved" });
+                    this.emit({ title: page.title, contentJson: page.contentJson, iconAppearance: page.iconAppearance, revision: page.revision, dirty: false, status: "saved" });
                     await this.deps.remove().catch(() => this.emit({ storageError: "documents.draftClearFailed" }));
                 } else {
                     this.emit({ revision: page.revision, status: "pending" });
@@ -175,12 +173,12 @@ export class DocumentSession {
     observe(page: DocumentPage) {
         if (this.suspended || this.flight || this.state.status === "loading" || page.revision <= this.state.revision) return;
         if (this.state.dirty) this.emit({ status: "conflict" });
-        else this.emit({ title: page.title, contentJson: page.contentJson, iconAppearance: page.iconAppearance, cover: page.cover, revision: page.revision, contentVersion: JSON.stringify(page.contentJson) === JSON.stringify(this.state.contentJson) ? this.state.contentVersion : this.state.contentVersion + 1, status: "saved" });
+        else this.emit({ title: page.title, contentJson: page.contentJson, iconAppearance: page.iconAppearance, revision: page.revision, contentVersion: JSON.stringify(page.contentJson) === JSON.stringify(this.state.contentJson) ? this.state.contentVersion : this.state.contentVersion + 1, status: "saved" });
     }
     async discard(page: DocumentPage) {
         await this.pause();
         await this.deps.remove();
-        this.emit({ title: page.title, contentJson: page.contentJson, iconAppearance: page.iconAppearance, cover: page.cover, revision: page.revision, contentVersion: this.state.contentVersion + 1, dirty: false, status: "saved", error: undefined });
+        this.emit({ title: page.title, contentJson: page.contentJson, iconAppearance: page.iconAppearance, revision: page.revision, contentVersion: this.state.contentVersion + 1, dirty: false, status: "saved", error: undefined });
         this.suspended = false;
     }
     networkChanged() {
