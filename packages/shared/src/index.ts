@@ -6,6 +6,7 @@ export * from "./schemas/issues";
 export * from "./schemas/projects";
 export * from "./schemas/documents";
 export * from "./schemas/users";
+export * from "./schemas/favorites";
 export * from "./rich-text";
 export * from "./locales";
 export * from "./error-codes";

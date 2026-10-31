@@ -1,6 +1,7 @@
 import { relations } from "drizzle-orm";
 import { boardColumns } from "./board-columns";
 import { categories } from "./categories";
+import { favorites } from "./favorites";
 import { issueActivities } from "./issue-activities";
 import { issueComments } from "./issue-comments";
 import { issueRelations } from "./issue-relations";
@@ -13,6 +14,7 @@ import { users } from "./users";
 
 export * from "./board-columns";
 export * from "./categories";
+export * from "./favorites";
 export * from "./issue-activities";
 export * from "./issue-comments";
 export * from "./issue-relations";
@@ -102,4 +104,11 @@ export const projectDocumentsRelations = relations(projectDocuments, ({ one }) =
 
 export const projectKeyAliasesRelations = relations(projectKeyAliases, ({ one }) => ({
     project: one(projects, { fields: [projectKeyAliases.projectId], references: [projects.id] }),
+}));
+
+export const favoritesRelations = relations(favorites, ({ one }) => ({
+    user: one(users, { fields: [favorites.userId], references: [users.id] }),
+    project: one(projects, { fields: [favorites.projectId], references: [projects.id] }),
+    document: one(projectDocuments, { fields: [favorites.documentId], references: [projectDocuments.id] }),
+    issue: one(issues, { fields: [favorites.issueId], references: [issues.id] }),
 }));

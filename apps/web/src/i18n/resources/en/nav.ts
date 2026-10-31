@@ -11,6 +11,7 @@ const nav = {
         favorite: "Favorite",
         searchSettings: "Search settings", yourProjects: "Your projects", administration: "Administration", noSettingsFound: "No settings found.",
         resizeDrag: "Drag", resizeDragHint: "to resize", resizeClick: "Click", resizeCollapseHint: "to collapse", resizeExpandHint: "to expand",
+        favorites: "Favorites", addFavorite: "Add to favorites", removeFavorite: "Remove from favorites",
     } as const;
 
 export default nav;

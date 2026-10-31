@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import type { TiptapDocument, UpdateIssueInput } from "@rinia/shared";
 import { ArrowLeft, ArrowRight, Ban, CheckCircle, Copy, ExternalLink, Link2, Plus, ShieldOff, Trash2 } from "lucide-react";
 import { Link, useBeforeUnload, useNavigate, useParams } from "react-router";
+import { FavoriteStar } from "@/features/favorites/components/favorite-star";
 import { AssigneeOutline, EstimateOutline, HistoryOutline, LabelsOutline, MoreHorizontalOutline, ParentOutline, PriorityOutline, StateOutline } from "@makeplane/propel/icons";
 import { Popover } from "@base-ui/react/popover";
 import { IssueAvatar, PriorityIcon, StateIcon } from "@/features/board/components/issue-property-icons";
@@ -473,6 +474,7 @@ export const IssueView = ({ identifier, projectId, mode = "page", onClose }: Iss
                         <Link to={`/projects/${issue.projectId}/issues`} className="truncate text-secondary hover:text-primary">{t("nav.issues")}</Link>
                         <span className="text-placeholder">›</span>
                         <span className="truncate text-primary">{issue.identifier} {title || issue.title}</span>
+                        <FavoriteStar target={{ kind: "issue", projectId: issue.projectId, issueId: issue.id }} />
                     </>}
                 </div>
                 <div className="flex items-center gap-2">

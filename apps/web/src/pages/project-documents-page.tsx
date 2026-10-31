@@ -45,7 +45,7 @@ function DocumentList({ projectId }: { projectId: string }) {
     }
     return (
         <div className="flex h-full min-h-0 flex-col bg-surface-1">
-            <ProjectWorkspaceHeader projectId={projectId} activeView="documents" hideSection />
+            <ProjectWorkspaceHeader projectId={projectId} activeView="documents" hideSection favorite={null} />
             <ProjectHomeTabs projectId={projectId} current="documents" />
             <main className="min-h-0 flex-1 overflow-y-auto px-4 pb-3 lg:px-5">
                 <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
@@ -117,7 +117,7 @@ export function ProjectDocumentPage() {
     const { user } = useAuth();
     return (
         <div className="flex h-full min-h-0 flex-col bg-surface-1">
-            <ProjectWorkspaceHeader projectId={projectId} activeView="documents" />
+            <ProjectWorkspaceHeader projectId={projectId} activeView="documents" favorite={documentId ? { kind: "document", projectId, documentId } : null} />
             {isError && page && <ErrorMessage message={t("documents.couldNotRefresh")} />}
             {page && user ? (
                 <DocumentWorkspace key={`${user.id}:${projectId}:${documentId}`} page={page} userId={user.id} />

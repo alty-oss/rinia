@@ -1,10 +1,12 @@
-import { useEffect, useState, type ReactNode } from "react";
-import { ChevronRight, Star } from "lucide-react";
+import type { ReactNode } from "react";
+import { ChevronRight } from "lucide-react";
 import { Link } from "react-router";
 import { ButtonUtility } from "@/components/base/buttons/button-utility";
 import { AppIcons } from "@/components/foundations/icons";
 import { useAppNavigation } from "@/components/layout/app-shell";
 import { ContextMenuButton } from "@/components/overlay/context-menu-provider";
+import type { FavoriteTarget } from "@/features/favorites/api";
+import { FavoriteStar } from "@/features/favorites/components/favorite-star";
 import { useProject } from "@/features/projects/hooks/use-project";
 import { useProjectPermissions } from "@/features/projects/hooks/use-project-permissions";
 import { useProjects } from "@/features/projects/hooks/use-projects";
@@ -16,11 +18,14 @@ export function ProjectWorkspaceHeader({
     activeView,
     actions,
     hideSection = false,
+    favorite,
 }: {
     projectId: string;
     actions?: ReactNode;
     /** Tabbed home screens already name the section in their tabs. */
     hideSection?: boolean;
+    /** What the star favorites. Defaults to the project, or its issue list on issue screens; `null` hides it. */
+    favorite?: FavoriteTarget | null;
     activeView: "overview" | "members" | "issues" | "board" | "documents" | "settings";
 }) {
     const { data: projectData } = useProject(projectId);
@@ -29,6 +34,14 @@ export function ProjectWorkspaceHeader({
     const project = projectData ?? projects?.find((candidate) => candidate.id === projectId);
     const { t } = useTranslation();
     const { toggleSidebar } = useAppNavigation();
+    const favoriteTarget: FavoriteTarget | null =
+        favorite !== undefined
+            ? favorite
+            : activeView === "overview" || activeView === "members"
+              ? { kind: "project", projectId }
+              : activeView === "issues" || activeView === "board"
+                ? { kind: "issues", projectId }
+                : null;
     const showSection = !hideSection && activeView !== "overview" && activeView !== "members";
     const title = activeView === "issues" || activeView === "board" ? t("nav.issues") : activeView === "documents" ? t("nav.documents") : activeView === "settings" ? t("nav.projectSettings") : t("nav.overview");
     return (
@@ -47,7 +60,7 @@ export function ProjectWorkspaceHeader({
                         <span className="truncate text-primary">{title}</span>
                     </>
                 )}
-                <FavoriteStar id={projectId} />
+                {favoriteTarget && <FavoriteStar target={favoriteTarget} />}
                 {project && <ContextMenuButton entity={{ type: "project", projectId, name: project.name, issueKey: project.issueKey }} className="size-6" />}
             </div>
             <div className="flex shrink-0 items-center gap-2">
@@ -63,37 +76,4 @@ export function ProjectWorkspaceHeader({
             </div>
         </header>
     );
-}
-
-function FavoriteStar({ id }: { id: string }) {
-    const { t } = useTranslation();
-    const [active, setActive] = useState(() => readFavorites().has(id));
-    useEffect(() => setActive(readFavorites().has(id)), [id]);
-    return (
-        <button
-            type="button"
-            aria-pressed={active}
-            aria-label={t("nav.favorite")}
-            className={`flex size-6 items-center justify-center rounded ${active ? "text-warning-primary" : "text-placeholder hover:text-secondary"}`}
-            onClick={() => {
-                const next = readFavorites();
-                if (next.has(id)) next.delete(id);
-                else next.add(id);
-                localStorage.setItem("rinia-favorites", JSON.stringify([...next]));
-                setActive(next.has(id));
-            }}
-        >
-            <Star className={`size-3.5 ${active ? "fill-current" : ""}`} />
-        </button>
-    );
-}
-
-function readFavorites() {
-    try {
-        const stored = JSON.parse(localStorage.getItem("rinia-favorites") ?? "[]");
-        if (Array.isArray(stored)) return new Set(stored.filter((value): value is string => typeof value === "string"));
-    } catch {
-        /* ignore invalid storage */
-    }
-    return new Set<string>();
 }

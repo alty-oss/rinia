@@ -4,6 +4,7 @@ import { count } from "drizzle-orm";
 import { createCategory } from "../features/categories/categories.service";
 import { listColumns } from "../features/columns/columns.service";
 import { createDocument } from "../features/documents/documents.service";
+import { addFavorite } from "../features/favorites/favorites.service";
 import { createIssue, createIssueComment, createIssueRelation } from "../features/issues/issues.service";
 import { addProjectMember, createProject } from "../features/projects/projects.service";
 import { hashPassword } from "../lib/password";
@@ -42,6 +43,8 @@ interface SeedProject {
     issues: SeedIssue[];
     relations?: Array<{ from: string; to: string; type: "blocks" | "related" | "duplicate" }>;
     documents: Array<{ title: string; icon?: CreateProjectInput["iconAppearance"]; markdown: string }>;
+    /** Shortcuts pinned to the admin's sidebar. */
+    favorites?: { project?: boolean; issues?: boolean; documents?: string[] };
 }
 
 const PROJECTS: SeedProject[] = [
@@ -147,6 +150,7 @@ const PROJECTS: SeedProject[] = [
                 label: "Feature",
             },
         ],
+        favorites: { project: true, issues: true, documents: ["Roadmap"] },
         relations: [
             { from: "Backup automático diário do banco", to: "Busca global de issues e documentos", type: "related" },
             { from: "Indexar títulos de documentos", to: "Atalhos de teclado na busca", type: "blocks" },
@@ -262,12 +266,20 @@ async function main() {
             await createIssueRelation(from.identifier, { targetIssueIdentifier: to.identifier, type: relation.type }, admin);
         }
 
+        const documentByTitle = new Map<string, string>();
         for (const document of seed.documents) {
-            await createDocument(project.id, admin, {
+            const created = await createDocument(project.id, admin, {
                 title: document.title,
                 iconAppearance: document.icon ?? null,
                 contentJson: markdownToTiptap(document.markdown),
             });
+            documentByTitle.set(document.title, created.id);
+        }
+
+        if (seed.favorites?.project) await addFavorite(admin, true, { kind: "project", projectId: project.id });
+        if (seed.favorites?.issues) await addFavorite(admin, true, { kind: "issues", projectId: project.id });
+        for (const title of seed.favorites?.documents ?? []) {
+            await addFavorite(admin, true, { kind: "document", projectId: project.id, documentId: documentByTitle.get(title)! });
         }
 
         console.log(`Seeded ${project.name} (${project.issueKey}) with ${seed.issues.length} issues`);

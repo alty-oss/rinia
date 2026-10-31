@@ -1,5 +1,5 @@
 import { useEffect, useState, type Dispatch, type ReactNode, type SetStateAction } from "react";
-import { ChevronDown, Circle, House, Search, ShieldCheck, SlidersHorizontal, SquarePen, UserRound } from "lucide-react";
+import { ChevronDown, Circle, House, Search, ShieldCheck, SlidersHorizontal, SquarePen, UserRound, X } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router";
 import { AppIcons } from "@/components/foundations/icons";
 import type { AppIcon } from "@/components/foundations/icons";
@@ -9,6 +9,8 @@ import { useAuth } from "@/features/auth/hooks/use-auth";
 import { useColumns } from "@/features/board/hooks/use-board";
 import { useDocuments } from "@/features/documents/hooks/use-documents";
 import { IssueQuickCreateModal } from "@/features/issues/components/issue-quick-create-modal";
+import type { Favorite } from "@/features/favorites/api";
+import { useFavorites, useMigrateLegacyFavorites, useRemoveFavorite } from "@/features/favorites/hooks/use-favorites";
 import { ProjectIcon } from "@/features/projects/components/project-icon";
 import type { ProjectCardSummary } from "@/features/projects/api";
 import { useProjects } from "@/features/projects/hooks/use-projects";
@@ -65,18 +67,21 @@ function openStoredId(key: string, setter: Dispatch<SetStateAction<Set<string>>>
     });
 }
 
-function readSections(): { projects: boolean } {
-    const fallback = { projects: true };
+type SidebarSections = { projects: boolean; favorites: boolean };
+
+function readSections(): SidebarSections {
+    const sections = { projects: true, favorites: true };
     try {
-        const stored = JSON.parse(localStorage.getItem(SECTIONS_KEY) ?? "null") as { projects?: boolean; teams?: boolean } | null;
+        const stored = JSON.parse(localStorage.getItem(SECTIONS_KEY) ?? "null") as { projects?: boolean; teams?: boolean; favorites?: boolean } | null;
         if (stored && typeof stored === "object") {
-            if (typeof stored.projects === "boolean") return { projects: stored.projects };
-            if (typeof stored.teams === "boolean") return { projects: stored.teams };
+            if (typeof stored.projects === "boolean") sections.projects = stored.projects;
+            else if (typeof stored.teams === "boolean") sections.projects = stored.teams;
+            if (typeof stored.favorites === "boolean") sections.favorites = stored.favorites;
         }
     } catch {
         /* ignore invalid storage */
     }
-    return fallback;
+    return sections;
 }
 
 export function Sidebar({ onSearch, onNavigate }: { onSearch: () => void; onNavigate?: () => void }) {
@@ -104,9 +109,11 @@ export function Sidebar({ onSearch, onNavigate }: { onSearch: () => void; onNavi
         localStorage.setItem(LAST_PROJECT_KEY, routeProjectId);
     }, [routeProjectId]);
 
-    function toggleProjects() {
+    useMigrateLegacyFavorites();
+
+    function toggleSection(section: keyof SidebarSections) {
         setSections((current) => {
-            const next = { projects: !current.projects };
+            const next = { ...current, [section]: !current[section] };
             localStorage.setItem(SECTIONS_KEY, JSON.stringify(next));
             return next;
         });
@@ -147,7 +154,8 @@ export function Sidebar({ onSearch, onNavigate }: { onSearch: () => void; onNavi
                             <AppIcons.Projects className="size-4 shrink-0" />
                             <span className="truncate">{t("nav.allProjects")}</span>
                         </Link>
-                        <SectionLabel label={t("nav.yourProjects")} open={sections.projects} onToggle={toggleProjects} />
+                        <FavoritesNav open={sections.favorites} onToggle={() => toggleSection("favorites")} />
+                        <SectionLabel label={t("nav.yourProjects")} open={sections.projects} onToggle={() => toggleSection("projects")} />
                         <Collapse open={sections.projects}>
                         {(projects ?? []).map((project) => (
                             <ProjectNavItem
@@ -392,4 +400,64 @@ function ProjectDocumentsNav({ projectId }: { projectId: string }) {
             })}
         </div>
     );
+}
+
+function FavoritesNav({ open, onToggle }: { open: boolean; onToggle: () => void }) {
+    const { t } = useTranslation();
+    const location = useLocation();
+    const { data: favorites } = useFavorites();
+    const remove = useRemoveFavorite();
+    if (!favorites?.length) return null;
+
+    return (
+        <>
+            <SectionLabel label={t("nav.favorites")} open={open} onToggle={onToggle} />
+            <Collapse open={open}>
+                <div className="flex flex-col gap-px">
+                    {favorites.map((favorite) => {
+                        const { to, icon, label, context } = describeFavorite(favorite, t("nav.issues"));
+                        const active = location.pathname === to;
+                        return (
+                            <div key={favorite.id} className="group/favorite relative">
+                                <Link to={to} className={itemClass(active, "pr-7")} aria-current={active ? "page" : undefined}>
+                                    {icon}
+                                    <span className="truncate">{label}</span>
+                                    {context && <span className="min-w-0 shrink-[2] truncate font-normal text-placeholder">{context}</span>}
+                                </Link>
+                                <button
+                                    type="button"
+                                    aria-label={`${t("nav.removeFavorite")}: ${label}`}
+                                    title={t("nav.removeFavorite")}
+                                    disabled={remove.isPending}
+                                    onClick={() => remove.mutate(favorite.id)}
+                                    className="absolute top-1/2 right-1 grid size-5 -translate-y-1/2 place-items-center rounded text-tertiary opacity-0 transition-opacity duration-150 group-hover/favorite:opacity-100 hover:bg-layer-transparent-hover hover:text-primary focus-visible:opacity-100"
+                                >
+                                    <X className="size-3.5" />
+                                </button>
+                            </div>
+                        );
+                    })}
+                </div>
+            </Collapse>
+        </>
+    );
+}
+
+/** Link, icon, and labels for a favorite. The muted context names the project, or the issue's identifier. */
+function describeFavorite(favorite: Favorite, issuesLabel: string): { to: string; icon: ReactNode; label: string; context?: string } {
+    const base = `/projects/${favorite.projectId}`;
+    const projectIcon = <ProjectIcon icon={favorite.project.iconAppearance ?? favorite.project.icon} className="size-4 shrink-0" />;
+    if (favorite.kind === "document" && favorite.document) {
+        return {
+            to: `${base}/documents/${favorite.document.id}`,
+            icon: favorite.document.iconAppearance ? <ProjectIcon icon={favorite.document.iconAppearance} className="size-4 shrink-0" /> : <AppIcons.Documents className="size-4 shrink-0" />,
+            label: favorite.document.title,
+            context: favorite.project.name,
+        };
+    }
+    if (favorite.kind === "issue" && favorite.issue) {
+        return { to: `${base}/issues/${favorite.issue.identifier}`, icon: <Circle className="size-4 shrink-0" />, label: favorite.issue.title, context: favorite.issue.identifier };
+    }
+    if (favorite.kind === "issues") return { to: `${base}/issues`, icon: <AppIcons.Issues className="size-4 shrink-0" />, label: issuesLabel, context: favorite.project.name };
+    return { to: base, icon: projectIcon, label: favorite.project.name };
 }
