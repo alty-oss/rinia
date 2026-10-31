@@ -55,8 +55,8 @@ interface IssueViewProps {
 }
 
 const issuePageBodyClass = "flex min-h-0 flex-1 overflow-hidden";
-const issuePageMainClass = "min-w-0 flex-1 space-y-6 overflow-y-auto px-9 pb-5";
-const issuePageRailClass = "hidden shrink-0 overflow-y-auto border-l border-subtle bg-surface-1 px-5 py-5 lg:block lg:min-w-80 xl:min-w-96";
+const issuePageMainClass = "min-w-0 flex-1 space-y-6 overflow-y-auto px-10 pt-2 pb-8";
+const issuePageRailClass = "hidden w-[280px] shrink-0 overflow-y-auto px-4 py-6 lg:block";
 
 const activityLabelKeys: Record<string, TranslationKey> = {
     created: "issue.createdThisIssue",
@@ -458,18 +458,20 @@ export const IssueView = ({ identifier, projectId, mode = "page", onClose }: Iss
     };
     const content = (
         <div className={cx("flex h-full min-h-0 flex-col", mode === "peek" && "issue-peek-panel")}>
-            <div className={cx("issue-view-header flex items-center justify-between gap-3 px-4 py-3", mode === "page" && "border-b border-subtle")}>
-                <div className="flex min-w-0 items-center gap-2 text-sm text-tertiary">
+            <div className={cx("issue-view-header flex h-11 items-center justify-between gap-3 px-4", mode === "page" && "border-b border-subtle")}>
+                <div className="flex min-w-0 items-center gap-2 text-[13px] text-tertiary">
                     {onClose && <ButtonUtility icon={mode === "peek" ? ArrowRight : ArrowLeft} size="sm" color="tertiary" tooltip={t("issue.closeIssue")} onClick={onClose} />}
-                    {mode === "page" && !onClose && <ButtonUtility icon={ArrowLeft} size="sm" color="tertiary" tooltip={t("issue.closeIssue")} onClick={() => navigate(`/projects/${issue.projectId}/issues`)} />}
-                    {mode === "page" && <><Link to={`/projects/${issue.projectId}`} className="truncate hover:text-primary">
-                        {issue.project.name}
-                    </Link>
-                    <span>/</span>
-                    <span className="font-mono text-xs text-accent-primary">{issue.identifier}</span></>}
+                    {mode === "page" && <>
+                        <Link to={`/projects/${issue.projectId}`} className="truncate text-secondary hover:text-primary">{issue.project.name}</Link>
+                        <span className="text-placeholder">›</span>
+                        <Link to={`/projects/${issue.projectId}/issues/list`} className="truncate text-secondary hover:text-primary">{t("nav.issues")}</Link>
+                        <span className="text-placeholder">›</span>
+                        <span className="truncate text-primary">{issue.identifier} {title || issue.title}</span>
+                    </>}
                 </div>
                 <div className="flex items-center gap-2">
-                    <span className="text-body-xs-regular text-tertiary" role="status">{updateIssue.isPending || descriptionStatus === "saving" ? t("issue.savingIssue") : titleDirty.current || descriptionDirty.current ? t("issue.unsavedIssue") : t("issue.savedIssue")}</span>
+                    {(updateIssue.isPending || descriptionStatus === "saving" || titleDirty.current || descriptionDirty.current) && <span className="text-xs text-tertiary" role="status">{updateIssue.isPending || descriptionStatus === "saving" ? t("issue.savingIssue") : t("issue.unsavedIssue")}</span>}
+                    {mode === "page" && projectIssues && projectIssues.length > 0 && <IssuePager issues={projectIssues} identifier={issue.identifier} onOpen={(next) => navigate(`/projects/${issue.projectId}/issues/${next}`)} />}
                     <ButtonUtility
                         icon={Link2}
                         size="sm"
@@ -540,7 +542,7 @@ export const IssueView = ({ identifier, projectId, mode = "page", onClose }: Iss
                                     titleDirty.current = false;
                                 }
                             }}
-                            className={cx("w-full resize-none overflow-hidden border-0 bg-transparent font-semibold text-primary outline-none placeholder:text-tertiary focus-visible:ring-1 focus-visible:ring-accent-strong", mode === "page" ? "min-h-11 text-display-md leading-tight tracking-tight" : "min-h-7 text-xl leading-7")}
+                            className={cx("w-full resize-none overflow-hidden border-0 bg-transparent font-semibold text-primary outline-none placeholder:text-tertiary focus-visible:ring-1 focus-visible:ring-accent-strong", mode === "page" ? "min-h-8 text-[22px] leading-tight" : "min-h-7 text-xl leading-7")}
                             aria-label={t("issue.title")}
                         />
                         {titleSaveError && <p role="alert" className="mt-1 text-xs text-danger-primary">{titleSaveError}</p>}
@@ -710,7 +712,7 @@ export const IssueView = ({ identifier, projectId, mode = "page", onClose }: Iss
                     </div>
                 </div>
                     {mode === "page" && <aside className={issuePageRailClass}>
-                        <IssuePropertyList issue={issue} projectIssues={projectIssues} columns={columns} members={members} categories={categories} save={save} error={propertySaveError} isPending={updateIssue.isPending} />
+                        <IssuePropertyList variant="rail" issue={issue} projectIssues={projectIssues} columns={columns} members={members} categories={categories} save={save} error={propertySaveError} isPending={updateIssue.isPending} />
                     </aside>}
             </div>
         </div>
@@ -776,6 +778,23 @@ function PropertySelect({
     );
 }
 
+function IssuePager({ issues, identifier, onOpen }: { issues: Array<{ identifier: string }>; identifier: string; onOpen: (identifier: string) => void }) {
+    const { t } = useTranslation();
+    const index = issues.findIndex((item) => item.identifier === identifier);
+    if (index < 0) return null;
+    return (
+        <span className="flex items-center gap-1 text-xs text-tertiary">
+            <button type="button" aria-label={t("common.previous")} disabled={index === 0} className="flex size-6 items-center justify-center rounded hover:bg-layer-1-hover disabled:opacity-40" onClick={() => onOpen(issues[index - 1]!.identifier)}>
+                <ArrowLeft className="size-3.5" />
+            </button>
+            {index + 1} / {issues.length}
+            <button type="button" aria-label={t("common.next")} disabled={index === issues.length - 1} className="flex size-6 items-center justify-center rounded hover:bg-layer-1-hover disabled:opacity-40" onClick={() => onOpen(issues[index + 1]!.identifier)}>
+                <ArrowRight className="size-3.5" />
+            </button>
+        </span>
+    );
+}
+
 function IssuePropertyList({
     issue,
     projectIssues,
@@ -785,7 +804,9 @@ function IssuePropertyList({
     save,
     error,
     isPending,
+    variant = "inline",
 }: {
+    variant?: "inline" | "rail";
     issue: IssueDetail;
     projectIssues?: Array<{ id: string; identifier: string; title: string }>;
     columns?: Array<{ id: string; name: string; color?: string | null }>;
@@ -805,6 +826,42 @@ function IssuePropertyList({
         { label: t("issue.parent"), Icon: ParentOutline, value: issue.parent?.id ?? "", options: [{ value: "", label: t("issue.addParentIssue"), icon: ParentOutline }, ...(projectIssues ?? []).filter((i) => i.id !== issue.id).map((i) => ({ value: i.id, label: `${i.identifier} · ${i.title}`, icon: ParentOutline }))], change: (value: string) => save({ parentIssueId: value || null }), searchable: true },
         { label: t("issue.label"), Icon: LabelsOutline, value: issue.categoryId ?? "", options: [{ value: "", label: t("issue.addLabel"), icon: LabelsOutline }, ...(categories ?? []).map((c) => ({ value: c.id, label: c.name, icon: <LabelsOutline className="size-3.5" style={{ color: c.color ?? "#7a5af8" }} /> }))], change: (value: string) => save({ categoryId: value || null }), searchable: true },
     ];
+    if (variant === "rail") {
+        const byLabel = new Map(rows.map((row) => [row.label, row]));
+        const groups = [
+            { name: t("issue.properties"), labels: [t("issue.status"), t("issue.priority"), t("issue.assignee"), t("issue.estimate"), t("issue.parent"), t("issue.createdBy")] },
+            { name: t("issue.label"), labels: [t("issue.label")] },
+        ];
+        return (
+            <section aria-label={t("issue.properties")} className="space-y-5">
+                {groups.map((group) => (
+                    <div key={group.name} className="space-y-1">
+                        {group.labels.map((label, index) => {
+                            const row = byLabel.get(label);
+                            if (!row) return null;
+                            return (
+                                <div key={label} className="flex items-center gap-2">
+                                    <div className="min-w-0 flex-1">
+                                        {row.readonly ? (
+                                            <div className="flex h-8 items-center gap-2 px-2 text-[13px] text-secondary">{row.decoration}<span className="truncate">{row.readonly}</span></div>
+                                        ) : (
+                                            <PropertySelect label={row.label} value={row.value!} options={row.options!} onChange={row.change!} searchable={row.searchable} isDisabled={isPending} className="peek-property-control" />
+                                        )}
+                                    </div>
+                                    <span className="w-20 shrink-0 text-right text-xs text-tertiary">{index === 0 ? group.name : ""}</span>
+                                </div>
+                            );
+                        })}
+                    </div>
+                ))}
+                <div className="flex items-center gap-2">
+                    <Link to={`/projects/${issue.projectId}`} className="flex h-8 min-w-0 flex-1 items-center truncate px-2 text-[13px] text-secondary hover:text-primary">{issue.project.name}</Link>
+                    <span className="w-20 shrink-0 text-right text-xs text-tertiary">{t("issue.project")}</span>
+                </div>
+                {error && <p role="alert" className="text-xs text-danger-primary">{error}</p>}
+            </section>
+        );
+    }
     return <section aria-label={t("issue.properties")}>
         <h2 className="mb-3 text-body-xs-medium text-primary">{t("issue.properties")}</h2>
         <div className="space-y-3">

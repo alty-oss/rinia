@@ -1,4 +1,4 @@
-import { parseProjectCover, updateProjectSchema } from "@rinia/shared";
+import { updateProjectSchema } from "@rinia/shared";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { Button } from "@/components/base/buttons/button";
@@ -7,7 +7,6 @@ import { ErrorMessage } from "@/components/feedback/error-message";
 import { LoadingState } from "@/components/feedback/loading-state";
 import { ControlledSettingsInput as ControlledInput, ControlledSettingsDescription } from "@/components/settings/settings-input";
 import { SettingsControl } from "@/components/settings/settings-layout";
-import { GradientCover } from "@/components/appearance/gradient-cover";
 import { ApiError } from "@/lib/api-client";
 import { useProject } from "../hooks/use-project";
 import { useUpdateProject } from "../hooks/use-projects";
@@ -34,36 +33,18 @@ export const ProjectDetailsPanel = ({ projectId, isProjectOwner }: { projectId: 
     if (isLoading) return <LoadingState label={t("settings.loadingProject")} />;
     if (isError || !project) return <ErrorMessage message={t("settings.couldNotLoadProject")} />;
     const disabled = !isProjectOwner || mutation.isPending;
-    const hasBanner = !!parseProjectCover(project.cover);
 
     return (
         <div>
-            <div className="relative flex h-32 items-end overflow-hidden rounded-md border border-subtle bg-surface-2 p-3">
-                <GradientCover cover={project.cover} className="absolute inset-0" />
-                {hasBanner && <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />}
-                <div className="flex min-w-0 items-center gap-3">
-                    <ProjectIconControl
-                        projectId={projectId}
-                        icon={project.iconAppearance ?? project.icon}
-                        isProjectOwner={isProjectOwner}
-                        className="flex size-11 shrink-0 items-center justify-center rounded-md border border-subtle bg-layer-2 outline-accent-strong hover:bg-layer-2-hover"
-                        iconClassName="size-6"
-                    />
-                    <div className="min-w-0">
-                        <h1 className="text-base truncate font-semibold">{project.name}</h1>
-                        <p className="mt-1 text-sm text-tertiary">{project.issueKey}</p>
-                    </div>
-                </div>
-                <div className="absolute right-3 top-3">
-                    <ProjectCoverControl
-                        projectId={projectId}
-                        cover={project.cover}
-                        isProjectOwner={isProjectOwner}
-                        triggerClassName={hasBanner
-                            ? "inline-flex h-8 items-center gap-2 rounded px-2 text-xs font-medium text-white hover:bg-white/15 disabled:opacity-50"
-                            : undefined}
-                    />
-                </div>
+            <div className="mt-6 flex items-center gap-3">
+                <ProjectIconControl
+                    projectId={projectId}
+                    icon={project.iconAppearance ?? project.icon}
+                    isProjectOwner={isProjectOwner}
+                    className="flex size-8 shrink-0 items-center justify-center rounded-md bg-accent-primary text-white outline-accent-strong"
+                    iconClassName="size-4"
+                />
+                <ProjectCoverControl projectId={projectId} cover={project.cover} isProjectOwner={isProjectOwner} />
             </div>
             <form
                 noValidate

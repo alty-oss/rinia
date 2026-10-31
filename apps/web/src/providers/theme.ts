@@ -34,5 +34,5 @@ export function applyTheme(preference: ThemePreference) {
     root.dataset.themePreference = preference;
     root.style.colorScheme = resolved.includes("dark") ? "dark" : "light";
     root.classList.toggle("dark-mode", resolved.includes("dark"));
-    document.querySelector('meta[name="theme-color"]')?.setAttribute("content", resolved.includes("dark") ? "#0f1011" : "#f4f4f5");
+    document.querySelector('meta[name="theme-color"]')?.setAttribute("content", resolved.includes("dark") ? "#090909" : "#f4f4f5");
 }

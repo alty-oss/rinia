@@ -16,7 +16,7 @@ import { readIssueOrder } from "../lib/issue-filters";
 import { useTranslation } from "react-i18next";
 import { translateStatusName } from "@/i18n/status-label";
 
-export function IssueToolbar({ projectId, onCreate, layout = "list", compact = false }: { projectId: string; onCreate: () => void; layout?: "list" | "board"; compact?: boolean }) {
+export function IssueToolbar({ projectId, onCreate, layout = "list", compact = false, chrome = false }: { projectId: string; onCreate: () => void; layout?: "list" | "board"; compact?: boolean; chrome?: boolean }) {
     const [query, setQuery] = useSearchParams();
     const { t } = useTranslation();
     const { data: columns } = useColumns(projectId);
@@ -42,14 +42,14 @@ export function IssueToolbar({ projectId, onCreate, layout = "list", compact = f
     const count = filters.filter((filter) => query.get(filter.key)).length;
     const popup = cx("grid w-[min(320px,calc(100vw-32px))] gap-3", overlayChrome.popupPadded);
     return (
-        <div className={compact ? "board-toolbar min-w-0" : "shrink-0 border-b border-subtle"}>
-            <div className={compact ? "flex items-center gap-2" : "flex h-[45px] flex-wrap items-center gap-2 px-3.5"}>
+        <div className={chrome ? "flex items-center gap-1" : compact ? "board-toolbar min-w-0" : "shrink-0 border-b border-subtle"}>
+            <div className={chrome ? "flex items-center gap-1" : compact ? "flex items-center gap-2" : "flex h-[45px] flex-wrap items-center gap-2 px-3.5"}>
                 <Popover.Root>
-                    {compact && count === 0 ? (
+                    {(compact || chrome) && count === 0 ? (
                         <Popover.Trigger render={<Button aria-label={t("issue.filters")} color="secondary" iconLeading={FilterOutline} />} />
                     ) : (
-                        <Popover.Trigger render={<Button aria-label={t("issue.filters")} color={compact ? "secondary" : "tertiary"} iconLeading={FilterOutline} />}>
-                            {!compact ? t("issue.filters") : null}{count ? ` · ${count}` : ""}
+                        <Popover.Trigger render={<Button aria-label={t("issue.filters")} color={compact || chrome ? "secondary" : "tertiary"} iconLeading={FilterOutline} />}>
+                            {!compact && !chrome ? t("issue.filters") : null}{count ? ` · ${count}` : ""}
                         </Popover.Trigger>
                     )}
                     <Popover.Portal>
@@ -78,7 +78,7 @@ export function IssueToolbar({ projectId, onCreate, layout = "list", compact = f
                         <Popover.Title className="sr-only">{t("issue.searchIssues")}</Popover.Title>
                         <Input size="sm" value={query.get("q") ?? ""} onChange={(value) => update("q", value)} placeholder={t("issue.searchIssues")} icon={SearchOutline} />
                     </Popover.Popup></Popover.Positioner></Popover.Portal>
-                </Popover.Root> : (<div className="w-40">
+                </Popover.Root> : chrome ? null : (<div className="w-40">
                     <Input
                         size="sm"
                         value={query.get("q") ?? ""}
@@ -90,7 +90,7 @@ export function IssueToolbar({ projectId, onCreate, layout = "list", compact = f
                 </div>)}
                 <div className="ml-auto flex items-center gap-2">
                     <Popover.Root>
-                    <Popover.Trigger render={<Button color={compact ? "secondary" : "tertiary"} iconLeading={compact ? undefined : DisplayOutline} />}>{t("issue.display")}</Popover.Trigger>
+                    <Popover.Trigger render={<Button aria-label={t("issue.display")} color={compact || chrome ? "secondary" : "tertiary"} iconLeading={compact || chrome ? DisplayOutline : DisplayOutline} />}>{chrome || compact ? null : t("issue.display")}</Popover.Trigger>
                         <Popover.Portal>
                             <Popover.Positioner sideOffset={8} align="end" className="z-30">
                                 <Popover.Popup className={popup}>
@@ -113,8 +113,8 @@ export function IssueToolbar({ projectId, onCreate, layout = "list", compact = f
                                         <Select
                                             label={t("issue.groupBy")}
                                             size="sm"
-                                            selectedKey={query.get("group") ?? "none"}
-                                            onSelectionChange={(value) => update("group", value === "none" ? "" : String(value))}
+                                        selectedKey={query.get("group") ?? "status"}
+                                        onSelectionChange={(value) => update("group", value === "status" ? "" : String(value ?? ""))}
                                             items={[
                                                 { id: "none", label: t("issue.noGrouping"), icon: Minus },
                                                 { id: "status", label: t("issue.status"), icon: StateOutline },
@@ -128,9 +128,9 @@ export function IssueToolbar({ projectId, onCreate, layout = "list", compact = f
                             </Popover.Positioner>
                         </Popover.Portal>
                     </Popover.Root>
-                    <Button iconLeading={compact ? undefined : AddOutline} onClick={onCreate}>
+                    {!chrome && <Button iconLeading={compact ? undefined : AddOutline} onClick={onCreate}>
                         {t("issue.newIssue")}
-                    </Button>
+                    </Button>}
                 </div>
             </div>
             {count > 0 && (

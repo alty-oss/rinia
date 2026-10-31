@@ -1,5 +1,5 @@
 const issue = {
-        newIssue: "New issue", genericIssue: "Issue", title: "Issue title", description: "Description", status: "Status", priority: "Priority", assignee: "Assignee",
+        newIssue: "New issue", active: "Active", genericIssue: "Issue", title: "Issue title", description: "Description", status: "Status", priority: "Priority", assignee: "Assignee",
         category: "Category", estimate: "Estimate", createdBy: "Created by", created: "Created", updated: "Updated",
         parent: "Parent", none: "None", unassigned: "Unassigned", noIssues: "No issues yet", createFirst: "Create an issue to start tracking work in this project.",
         low: "Low", medium: "Medium", high: "High", urgent: "Urgent", backlog: "Backlog", inProgress: "In progress", done: "Done",

@@ -1,14 +1,11 @@
 import { Fragment, useEffect, useState, type Dispatch, type SetStateAction } from "react";
-import { AddOutline, ChevronRightOutline, LabelsOutline, MembersOutline, StateOutline } from "@makeplane/propel/icons";
+import { ChevronRightOutline } from "@makeplane/propel/icons";
+import { Bot, Circle, Eye, FolderGit2, GitBranch, House, Inbox, LayoutGrid, MoreHorizontal, Orbit, Plus, Search, SquarePen, UserRound, Users } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router";
-import { Avatar } from "@/components/base/avatar/avatar";
-import { Button } from "@/components/base/buttons/button";
-import { ButtonUtility } from "@/components/base/buttons/button-utility";
 import { AppIcons } from "@/components/foundations/icons";
 import type { AppIcon } from "@/components/foundations/icons";
 import { ContextMenuButton } from "@/components/overlay/context-menu-provider";
 import { SidebarAccount } from "./sidebar-account";
-import { useAuth } from "@/features/auth/hooks/use-auth";
 import { useColumns } from "@/features/board/hooks/use-board";
 import { useDocuments } from "@/features/documents/hooks/use-documents";
 import { IssueQuickCreateModal } from "@/features/issues/components/issue-quick-create-modal";
@@ -19,13 +16,9 @@ import { useTranslation } from "react-i18next";
 
 const OPEN_PROJECTS_KEY = "rinia-open-projects";
 const OPEN_DOCS_KEY = "rinia-open-project-docs";
-const NAV_CLASS = "flex h-7 items-center gap-2 rounded-md px-2 text-[13px] text-secondary hover:bg-layer-transparent-hover";
-const NEST_CLASS = "ml-[18px] border-l border-subtle py-0.5 pl-1.5";
-const PROJECT_VIEWS: Array<[string, "overview" | "issues" | "documents", AppIcon]> = [
-    ["", "overview", AppIcons.Overview],
-    ["/issues", "issues", AppIcons.Issues],
-    ["/documents", "documents", AppIcons.Documents],
-];
+const SECTIONS_KEY = "rinia-sidebar-sections";
+const ITEM = "flex h-7 w-full items-center gap-2 rounded-md px-2 text-left text-[13px] text-tertiary hover:bg-layer-transparent-hover hover:text-primary";
+const ACTIVE = "bg-layer-1-selected text-primary";
 
 function readIdSet(key: string): Set<string> {
     try {
@@ -69,135 +62,212 @@ function openStoredId(key: string, setter: Dispatch<SetStateAction<Set<string>>>
     });
 }
 
-export function Sidebar({ onCollapse }: { onCollapse: () => void }) {
+function readSections(): { workspace: boolean; teams: boolean; try: boolean } {
+    const fallback = { workspace: true, teams: true, try: true };
+    try {
+        const stored = JSON.parse(localStorage.getItem(SECTIONS_KEY) ?? "null") as Partial<typeof fallback> | null;
+        if (stored && typeof stored === "object") return { ...fallback, ...stored };
+    } catch {
+        /* ignore invalid storage */
+    }
+    return fallback;
+}
+
+export function Sidebar({ onSearch, onNavigate }: { onSearch: () => void; onNavigate?: () => void }) {
     const location = useLocation();
-    const { user } = useAuth();
     const navigate = useNavigate();
     const { t } = useTranslation();
     const { data: projects } = useProjects();
-    const projectId = location.pathname.match(/^\/projects\/([^/]+)/)?.[1] ?? "";
-    const { data: columns } = useColumns(projectId);
+    const projectId = location.pathname.match(/^\/projects\/([^/]+)/)?.[1] ?? readOpenProjectId() ?? "";
+    const routeProjectId = location.pathname.match(/^\/projects\/([^/]+)/)?.[1] ?? "";
+    const { data: columns } = useColumns(routeProjectId);
     const [creatingProjectId, setCreatingProjectId] = useState<string | null>(null);
-    const [openProjectId, setOpenProjectId] = useState<string | null>(() => projectId || readOpenProjectId());
-    const [openDocs, setOpenDocs] = useState(() => {
-        const stored = readIdSet(OPEN_DOCS_KEY);
-        if (projectId && location.pathname.includes("/documents")) stored.add(projectId);
-        return stored;
-    });
-    const settings = location.pathname === "/settings/profile";
-    const projectSettings = location.pathname.includes("/settings/");
-    useEffect(() => setCreatingProjectId(null), [projectId]);
+    const [openProjectId, setOpenProjectId] = useState<string | null>(() => routeProjectId || readOpenProjectId());
+    const [openDocs, setOpenDocs] = useState(() => readIdSet(OPEN_DOCS_KEY));
+    const [sections, setSections] = useState(readSections);
+    const settings = location.pathname.includes("/settings");
+    useEffect(() => setCreatingProjectId(null), [routeProjectId]);
     useEffect(() => {
-        if (!projectId) return;
-        setOpenProjectId(projectId);
-        storeOpenProject(projectId);
-    }, [projectId]);
-    useEffect(() => {
-        if (projectId && location.pathname.includes("/documents")) openStoredId(OPEN_DOCS_KEY, setOpenDocs, projectId);
-    }, [projectId, location.pathname]);
+        if (!routeProjectId) return;
+        setOpenProjectId(routeProjectId);
+        storeOpenProject(routeProjectId);
+    }, [routeProjectId]);
+
+    function toggleSection(key: "workspace" | "teams" | "try") {
+        setSections((current) => {
+            const next = { ...current, [key]: !current[key] };
+            localStorage.setItem(SECTIONS_KEY, JSON.stringify(next));
+            return next;
+        });
+    }
+
+    function go(path: string) {
+        onNavigate?.();
+        navigate(path);
+    }
+
+    const createTarget = routeProjectId || openProjectId || projects?.[0]?.id || "";
 
     return (
         <div className="flex h-full flex-col">
-            <div className="flex h-11 shrink-0 items-center justify-between px-3">
-                <span className="truncate text-sm font-medium">{settings ? t("nav.settings") : projectSettings ? t("nav.projectSettings") : t("nav.projects")}</span>
-                <ButtonUtility icon={AppIcons.Menu} tooltip={t("nav.collapse")} color="tertiary" onClick={onCollapse} />
-            </div>
-            <div className="min-h-0 flex-1 overflow-y-auto px-2">
-                {settings ? (
-                    <>
-                        <div className="mb-6 flex min-w-0 items-center gap-3 px-2 py-2">
-                            <Avatar key={user?.avatarUrl} size="md" src={user?.avatarUrl} initials={user?.name.slice(0, 2).toUpperCase()} />
-                            <div className="min-w-0">
-                                <p className="truncate text-body-sm-medium text-secondary">{user?.name}</p>
-                                <p className="truncate text-caption-md-regular text-tertiary">{user?.email}</p>
-                            </div>
-                        </div>
-                        <p className="px-2 py-2 text-caption-md-medium text-tertiary">{t("nav.account")}</p>
-                        <Link to="/settings/profile" className={`${NAV_CLASS} bg-layer-1`} aria-current="page">
-                            <AppIcons.General className="size-4" />
-                            {t("settings.general")}
-                        </Link>
-                    </>
-                ) : projectSettings ? (
-                    <>
-                        <Link to={`/projects/${projectId}`} className={`${NAV_CLASS} mb-4`}>
-                            <AppIcons.Back className="size-4" />
-                            {t("common.back")}
-                        </Link>
-                        {[
-                            { section: "general", label: t("settings.general"), Icon: AppIcons.General },
-                            { section: "states", label: t("settings.states"), Icon: StateOutline },
-                            { section: "members", label: t("settings.members"), Icon: MembersOutline },
-                            { section: "labels", label: t("settings.labels"), Icon: LabelsOutline },
-                        ].map(({ section, label, Icon }) => (
-                            <Link
-                                key={section}
-                                to={`/projects/${projectId}/settings/${section}`}
-                                className={`${NAV_CLASS} ${location.pathname.endsWith(`/${section}`) ? "bg-layer-1 text-primary" : ""}`}
-                                aria-current={location.pathname.endsWith(`/${section}`) ? "page" : undefined}
-                            >
-                                <Icon className="size-4 shrink-0" />
-                                {label}
-                            </Link>
-                        ))}
-                    </>
-                ) : (
-                    <>
-                        <div className={`grid transition-[grid-template-rows,opacity,margin] duration-200 ease-out motion-reduce:transition-none ${projectId ? "mb-2 grid-rows-[1fr] opacity-100" : "mb-0 grid-rows-[0fr] opacity-0"}`}>
-                            <div className="overflow-hidden">
-                                <Button
-                                    size="sm"
-                                    color="secondary"
-                                    className="w-full justify-start"
-                                    iconLeading={AddOutline}
-                                    isDisabled={!projectId}
-                                    tabIndex={projectId ? 0 : -1}
-                                    aria-hidden={!projectId}
-                                    onClick={() => projectId && setCreatingProjectId(projectId)}
-                                >
-                                    {t("nav.newIssue")}
-                                </Button>
-                            </div>
-                        </div>
-                        <Link
-                            to="/"
-                            className={`${NAV_CLASS} ${location.pathname === "/" ? "bg-layer-1 text-primary" : ""}`}
-                            aria-current={location.pathname === "/" ? "page" : undefined}
+            {settings ? (
+                <SettingsNav projectId={projectId} onSearch={onSearch} />
+            ) : (
+                <>
+                    <div className="flex h-12 shrink-0 items-center gap-1 px-3">
+                        <SidebarAccount variant="header" />
+                        <button type="button" aria-label={t("nav.search")} className="flex size-7 items-center justify-center rounded-md text-tertiary hover:bg-layer-transparent-hover hover:text-primary" onClick={(event) => { event.stopPropagation(); onSearch(); }}>
+                            <Search className="size-4" />
+                        </button>
+                        <button
+                            type="button"
+                            aria-label={t("nav.newIssue")}
+                            className="flex size-7 items-center justify-center rounded-md text-tertiary hover:bg-layer-transparent-hover hover:text-primary"
+                            onClick={(event) => {
+                                event.stopPropagation();
+                                if (createTarget) setCreatingProjectId(createTarget);
+                            }}
                         >
-                            <AppIcons.Projects className="size-4" />
-                            {t("nav.allProjects")}
-                        </Link>
-                        <p className="mt-4 mb-1 px-2 text-[11px] font-medium tracking-wide text-placeholder uppercase">{t("nav.projects")}</p>
-                        {(projects ?? []).map((project) => (
+                            <SquarePen className="size-4" />
+                        </button>
+                    </div>
+                    <div className="min-h-0 flex-1 overflow-y-auto px-3 pb-2">
+                        <NavLink to="/workspace/inbox" icon={Inbox} label={t("nav.inbox")} />
+                        <NavLink to="/workspace/my-issues" icon={UserRound} label={t("nav.myIssues")} />
+                        <NavLink to="/workspace/reviews" icon={Circle} label={t("nav.reviews")} />
+                        <NavLink to="/workspace/agent" icon={Bot} label={t("nav.agent")} />
+
+                        <SectionLabel label={t("nav.workspace")} open={sections.workspace} onToggle={() => toggleSection("workspace")} />
+                        {sections.workspace && (
+                            <>
+                                <NavLink to="/" icon={FolderGit2} label={t("nav.projects")} />
+                                <NavLink to="/workspace/views" icon={Eye} label={t("nav.views")} />
+                                <NavLink to="/workspace/loops" icon={Orbit} label={t("nav.loops")} />
+                                <NavLink to="/workspace/more" icon={MoreHorizontal} label={t("nav.more")} />
+                            </>
+                        )}
+
+                        <SectionLabel label={t("nav.yourTeams")} open={sections.teams} onToggle={() => toggleSection("teams")} />
+                        {sections.teams && (projects ?? []).map((project) => (
                             <ProjectNavItem
                                 key={project.id}
                                 project={project}
-                                currentProjectId={projectId}
+                                currentProjectId={routeProjectId}
                                 open={openProjectId === project.id}
                                 docsOpen={openDocs.has(project.id)}
                                 onOpen={() => {
                                     setOpenProjectId(project.id);
                                     storeOpenProject(project.id);
                                 }}
+                                onToggle={() => {
+                                    setOpenProjectId((current) => {
+                                        if (current === project.id) return null;
+                                        storeOpenProject(project.id);
+                                        return project.id;
+                                    });
+                                }}
                                 onToggleDocs={() => toggleStoredId(OPEN_DOCS_KEY, setOpenDocs, project.id)}
+                                onOpenDocs={() => openStoredId(OPEN_DOCS_KEY, setOpenDocs, project.id)}
                             />
                         ))}
-                    </>
-                )}
-            </div>
-            <div className="shrink-0 border-t border-subtle px-2 py-2">
-                <SidebarAccount variant="row" />
-            </div>
-            {creatingProjectId === projectId && projectId && columns?.[0] && (
+
+                        <SectionLabel label={t("nav.try")} open={sections.try} onToggle={() => toggleSection("try")} />
+                        {sections.try && (
+                            <>
+                                <NavLink to="/workspace/import" icon={Plus} label={t("nav.importIssues")} />
+                                <NavLink to={createTarget ? `/projects/${createTarget}/settings/members` : "/workspace/import"} icon={Users} label={t("nav.invitePeople")} />
+                                <NavLink to={createTarget ? `/projects/${createTarget}/settings/general` : "/workspace/repository"} icon={GitBranch} label={t("nav.connectRepository")} />
+                            </>
+                        )}
+                    </div>
+                </>
+            )}
+            {creatingProjectId && columns?.[0] && creatingProjectId === routeProjectId && (
                 <IssueQuickCreateModal
-                    projectId={projectId}
+                    projectId={creatingProjectId}
                     columnId={columns[0].id}
                     onClose={() => setCreatingProjectId(null)}
                     onCreated={(identifier) => {
                         setCreatingProjectId(null);
-                        navigate(`/projects/${projectId}/issues/${identifier}`);
+                        go(`/projects/${creatingProjectId}/issues/${identifier}`);
                     }}
                 />
+            )}
+            {creatingProjectId && creatingProjectId !== routeProjectId && (
+                <CreateElsewhere projectId={creatingProjectId} onClose={() => setCreatingProjectId(null)} onCreated={(identifier) => go(`/projects/${creatingProjectId}/issues/${identifier}`)} />
+            )}
+        </div>
+    );
+}
+
+function CreateElsewhere({ projectId, onClose, onCreated }: { projectId: string; onClose: () => void; onCreated: (identifier: string) => void }) {
+    const { data: columns } = useColumns(projectId);
+    if (!columns?.[0]) return null;
+    return <IssueQuickCreateModal projectId={projectId} columnId={columns[0].id} onClose={onClose} onCreated={onCreated} />;
+}
+
+function SectionLabel({ label, open, onToggle }: { label: string; open: boolean; onToggle: () => void }) {
+    return (
+        <button type="button" aria-expanded={open} className="mt-3 flex h-7 w-full items-center gap-1 px-2 text-left text-[12px] text-tertiary hover:text-secondary" onClick={(event) => { event.stopPropagation(); onToggle(); }}>
+            <ChevronRightOutline className={`size-3 shrink-0 transition-transform ${open ? "rotate-90" : ""}`} />
+            {label}
+        </button>
+    );
+}
+
+function NavLink({ to, icon: Icon, label, nested = false }: { to: string; icon: AppIcon; label: string; nested?: boolean }) {
+    const location = useLocation();
+    const active = location.pathname === to;
+    return (
+        <Link to={to} className={`${ITEM} ${nested ? "pl-7" : ""} ${active ? ACTIVE : ""}`} aria-current={active ? "page" : undefined}>
+            <Icon className="size-4 shrink-0" />
+            <span className="truncate">{label}</span>
+        </Link>
+    );
+}
+
+function SettingsNav({ projectId, onSearch }: { projectId: string; onSearch: () => void }) {
+    const { t } = useTranslation();
+    const location = useLocation();
+    const item = (path: string) => `${ITEM} ${location.pathname === path ? ACTIVE : ""}`;
+    return (
+        <div className="min-h-0 flex-1 overflow-y-auto px-3 pt-3">
+            <Link to={projectId ? `/projects/${projectId}` : "/"} className={`${ITEM} mb-3`}>
+                <AppIcons.Back className="size-4" />
+                {t("nav.backToApp")}
+            </Link>
+            <button type="button" onClick={onSearch} className="mb-4 flex h-8 w-full items-center gap-2 rounded-md border border-subtle px-2 text-[13px] text-placeholder hover:bg-layer-transparent-hover">
+                <Search className="size-3.5" />
+                {t("nav.search")}
+            </button>
+            <p className="px-2 py-2 text-[12px] text-tertiary">{t("nav.personal")}</p>
+            <Link to="/settings/preferences" className={item("/settings/preferences")} aria-current={location.pathname === "/settings/preferences" ? "page" : undefined}>
+                <AppIcons.Settings className="size-4" />
+                {t("nav.preferences")}
+            </Link>
+            <Link to="/settings/profile" className={item("/settings/profile")} aria-current={location.pathname === "/settings/profile" ? "page" : undefined}>
+                <UserRound className="size-4" />
+                {t("nav.profile")}
+            </Link>
+            {projectId && (
+                <>
+                    <p className="mt-4 px-2 py-2 text-[12px] text-tertiary">{t("nav.projects")}</p>
+                    {[
+                        ["general", t("settings.general"), AppIcons.General],
+                        ["states", t("settings.states"), Circle],
+                        ["members", t("settings.members"), Users],
+                        ["labels", t("settings.labels"), LayoutGrid],
+                    ].map(([section, label, Icon]) => {
+                        const path = `/projects/${projectId}/settings/${section}`;
+                        const IconComponent = Icon as AppIcon;
+                        return (
+                            <Link key={String(section)} to={path} className={item(path)} aria-current={location.pathname === path ? "page" : undefined}>
+                                <IconComponent className="size-4 shrink-0" />
+                                {label as string}
+                            </Link>
+                        );
+                    })}
+                </>
             )}
         </div>
     );
@@ -209,101 +279,69 @@ function ProjectNavItem({
     open,
     docsOpen,
     onOpen,
+    onToggle,
     onToggleDocs,
+    onOpenDocs,
 }: {
     project: ProjectCardSummary;
     currentProjectId: string;
     open: boolean;
     docsOpen: boolean;
     onOpen: () => void;
+    onToggle: () => void;
     onToggleDocs: () => void;
+    onOpenDocs: () => void;
 }) {
     const location = useLocation();
     const { t } = useTranslation();
     const current = currentProjectId === project.id;
+    const home = location.pathname === `/projects/${project.id}`;
+    const issues = current && /\/issues\/.+/.test(location.pathname);
+    const documents = current && location.pathname.includes("/documents");
+    const views = current && (location.pathname === `/projects/${project.id}/issues` || location.pathname.endsWith("/board"));
 
     return (
         <div className="group/project">
-            <div
-                className="flex min-w-0 items-center"
-                data-project-context="true"
-                data-project-id={project.id}
-                data-project-name={project.name}
-                data-project-issue-key={project.issueKey}
-            >
-                <Link
-                    to={`/projects/${project.id}`}
-                    aria-expanded={open}
-                    onClick={onOpen}
-                    className={`${NAV_CLASS} min-w-0 flex-1 font-medium ${open ? "text-primary" : ""}`}
-                >
-                    <ProjectIcon icon={project.iconAppearance ?? project.icon} className={`size-4 shrink-0 ${open ? "text-primary" : "text-tertiary"}`} />
+            <div className="flex min-w-0 items-center" data-project-context="true" data-project-id={project.id} data-project-name={project.name} data-project-issue-key={project.issueKey}>
+                <Link to={`/projects/${project.id}`} onClick={onOpen} className={`${ITEM} min-w-0 flex-1 ${open ? "text-secondary" : ""}`}>
+                    <ProjectIcon icon={project.iconAppearance ?? project.icon} className="size-4 shrink-0" />
                     <span className="truncate">{project.name}</span>
                 </Link>
-                <ContextMenuButton
-                    entity={{ type: "project", projectId: project.id, name: project.name, issueKey: project.issueKey }}
-                    className="opacity-100 md:opacity-0 md:group-hover/project:opacity-100 md:group-focus-within/project:opacity-100"
-                />
+                <button type="button" aria-expanded={open} aria-label={open ? t("nav.collapseProject") : t("nav.expandProject")} className="flex size-6 items-center justify-center rounded-md text-tertiary hover:bg-layer-transparent-hover" onClick={onToggle}>
+                    <ChevronRightOutline className={`size-3 transition-transform ${open ? "rotate-90" : ""}`} />
+                </button>
             </div>
             {open && (
-                <nav aria-label={`${project.name} views`} className={NEST_CLASS}>
-                    {PROJECT_VIEWS.map(([suffix, key, Icon]) => {
-                        const label = t(`nav.${key}`);
-                        const active =
-                            suffix === "/issues"
-                                ? current && /\/(issues|board)(\/|$)/.test(location.pathname)
-                                : suffix === "/documents"
-                                  ? current && location.pathname.includes("/documents")
-                                  : location.pathname === `/projects/${project.id}${suffix}`;
-                        if (suffix === "/documents") {
-                            return (
-                                <Fragment key={label}>
-                                    <div className="flex min-w-0 items-center">
-                                        <Link
-                                            to={`/projects/${project.id}/documents`}
-                                            className={`${NAV_CLASS} min-w-0 flex-1 ${location.pathname === `/projects/${project.id}/documents` ? "bg-layer-1 text-primary" : active ? "text-primary" : ""}`}
-                                            aria-current={location.pathname === `/projects/${project.id}/documents` ? "page" : undefined}
-                                        >
-                                            <Icon className="size-4 shrink-0" />
-                                            {label}
-                                        </Link>
-                                        <button
-                                            type="button"
-                                            aria-expanded={docsOpen}
-                                            aria-label={docsOpen ? t("nav.collapsePages") : t("nav.expandPages")}
-                                            className="flex size-7 shrink-0 items-center justify-center rounded-md text-tertiary hover:bg-layer-transparent-hover hover:text-primary"
-                                            onClick={onToggleDocs}
-                                        >
-                                            <ChevronRightOutline className={`size-3 transition-transform ${docsOpen ? "rotate-90" : ""}`} />
-                                        </button>
-                                    </div>
-                                    {docsOpen && (
-                                        <div className={NEST_CLASS}>
-                                            <ProjectDocumentsNav projectId={project.id} />
-                                        </div>
-                                    )}
-                                </Fragment>
-                            );
-                        }
-                        return (
-                            <Link
-                                key={label}
-                                to={`/projects/${project.id}${suffix}`}
-                                className={`${NAV_CLASS} ${active ? "bg-layer-1 text-primary" : ""}`}
-                                aria-current={active ? "page" : undefined}
-                            >
-                                <Icon className="size-4 shrink-0" />
-                                {label}
-                            </Link>
-                        );
-                    })}
-                    <Link to={`/projects/${project.id}/settings/general`} className={NAV_CLASS}>
-                        <AppIcons.Settings className="size-4" />
-                        {t("nav.settings")}
-                    </Link>
+                <nav aria-label={`${project.name} views`}>
+                    <ChildLink to={`/projects/${project.id}`} icon={House} label={t("nav.home")} active={home} />
+                    <ChildLink to={`/projects/${project.id}/issues/list`} icon={Circle} label={t("nav.issues")} active={issues} />
+                    <div className="flex min-w-0 items-center">
+                        <Link to={`/projects/${project.id}/documents`} onClick={onOpenDocs} className={`${ITEM} min-w-0 flex-1 pl-7 ${documents && location.pathname === `/projects/${project.id}/documents` ? ACTIVE : ""}`}>
+                            <AppIcons.Documents className="size-4 shrink-0" />
+                            <span className="truncate">{t("nav.documents")}</span>
+                        </Link>
+                        <button type="button" aria-expanded={docsOpen} aria-label={docsOpen ? t("nav.collapsePages") : t("nav.expandPages")} className="flex size-6 items-center justify-center rounded-md text-tertiary hover:bg-layer-transparent-hover" onClick={onToggleDocs}>
+                            <ChevronRightOutline className={`size-3 transition-transform ${docsOpen ? "rotate-90" : ""}`} />
+                        </button>
+                    </div>
+                    {docsOpen && (
+                        <div className="pl-4">
+                            <ProjectDocumentsNav projectId={project.id} />
+                        </div>
+                    )}
+                    <ChildLink to={`/projects/${project.id}/board`} icon={LayoutGrid} label={t("nav.views")} active={views} />
                 </nav>
             )}
         </div>
+    );
+}
+
+function ChildLink({ to, icon: Icon, label, active }: { to: string; icon: AppIcon; label: string; active: boolean }) {
+    return (
+        <Link to={to} className={`${ITEM} pl-7 ${active ? ACTIVE : ""}`} aria-current={active ? "page" : undefined}>
+            <Icon className="size-4 shrink-0" />
+            <span className="truncate">{label}</span>
+        </Link>
     );
 }
 
@@ -314,28 +352,22 @@ function ProjectDocumentsNav({ projectId }: { projectId: string }) {
     return (
         <>
             {documents?.map((page) => (
-                <div
-                    key={page.id}
-                    className="flex min-w-0 items-center"
-                    data-document-context="true"
-                    data-project-id={projectId}
-                    data-document-id={page.id}
-                    data-document-title={page.title}
-                    data-document-author-id={page.createdBy}
-                >
-                    <Link
-                        to={`/projects/${projectId}/documents/${page.id}`}
-                        className={`${NAV_CLASS} min-w-0 flex-1 text-[12px] ${location.pathname.endsWith(`/documents/${page.id}`) ? "bg-layer-1 text-primary" : "text-tertiary"}`}
-                        aria-current={location.pathname.endsWith(`/documents/${page.id}`) ? "page" : undefined}
-                    >
-                        {page.iconAppearance ? <ProjectIcon icon={page.iconAppearance} className="size-3 shrink-0" /> : <AppIcons.Documents className="size-3 shrink-0" />}
-                        <span className="truncate">{page.title}</span>
-                    </Link>
-                    <ContextMenuButton
-                        entity={{ type: "document", projectId, documentId: page.id, title: page.title, authorId: page.createdBy }}
-                        className="size-7 opacity-100 md:opacity-0 md:group-hover/project:opacity-100 md:group-focus-within/project:opacity-100"
-                    />
-                </div>
+                <Fragment key={page.id}>
+                    <div className="flex min-w-0 items-center" data-document-context="true" data-project-id={projectId} data-document-id={page.id} data-document-title={page.title} data-document-author-id={page.createdBy}>
+                        <Link
+                            to={`/projects/${projectId}/documents/${page.id}`}
+                            className={`${ITEM} min-w-0 flex-1 pl-7 text-[12px] ${location.pathname.endsWith(`/documents/${page.id}`) ? ACTIVE : ""}`}
+                            aria-current={location.pathname.endsWith(`/documents/${page.id}`) ? "page" : undefined}
+                        >
+                            {page.iconAppearance ? <ProjectIcon icon={page.iconAppearance} className="size-3 shrink-0" /> : <AppIcons.Documents className="size-3 shrink-0" />}
+                            <span className="truncate">{page.title}</span>
+                        </Link>
+                        <ContextMenuButton
+                            entity={{ type: "document", projectId, documentId: page.id, title: page.title, authorId: page.createdBy }}
+                            className="size-6 opacity-100 md:opacity-0 md:group-hover/project:opacity-100"
+                        />
+                    </div>
+                </Fragment>
             ))}
         </>
     );

@@ -383,6 +383,38 @@ input[type="search"]::-webkit-search-cancel-button {
     outline: none;
 }
 
+html[data-theme*="dark"] {
+    --bg-canvas: #090909;
+    --bg-surface-1: #121212;
+    --bg-surface-2: #161616;
+    --bg-layer-1: #1a1a1a;
+    --bg-layer-1-hover: #222222;
+    --bg-layer-1-active: #2a2a2a;
+    --bg-layer-1-selected: #2c2c2c;
+    --bg-layer-2: #1c1c1c;
+    --bg-layer-2-hover: #262626;
+    --bg-layer-2-active: #303030;
+    --bg-layer-2-selected: #303030;
+    --bg-layer-3: #262626;
+    --bg-layer-3-hover: #303030;
+    --bg-layer-transparent-hover: rgb(255 255 255 / 5%);
+    --bg-layer-transparent-active: rgb(255 255 255 / 8%);
+    --bg-layer-transparent-selected: rgb(255 255 255 / 8%);
+    --border-subtle: #2a2a2a;
+    --border-subtle-1: #333333;
+    --border-strong: #3a3a3a;
+    --border-strong-1: #454545;
+    --txt-primary: #f3f3f3;
+    --txt-secondary: #d2d2d2;
+    --txt-tertiary: #8f8f8f;
+    --txt-placeholder: #6b6b6b;
+    --txt-accent-primary: #8b8cff;
+    --txt-link-primary: #8b8cff;
+    --brand-default: #5e6ad2;
+    --bg-accent-primary: #5e6ad2;
+    --border-accent-strong: #5e6ad2;
+}
+
 @layer base {
     html { color-scheme: light; background: var(--bg-canvas); }
     html[data-theme*="dark"] { color-scheme: dark; }

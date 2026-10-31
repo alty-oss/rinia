@@ -1,5 +1,5 @@
 const issue = {
-        newIssue: "Nova tarefa", genericIssue: "Tarefa", title: "Título da tarefa", description: "Descrição", status: "Estado", priority: "Prioridade", assignee: "Responsável",
+        newIssue: "Nova tarefa", active: "Ativas", genericIssue: "Tarefa", title: "Título da tarefa", description: "Descrição", status: "Estado", priority: "Prioridade", assignee: "Responsável",
         category: "Categoria", estimate: "Estimativa", createdBy: "Criado por", created: "Criado em", updated: "Atualizado em",
         parent: "Tarefa principal", none: "Nenhum", unassigned: "Sem responsável", noIssues: "Nenhuma tarefa ainda", createFirst: "Crie uma tarefa para começar a acompanhar o trabalho deste projeto.",
         low: "Baixa", medium: "Média", high: "Alta", urgent: "Urgente", backlog: "Fila", inProgress: "Em andamento", done: "Concluída",

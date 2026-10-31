@@ -1,0 +1,23 @@
+import { SettingsControl, SettingsGroup, SettingsPage } from "@/components/settings/settings-layout";
+import { LanguageSelector } from "@/i18n/language-selector";
+import { useLanguage } from "@/i18n/language-provider";
+import { ThemeSelector } from "@/providers/theme-selector";
+import { useTranslation } from "react-i18next";
+
+export function PreferencesSettingsPage() {
+    const { t } = useTranslation();
+    const { syncFailed } = useLanguage();
+    return (
+        <SettingsPage title={t("nav.preferences")}>
+            <SettingsGroup title={t("settings.general")}>
+                <SettingsControl title={t("profile.theme")} description={t("profile.themeDescription")}>
+                    <ThemeSelector />
+                </SettingsControl>
+                <SettingsControl title={t("common.language")} description={t("profile.languageDescription")}>
+                    <LanguageSelector />
+                    {syncFailed && <p role="status" className="mt-2 text-sm text-warning-primary">{t("common.languageNotSynced")}</p>}
+                </SettingsControl>
+            </SettingsGroup>
+        </SettingsPage>
+    );
+}
