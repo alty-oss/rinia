@@ -6,6 +6,7 @@ import { issueComments } from "./issue-comments";
 import { issueRelations } from "./issue-relations";
 import { issues } from "./issues";
 import { projectDocuments } from "./project-documents";
+import { projectKeyAliases } from "./project-key-aliases";
 import { projectMembers } from "./project-members";
 import { projects } from "./projects";
 import { users } from "./users";
@@ -17,6 +18,7 @@ export * from "./issue-comments";
 export * from "./issue-relations";
 export * from "./issues";
 export * from "./project-documents";
+export * from "./project-key-aliases";
 export * from "./project-members";
 export * from "./projects";
 export * from "./users";
@@ -38,6 +40,7 @@ export const projectsRelations = relations(projects, ({ one, many }) => ({
     columns: many(boardColumns),
     issues: many(issues),
     documents: many(projectDocuments),
+    keyAliases: many(projectKeyAliases),
 }));
 
 export const projectMembersRelations = relations(projectMembers, ({ one }) => ({
@@ -95,4 +98,8 @@ export const issueRelationsRelations = relations(issueRelations, ({ one }) => ({
 
 export const projectDocumentsRelations = relations(projectDocuments, ({ one }) => ({
     project: one(projects, { fields: [projectDocuments.projectId], references: [projects.id] }),
+}));
+
+export const projectKeyAliasesRelations = relations(projectKeyAliases, ({ one }) => ({
+    project: one(projects, { fields: [projectKeyAliases.projectId], references: [projects.id] }),
 }));

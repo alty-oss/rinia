@@ -1,7 +1,7 @@
 import type { CreateIssueCommentInput, CreateIssueInput, CreateIssueRelationInput, IssueListQuery, TiptapDocument, UpdateIssueCommentInput, UpdateIssueInput } from "@rinia/shared";
 import { and, asc, count, desc, eq, or, sql } from "drizzle-orm";
 import { db } from "../../db";
-import { boardColumns, categories, issueActivities, issueComments, issueRelations, issues, projectMembers, projects, users } from "../../db/schema";
+import { boardColumns, categories, issueActivities, issueComments, issueRelations, issues, projectKeyAliases, projectMembers, projects, users } from "../../db/schema";
 import { HttpError } from "../../lib/http-error";
 
 const EMPTY_DOCUMENT = { type: "doc" as const, content: [] };
@@ -39,7 +39,15 @@ async function findIssue(identifier: string) {
             .from(issues)
             .innerJoin(projects, eq(issues.projectId, projects.id))
             .where(and(eq(projects.issueKey, parsed.key), eq(issues.number, parsed.number)));
-        identifier = match?.id ?? identifier;
+        // Identifiers from before a project key change still open the same issue.
+        const [aliased] = match
+            ? []
+            : await db
+                  .select({ id: issues.id })
+                  .from(issues)
+                  .innerJoin(projectKeyAliases, eq(issues.projectId, projectKeyAliases.projectId))
+                  .where(and(eq(projectKeyAliases.key, parsed.key), eq(issues.number, parsed.number)));
+        identifier = match?.id ?? aliased?.id ?? identifier;
     }
 
     return db.query.issues.findFirst({

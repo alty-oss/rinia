@@ -11,7 +11,7 @@ const settings = {
         noMembersFound: "Nenhum membro encontrado", noMembers: "Nenhum membro ainda", tryMemberSearch: "Tente outro nome, usuário ou e-mail.", inviteTeammates: "Adicione pessoas para colaborar neste projeto.",
         name: "Nome", role: "Função", joinedOn: "Entrou em", actions: "Ações", owner: "Proprietário", member: "Membro", removeMember: "Remover membro", removeMemberDescription: "{{name}} (@{{username}}) perderá o acesso a este projeto. Você poderá adicioná-lo novamente depois.",
         couldNotRemoveMember: "Não foi possível remover o membro.", couldNotAddMember: "Não foi possível adicionar o membro.", projectDetailsSaved: "Dados do projeto salvos.", couldNotSaveProject: "Não foi possível salvar o projeto.",
-        loadingProject: "Carregando projeto…", couldNotLoadProject: "Não foi possível carregar o projeto.", changeProjectIcon: "Alterar ícone do projeto", projectIcon: "Ícone do projeto", loadingIcons: "Carregando ícones…", projectIdLocked: "Bloqueado após a criação da primeira tarefa.",
+        loadingProject: "Carregando projeto…", couldNotLoadProject: "Não foi possível carregar o projeto.", changeProjectIcon: "Alterar ícone do projeto", projectIcon: "Ícone do projeto", loadingIcons: "Carregando ícones…", projectIdRename: "Alterar o ID renomeia o identificador de todas as tarefas. Links antigos continuam funcionando.",
         deleteProjectDescription: "Exclua permanentemente este projeto e todos os seus dados e recursos. Não será possível recuperar projetos excluídos.",
         newColumn: "Nova coluna", columnName: "Nome da coluna", color: "Cor", colorValue: "Cor {{color}}", customColor: "Cor personalizada", chooseColor: "Escolher cor",
     } as const;

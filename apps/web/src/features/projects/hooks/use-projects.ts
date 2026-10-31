@@ -51,9 +51,14 @@ export function useUpdateProject(projectId: string) {
             queryClient.setQueryData(projectQueryKey(projectId), project);
             queryClient.setQueryData<ProjectCardSummary[]>(PROJECTS_QUERY_KEY, (current) => current?.map((item) => item.id === project.id ? { ...item, ...project } : item));
         },
-        onSettled: () => {
+        onSettled: (_project, _error, input) => {
             void queryClient.invalidateQueries({ queryKey: PROJECTS_QUERY_KEY, exact: true });
             void queryClient.invalidateQueries({ queryKey: projectQueryKey(projectId), exact: true });
+            if (input.issueKey) {
+                // Issue identifiers embed the key, so every cached issue now shows a stale one.
+                void queryClient.invalidateQueries({ queryKey: ["projects", projectId, "issues"] });
+                void queryClient.invalidateQueries({ queryKey: ["issues"] });
+            }
         },
     });
 }

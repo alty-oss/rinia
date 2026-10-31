@@ -63,10 +63,8 @@ export const ProjectDetailsPanel = ({ projectId, isProjectOwner }: { projectId: 
                             control={control}
                             name="issueKey"
                             label={t("projects.projectId")}
-                            isDisabled={disabled || project.nextIssueNumber > 1}
-                            hint={
-                                project.nextIssueNumber > 1 ? t("settings.projectIdLocked") : t("projects.projectIssueKeyHint")
-                            }
+                            isDisabled={disabled}
+                            hint={project.nextIssueNumber > 1 ? t("settings.projectIdRename") : t("projects.projectIssueKeyHint")}
                         />
                         <ControlledInput
                             control={control}

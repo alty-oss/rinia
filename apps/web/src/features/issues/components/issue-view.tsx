@@ -98,6 +98,12 @@ export const IssueView = ({ identifier, projectId, mode = "page", onClose }: Iss
     const [descriptionEditing, setDescriptionEditing] = useState(false);
     const [descriptionExpanded, setDescriptionExpanded] = useState(false);
     const [descriptionOverflows, setDescriptionOverflows] = useState(false);
+
+    // An identifier from before a project key change still resolves; move the URL to the current one.
+    useEffect(() => {
+        if (mode !== "page" || !issue || !params.issueIdentifier || params.issueIdentifier.toUpperCase() === issue.identifier) return;
+        navigate(`/projects/${issue.projectId}/issues/${issue.identifier}`, { replace: true });
+    }, [issue, mode, navigate, params.issueIdentifier]);
     const peekDescriptionRef = useRef<HTMLDivElement>(null);
     const [relationsOpen, setRelationsOpen] = useState(false);
     const [description, setDescription] = useState<TiptapDocument>(EMPTY_TIPTAP_DOCUMENT);

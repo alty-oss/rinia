@@ -3,8 +3,8 @@ import { afterEach, mock, test } from "node:test";
 import type { Request, Response, NextFunction } from "express";
 import { createProjectSchema } from "@rinia/shared";
 import { db } from "../src/db";
-import { projects } from "../src/db/schema";
-import { createProject } from "../src/features/projects/projects.service";
+import { projectKeyAliases, projects } from "../src/db/schema";
+import { createProject, updateProject } from "../src/features/projects/projects.service";
 import { isProjectKeyConflict } from "../src/features/projects/project-key";
 import { HttpError } from "../src/lib/http-error";
 import { requireProjectOwner } from "../src/middleware/project-membership.middleware";
@@ -13,7 +13,14 @@ import { requireProjectOwner } from "../src/middleware/project-membership.middle
 afterEach(() => mock.restoreAll());
 const collision = { code: "23505", constraint: "projects_issue_key_unique" };
 const creatorId = "creator";
-const mockProjectCreator = () => mock.method(db.query.users, "findFirst", async () => ({ locale: "en" }) as never);
+const mockReservedKeys = (aliases: Array<{ key: string; projectId: string }> = []) => {
+    mock.method(db.query.projectKeyAliases, "findMany", async () => aliases as never);
+    mock.method(db.query.projectKeyAliases, "findFirst", async () => aliases[0] as never);
+};
+const mockProjectCreator = () => {
+    mockReservedKeys();
+    return mock.method(db.query.users, "findFirst", async () => ({ locale: "en" }) as never);
+};
 
 test("creation accepts a custom key, normalizes it, and keeps old clients compatible", () => {
     assert.equal(createProjectSchema.parse({ name: "My project", issueKey: " api2 " }).issueKey, "API2");
@@ -90,6 +97,60 @@ test("unrelated database errors propagate without being retried as key conflicts
     assert.equal(isProjectKeyConflict({ code: "23505", constraint: "other_unique_constraint" }), false);
     const cyclic: { cause?: unknown } = {}; cyclic.cause = cyclic;
     assert.equal(isProjectKeyConflict(cyclic), false);
+});
+
+test("a key another project used before is reserved for its old links", async () => {
+    mockProjectCreator();
+    mockReservedKeys([{ key: "OLD", projectId: "other-project" }]);
+    const transaction = mock.method(db, "transaction", async () => { throw new Error("Must not insert"); });
+    await assert.rejects(createProject({ name: "My project", issueKey: "OLD" }, creatorId), (error: unknown) =>
+        error instanceof HttpError && error.statusCode === 409);
+    assert.equal(transaction.mock.callCount(), 0);
+});
+
+test("automatic keys skip former keys of other projects", async () => {
+    mockProjectCreator();
+    mockReservedKeys([{ key: "MP", projectId: "other-project" }]);
+    mock.method(db.query.projects, "findMany", async () => []);
+    mock.method(db, "transaction", async (work: (tx: unknown) => Promise<unknown>) =>
+        work({ insert: () => ({ values: (values: Record<string, unknown>) => ({ returning: async () => [{ id: "new-project", ...values }] }) }) }));
+    assert.equal((await createProject({ name: "My project" }, creatorId)).issueKey, "MP1");
+});
+
+function mockRename(current: { issueKey: string; nextIssueNumber: number }) {
+    const calls: Array<{ op: string; table: unknown; values?: unknown }> = [];
+    let lookups = 0;
+    // The first lookup loads the project being renamed; the second checks the new key against other projects.
+    mock.method(db.query.projects, "findFirst", async () => (lookups++ === 0 ? { id: "project", cover: null, ...current } : undefined) as never);
+    mockReservedKeys();
+    mock.method(db, "transaction", async (work: (tx: unknown) => Promise<unknown>) => work({
+        delete: (table: unknown) => ({ where: async () => { calls.push({ op: "delete", table }); } }),
+        insert: (table: unknown) => ({ values: (values: unknown) => ({ onConflictDoNothing: async () => { calls.push({ op: "insert", table, values }); } }) }),
+        update: (table: unknown) => ({ set: (values: Record<string, unknown>) => ({ where: () => ({ returning: async () => {
+            calls.push({ op: "update", table, values });
+            return [{ id: "project", cover: null, ...current, ...values }];
+        } }) }) }),
+    }));
+    return calls;
+}
+
+test("renaming the key of a project with issues keeps the old key as an alias", async () => {
+    const calls = mockRename({ issueKey: "OLD", nextIssueNumber: 13 });
+    const project = await updateProject("project", { issueKey: "NEW" });
+    assert.equal(project.issueKey, "NEW");
+    assert.deepEqual(calls.find((call) => call.op === "insert"), { op: "insert", table: projectKeyAliases, values: { key: "OLD", projectId: "project" } });
+});
+
+test("renaming the key of a project without issues frees the old key", async () => {
+    const calls = mockRename({ issueKey: "OLD", nextIssueNumber: 1 });
+    await updateProject("project", { issueKey: "NEW" });
+    assert.equal(calls.some((call) => call.op === "insert"), false);
+});
+
+test("renaming to a key another project reserved returns 409", async () => {
+    mockRename({ issueKey: "OLD", nextIssueNumber: 13 });
+    mockReservedKeys([{ key: "TAKEN", projectId: "other-project" }]);
+    await assert.rejects(updateProject("project", { issueKey: "TAKEN" }), (error: unknown) => error instanceof HttpError && error.statusCode === 409);
 });
 
 function authorize(isAdmin: boolean): Promise<number> {

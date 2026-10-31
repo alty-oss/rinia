@@ -11,7 +11,7 @@ const settings = {
         noMembersFound: "No members found", noMembers: "No members yet", tryMemberSearch: "Try a different name, username, or email.", inviteTeammates: "Add teammates to collaborate on this project.",
         name: "Name", role: "Role", joinedOn: "Joined on", actions: "Actions", owner: "Owner", member: "Member", removeMember: "Remove member", removeMemberDescription: "{{name}} (@{{username}}) will lose access to this project. You can add them again later.",
         couldNotRemoveMember: "Could not remove the member.", couldNotAddMember: "Could not add the member.", projectDetailsSaved: "Project details saved.", couldNotSaveProject: "Could not save the project.",
-        loadingProject: "Loading project…", couldNotLoadProject: "Could not load the project.", changeProjectIcon: "Change project icon", projectIcon: "Project icon", loadingIcons: "Loading icons…", projectIdLocked: "Locked after the first issue is created.",
+        loadingProject: "Loading project…", couldNotLoadProject: "Could not load the project.", changeProjectIcon: "Change project icon", projectIcon: "Project icon", loadingIcons: "Loading icons…", projectIdRename: "Changing it renames every issue identifier. Old links keep working.",
         deleteProjectDescription: "Permanently remove this project and all of its data and resources. Deleted projects cannot be recovered.",
         newColumn: "New column", columnName: "Column name", color: "Color", colorValue: "Color {{color}}", customColor: "Custom color", chooseColor: "Choose color",
     } as const;
