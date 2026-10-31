@@ -30,7 +30,7 @@ interface ModalOverlayProps extends Omit<ComponentProps<typeof BaseDialog.Root>,
 const OverlayContent = ({ children, className }: Pick<ModalOverlayProps, "children" | "className">) => (
     <BaseDialog.Portal>
         <BaseDialog.Backdrop className={cx("fixed inset-0 z-50 flex min-h-dvh w-full items-end justify-center overflow-y-auto bg-overlay/70 px-4 pt-4 pb-[clamp(16px,8vh,64px)] outline-hidden backdrop-blur-[6px] transition-opacity duration-200 data-[ending-style]:opacity-0 data-[starting-style]:opacity-0 sm:items-center sm:p-8", className)} />
-        <BaseDialog.Viewport className="fixed inset-0 z-50 flex items-end justify-center overflow-y-auto px-4 pt-4 pb-[clamp(16px,8vh,64px)] sm:items-center sm:p-8">
+        <BaseDialog.Viewport className={cx("fixed inset-0 z-50 flex items-end justify-center overflow-y-auto px-4 pt-4 pb-[clamp(16px,8vh,64px)] sm:items-center sm:p-8", className)}>
             {children}
         </BaseDialog.Viewport>
     </BaseDialog.Portal>
