@@ -41,7 +41,7 @@ export function IssueToolbar({ projectId, onCreate, layout = "list", compact = f
     const popup = "grid w-[min(320px,calc(100vw-32px))] gap-3 rounded-md border border-subtle bg-layer-2 p-3 shadow-overlay-200 outline-none";
     return (
         <div className={compact ? "board-toolbar min-w-0" : "shrink-0 border-b border-subtle"}>
-            <div className={compact ? "flex items-center gap-2" : "flex min-h-11 flex-wrap items-center gap-2 px-4 py-2"}>
+            <div className={compact ? "flex items-center gap-2" : "flex h-[45px] flex-wrap items-center gap-2 px-3.5"}>
                 <Popover.Root>
                     {compact && count === 0 ? (
                         <Popover.Trigger render={<Button aria-label={t("issue.filters")} color="secondary" iconLeading={FilterOutline} />} />
