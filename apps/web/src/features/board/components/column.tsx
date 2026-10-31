@@ -72,8 +72,8 @@ export const Column = ({ column, issues, projectId, categoriesById, membersById,
     }
 
     return (
-        <div data-board-column={column.id} className={cx("group/column flex h-full max-h-full shrink-0 flex-col", collapsed ? "w-11" : "w-[350px]")}>
-            <div className="mb-3 flex h-[25px] shrink-0 items-center gap-2">
+        <div data-board-column={column.id} className={cx("group/column flex h-full max-h-full shrink-0 flex-col", collapsed ? "w-11" : "w-[326px]")}>
+            <div className="mb-2 flex h-7 shrink-0 items-center gap-2">
                 {isEditingName ? (
                     <Input
                         size="sm"
@@ -128,7 +128,6 @@ export const Column = ({ column, issues, projectId, categoriesById, membersById,
                             key={issue.id}
                             issue={issue}
                             projectId={projectId}
-                            column={column}
                             cycle={issue.cycleId ? cyclesById.get(issue.cycleId) : undefined}
                             category={issue.categoryId ? categoriesById.get(issue.categoryId) : undefined}
                             assignee={issue.assigneeId ? membersById.get(issue.assigneeId) : undefined}
@@ -136,7 +135,7 @@ export const Column = ({ column, issues, projectId, categoriesById, membersById,
                         />
                     ))}
                 </SortableContext>
-                <Button color="tertiary" size="sm" iconLeading={Plus} onClick={() => onCreateIssue(column.id)} className="w-full justify-start px-2 text-primary">
+                <Button color="tertiary" size="sm" iconLeading={Plus} onClick={() => onCreateIssue(column.id)} className="mt-0.5 w-full justify-start px-2 text-secondary">
                     {t("issue.newIssue")}
                 </Button>
             </div>
