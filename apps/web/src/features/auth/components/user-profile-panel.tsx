@@ -15,6 +15,7 @@ import { ApiError } from "@/lib/api-client";
 import { useTranslation } from "react-i18next";
 import { LanguageSelector } from "@/i18n/language-selector";
 import { useLanguage } from "@/i18n/language-provider";
+import { ThemeSelector } from "@/providers/theme-selector";
 
 export const UserProfilePanel = () => {
     const { user } = useAuth();
@@ -64,7 +65,10 @@ export const UserProfilePanel = () => {
                     {t("common.saveChanges")}
                 </Button>
             </form>
-            <div className="mt-8">
+            <div className="mt-8 space-y-4">
+                <SettingsControl title={t("profile.theme")} description={t("profile.themeDescription")}>
+                    <ThemeSelector />
+                </SettingsControl>
                 <SettingsControl title={t("common.language")} description={t("profile.languageDescription")}>
                     <LanguageSelector />
                     {syncFailed && <p role="status" className="mt-2 text-sm text-warning-primary">{t("common.languageNotSynced")}</p>}

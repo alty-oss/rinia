@@ -9,8 +9,8 @@ export const COLUMN_FALLBACK_COLOR = "#87888c";
 /**
  * Tints the issue with the column color.
  *
- * The issue sits on `bg-primary`, which is near-black in the dark-only application — painting the
- * hex directly would create a harsh surface. Mixing with the semantic background keeps the status
+ * The issue sits on `bg-primary`. Painting the hex directly would create a harsh surface.
+ * Mixing with the semantic background keeps the status
  * tint restrained while text continues to use the usual semantic tokens.
  *
  * Without a defined color, returns `undefined` and the issue keeps its previous neutral appearance.

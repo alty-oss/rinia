@@ -1,7 +1,23 @@
 <!doctype html>
-<html lang="en" class="dark-mode" data-theme="dark" style="color-scheme: dark">
+<html lang="en">
     <head>
         <meta charset="UTF-8" />
+        <script>
+            (function () {
+                var key = "rinia-theme";
+                var preference = "dark";
+                try {
+                    var stored = localStorage.getItem(key);
+                    if (stored === "system" || stored === "light" || stored === "dark" || stored === "light-contrast" || stored === "dark-contrast") preference = stored;
+                } catch (e) {}
+                var resolved = preference === "system" ? (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light") : preference;
+                var root = document.documentElement;
+                root.setAttribute("data-theme", resolved);
+                root.setAttribute("data-theme-preference", preference);
+                root.style.colorScheme = resolved.indexOf("dark") !== -1 ? "dark" : "light";
+                root.classList.toggle("dark-mode", resolved.indexOf("dark") !== -1);
+            })();
+        </script>
         <link rel="icon" type="image/svg+xml" href="/rinia-icon.svg" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <meta name="description" content="Rinia" />
@@ -13,10 +29,5 @@
     <body class="size-full bg-primary antialiased">
         <div id="root"></div>
         <script type="module" src="/src/main.tsx"></script>
-        <script>
-            // Apply dark mode before the app mounts so the interface never flashes light mode.
-            document.documentElement.classList.add("dark-mode");
-            document.documentElement.style.colorScheme = "dark";
-        </script>
     </body>
 </html>
