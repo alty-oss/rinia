@@ -71,28 +71,30 @@ export default function DesignSystemPage() {
                 </section>
                 <section className="space-y-3">
                     <h2 className="text-sm font-medium">{t("designSystem.boardCard")}</h2>
-                    <div className="w-[350px] rounded-md bg-surface-2 p-2">
-                        <header className="flex h-8 items-center justify-between px-1">
-                            <span className="flex items-center gap-2 text-sm font-medium">
-                                <span className="bg-blue-600 size-2 rounded-full" />
+                    <div className="w-80 rounded-lg bg-surface-2 p-2">
+                        <div className="rounded-lg bg-surface-1 px-2 pb-2">
+                        <header className="flex h-10 items-center gap-1.5 px-0.5">
+                            <span className="flex min-w-0 items-center gap-1.5 text-[13px] font-medium">
+                                <span className="bg-blue-600 size-3.5 rounded-full" />
                                 {t("designSystem.inProgress")}
                             </span>
-                            <span className="flex items-center gap-2 text-xs text-tertiary">
-                                2 <ButtonUtility icon={ArrowNarrowRightOutline} tooltip={t("designSystem.columnActions")} size="xs" />
+                            <span className="text-xs text-tertiary">2</span>
+                            <span className="ml-auto">
+                                <ButtonUtility icon={ArrowNarrowRightOutline} tooltip={t("designSystem.columnActions")} size="xs" />
                             </span>
                         </header>
-                        <article className="space-y-2 rounded-md border border-subtle bg-layer-2 p-3 shadow-raised-100">
-                            <span className="text-xs text-tertiary">PLAT-12</span>
-                            <h3 className="text-sm font-medium">{t("designSystem.buildWorkspace")}</h3>
-                            <div className="flex gap-2">
-                                <Badge size="sm" color="brand" type="pill-color">
-                                    {t("designSystem.design")}
-                                </Badge>
-                                <Badge size="sm" color="warning" type="pill-color">
-                                    {t("designSystem.high")}
-                                </Badge>
+                        <article className="rounded-md border border-subtle bg-surface-1 px-3 py-2.5">
+                            <span className="text-[11px] font-medium tracking-wide text-tertiary">PLAT-12</span>
+                            <h3 className="mt-1 text-[13px] leading-5 font-medium">{t("designSystem.buildWorkspace")}</h3>
+                            <div className="mt-2 flex items-center gap-1.5">
+                                <span className="inline-flex h-[22px] items-center gap-1 rounded-md border border-subtle px-1.5 text-[11px] text-secondary">{t("designSystem.inProgress")}</span>
                             </div>
+                            <span className="mt-2 inline-flex items-center gap-1.5 text-[11px] text-secondary">
+                                <span className="size-2 rounded-[2px] bg-accent-primary" />
+                                {t("designSystem.design")}
+                            </span>
                         </article>
+                        </div>
                     </div>
                 </section>
                 <section className="space-y-3">

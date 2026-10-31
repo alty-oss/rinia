@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from "react";
 import { useDroppable } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { AddOutline, ArrowCollapseOutline, ArrowExpandOutline, DeleteOutline } from "@makeplane/propel/icons";
-import { Button } from "@/components/base/buttons/button";
 import { ButtonUtility } from "@/components/base/buttons/button-utility";
 import { Input } from "@/components/base/input/input";
 import { ConfirmDialog } from "@/components/overlay/confirm-dialog";
@@ -73,10 +72,9 @@ export const Column = ({ column, issues, projectId, categoriesById, membersById,
     return (
         <div
             data-board-column={column.id}
-            className={cx("group/column flex h-full max-h-full shrink-0 flex-col overflow-hidden rounded-md bg-layer-1 transition-[width] duration-200 ease-out", collapsed ? "w-11" : "w-[350px]")}
+            className={cx("group/column flex h-full max-h-full shrink-0 flex-col overflow-hidden rounded-lg bg-surface-1 transition-[width] duration-200 ease-out", collapsed ? "w-11" : "w-80")}
         >
-            <div className="h-0.5 shrink-0" style={{ backgroundColor: column.color ?? "var(--border-subtle)" }} />
-            <div className="sticky top-0 z-[2] flex h-8 shrink-0 items-center gap-2 bg-surface-2 px-1.5 py-1">
+            <div className="sticky top-0 z-[2] flex h-10 shrink-0 items-center gap-1.5 bg-surface-1 px-2.5">
                 {isEditingName ? (
                     <Input
                         size="sm"
@@ -98,19 +96,18 @@ export const Column = ({ column, issues, projectId, categoriesById, membersById,
                     <button
                         type="button"
                         onClick={startEditing}
-                        className="flex min-w-0 items-center gap-2 rounded px-0.5 text-left font-medium text-primary hover:bg-layer-1-hover"
+                        className="flex min-w-0 items-center gap-1.5 rounded px-0.5 text-left text-[13px] font-medium text-primary hover:bg-layer-1-hover"
                     >
-                        <span className="grid size-5 shrink-0 place-items-center rounded-xs">
-                            <StateIcon name={column.name} color={column.color} className="size-3.5" />
-                        </span>
+                        <StateIcon name={column.name} color={column.color} className="size-4" />
                         {!collapsed && <span className="truncate">{label}</span>}
                     </button>
                 )}
 
-                {!collapsed && <span className="text-13 text-tertiary">{issues.length}</span>}
-                <div className="ml-auto flex shrink-0 items-center gap-1 opacity-0 transition-opacity duration-200 group-hover/column:opacity-100 group-focus-within/column:opacity-100">
+                {!collapsed && <span className="text-xs text-tertiary">{issues.length}</span>}
+                <div className="ml-auto flex shrink-0 items-center">
                     <ButtonUtility icon={collapsed ? ArrowExpandOutline : ArrowCollapseOutline} size="xs" color="tertiary" tooltip={`${collapsed ? t("nav.expand") : t("nav.collapse")} ${label}`} onClick={() => setCollapsed(!collapsed)} />
                     {!collapsed && <ButtonUtility icon={AddOutline} size="xs" color="tertiary" tooltip={`${t("issue.newIssue")} · ${label}`} onClick={() => onCreateIssue(column.id)} />}
+                    <span className="opacity-0 transition-opacity duration-200 group-hover/column:opacity-100 group-focus-within/column:opacity-100">
                     <ConfirmDialog
                         trigger={<ButtonUtility icon={DeleteOutline} size="xs" color="tertiary" tooltip={t("settings.deleteState")} />}
                         title={t("settings.deleteState")}
@@ -119,17 +116,19 @@ export const Column = ({ column, issues, projectId, categoriesById, membersById,
                         isPending={deleteColumn.isPending}
                         onConfirm={handleDelete}
                     />
+                    </span>
                 </div>
             </div>
 
             {error && <p className="px-3 pb-2 text-xs text-danger-primary">{error}</p>}
 
-            <div ref={setDropRef} className={cx("min-h-0 flex-1 overflow-y-auto rounded-sm p-1", collapsed && "hidden", isOver && "bg-accent-subtle/50")}>
+            <div ref={setDropRef} className={cx("flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto px-2 pb-2", collapsed && "hidden", isOver && "bg-accent-subtle/40")}>
                 <SortableContext items={issues.map((issue) => issue.id)} strategy={verticalListSortingStrategy}>
                     {issues.map((issue) => (
                         <IssueCard
                             key={issue.id}
                             issue={issue}
+                            column={column}
                             projectId={projectId}
                             category={issue.categoryId ? categoriesById.get(issue.categoryId) : undefined}
                             assignee={issue.assigneeId ? membersById.get(issue.assigneeId) : undefined}
@@ -137,9 +136,10 @@ export const Column = ({ column, issues, projectId, categoriesById, membersById,
                         />
                     ))}
                 </SortableContext>
-                <Button color="tertiary" size="sm" iconLeading={AddOutline} onClick={() => onCreateIssue(column.id)} className="mt-0.5 w-full justify-start px-2 text-secondary">
+                <button type="button" onClick={() => onCreateIssue(column.id)} className="flex h-7 shrink-0 items-center gap-1 rounded px-1 text-left text-xs text-tertiary hover:bg-layer-1-hover hover:text-secondary">
+                    <AddOutline className="size-3.5" />
                     {t("issue.newIssue")}
-                </Button>
+                </button>
             </div>
         </div>
     );

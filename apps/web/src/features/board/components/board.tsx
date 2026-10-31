@@ -219,7 +219,7 @@ export const Board = ({ projectId, filters = new URLSearchParams() }: { projectI
                 onDragEnd={handleDragEnd}
                 onDragCancel={handleDragCancel}
             >
-                <div className="flex h-full items-start gap-4 overflow-x-auto">
+                <div className="flex h-full items-start gap-3 overflow-x-auto">
                     {columns?.map((column) => (
                         <Column
                             key={column.id}
@@ -239,9 +239,14 @@ export const Board = ({ projectId, filters = new URLSearchParams() }: { projectI
                     {activeIssue && (
                         <div
                             style={{ width: activeIssueWidth }}
-                            className="block rotate-1 cursor-grabbing rounded-lg border border-accent-strong bg-layer-2 p-3 text-13 shadow-overlay-200"
+                            className="block rotate-1 cursor-grabbing rounded-md border border-accent-strong bg-surface-1 px-3 py-2.5 shadow-overlay-200"
                         >
-                            <IssueCardContent issue={activeIssue} category={activeCategory} assignee={activeAssignee} />
+                            <IssueCardContent
+                                issue={activeIssue}
+                                column={columns?.find((column) => column.id === activeIssue.columnId) ?? { name: "" }}
+                                category={activeCategory}
+                                assignee={activeAssignee}
+                            />
                         </div>
                     )}
                 </DragOverlay>
@@ -254,11 +259,10 @@ export const Board = ({ projectId, filters = new URLSearchParams() }: { projectI
 
 function BoardSkeleton() {
     const { t } = useTranslation();
-    return <div className="flex h-full min-w-max items-start gap-4" aria-label={t("common.loading")} role="status">
-        {["one", "two", "three"].map((key) => <div key={key} className="flex h-full w-[350px] shrink-0 flex-col overflow-hidden rounded-md bg-layer-1">
-            <div className="h-0.5 bg-subtle" />
-            <div className="flex h-8 items-center justify-between bg-surface-2 px-1.5"><Skeleton className="h-3 w-28" /><Skeleton className="size-4 rounded-full" /></div>
-            <div className="space-y-2 p-1"><Skeleton className="h-24 w-full rounded-lg" /><Skeleton className="h-20 w-full rounded-lg" /><Skeleton className="h-28 w-full rounded-lg" /></div>
+    return <div className="flex h-full min-w-max items-start gap-3" aria-label={t("common.loading")} role="status">
+        {["one", "two", "three"].map((key) => <div key={key} className="flex h-full w-80 shrink-0 flex-col overflow-hidden rounded-lg bg-surface-1">
+            <div className="flex h-10 items-center justify-between px-2.5"><Skeleton className="h-3 w-28" /><Skeleton className="size-4 rounded-full" /></div>
+            <div className="space-y-2 px-2"><Skeleton className="h-24 w-full rounded-md" /><Skeleton className="h-20 w-full rounded-md" /><Skeleton className="h-28 w-full rounded-md" /></div>
         </div>)}
     </div>;
 }
