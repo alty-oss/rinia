@@ -1,0 +1,19 @@
+{
+  "name": "rinia",
+  "private": true,
+  "packageManager": "pnpm@10.9.0",
+  "engines": {
+    "node": ">=22"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": ["esbuild"]
+  },
+  "scripts": {
+    "dev:api": "pnpm --filter @rinia/api dev",
+    "dev:web": "pnpm --filter @rinia/web dev",
+    "build": "pnpm --filter @rinia/web build && pnpm --filter @rinia/api build",
+    "typecheck": "pnpm -r typecheck",
+    "db:generate": "pnpm --filter @rinia/api db:generate",
+    "db:migrate": "pnpm --filter @rinia/api db:migrate"
+  }
+}

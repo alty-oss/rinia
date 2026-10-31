@@ -1,0 +1,32 @@
+import { Plus } from "lucide-react";
+import type { ButtonHTMLAttributes } from "react";
+import { Tooltip, TooltipTrigger } from "@/components/base/tooltip/tooltip";
+import { cx } from "@/utils/cx";
+
+const sizes = {
+    xs: { root: "size-6", icon: "size-4" },
+    sm: { root: "size-8", icon: "size-4" },
+    md: { root: "size-10", icon: "size-5" },
+};
+
+interface AvatarAddButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
+    size: "xs" | "sm" | "md";
+    title?: string;
+    className?: string;
+}
+
+export const AvatarAddButton = ({ size, className, title = "Add user", ...props }: AvatarAddButtonProps) => (
+    <Tooltip title={title}>
+        <TooltipTrigger
+            {...props}
+            aria-label={title}
+            className={cx(
+                "flex cursor-pointer items-center justify-center rounded-full border border-dashed border-strong bg-surface-1 text-placeholder outline-accent-strong transition duration-100 ease-linear hover:bg-layer-1-hover hover:text-secondary focus-visible:outline-2 focus-visible:outline-offset-2 disabled:opacity-50",
+                sizes[size].root,
+                className,
+            )}
+        >
+            <Plus className={cx("text-current transition-inherit-all", sizes[size].icon)} />
+        </TooltipTrigger>
+    </Tooltip>
+);
