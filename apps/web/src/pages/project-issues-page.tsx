@@ -24,6 +24,8 @@ import { translateStatusName } from "@/i18n/status-label";
 type OrderBy = "position" | "priority" | "updated" | "number";
 type GroupBy = "none" | "status" | "assignee";
 
+const listGrid = "grid-cols-1 items-center gap-x-4 gap-y-1.5 px-4 py-2.5 sm:h-11 sm:grid-cols-[7.5rem_minmax(0,1fr)_10rem_9rem_11rem] sm:py-0 lg:grid-cols-[7.5rem_minmax(0,1fr)_10rem_9rem_11rem_8.5rem_4.5rem]";
+
 export const ProjectIssuesPage = () => {
     const { t } = useTranslation();
     const { projectId } = useParams<{ projectId: string }>();
@@ -193,7 +195,8 @@ export const ProjectIssuesPage = () => {
                     {isError && <ErrorMessage message={t("issue.couldNotLoadIssues")} />}
                     {!isLoading && !isError && (
                         <div className="overflow-hidden">
-                            <div className="hidden grid-cols-[minmax(0,1fr)_8rem_8rem_10rem] gap-3 border-b border-subtle px-3 py-1.5 text-[11px] font-medium text-tertiary sm:grid lg:grid-cols-[minmax(0,1fr)_7rem_7rem_9rem_7rem_4rem]">
+                            <div className={`${listGrid} hidden border-b border-subtle text-[11px] font-medium text-tertiary sm:grid`}>
+                                <span>{t("issue.issueIdentifier")}</span>
                                 <span>{t("issue.title")}</span>
                                 <span>{t("issue.status")}</span>
                                 <span>{t("issue.priority")}</span>
@@ -214,9 +217,10 @@ export const ProjectIssuesPage = () => {
                                                     else next.add(group.key);
                                                     return next;
                                                 })}
-                                                className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-[11px] font-medium text-secondary hover:bg-layer-1-hover"
+                                                className="flex w-full items-center gap-2 px-4 py-2 text-left text-[11px] font-medium text-secondary hover:bg-layer-1-hover"
                                             >
                                                 <ChevronDownOutline className={`size-3.5 text-placeholder transition-transform duration-200 ${collapsedGroups.has(group.key) ? "-rotate-90" : ""}`} aria-hidden="true" />
+                                                {groupBy === "status" && <span aria-hidden="true" className="size-2 shrink-0 rounded-full" style={{ backgroundColor: columnById.get(group.key)?.color ?? "#71717a" }} />}
                                                 <span>{group.label === "Unknown status" ? t("issue.unknownStatus") : translateStatusName(group.label, t)}</span>
                                                 <span className="text-tertiary">{group.issues.length}</span>
                                             </button>
@@ -266,8 +270,8 @@ function IssueListSkeleton() {
     const { t } = useTranslation();
     return <div className="overflow-hidden" aria-label={t("common.loading")} role="status">
         <div className="hidden h-9 border-b border-subtle bg-surface-2 sm:block" />
-        <div className="divide-y divide-subtle">{["one", "two", "three", "four", "five"].map((key) => <div key={key} className="flex h-9 items-center gap-3 px-3">
-            <Skeleton className="size-2 shrink-0 rounded-full" /><Skeleton className="h-3 w-16 shrink-0" /><Skeleton className="h-3 min-w-0 flex-1" /><Skeleton className="hidden h-6 w-16 sm:block" /><Skeleton className="hidden h-3 w-20 lg:block" />
+        <div className="divide-y divide-subtle">{["one", "two", "three", "four", "five"].map((key) => <div key={key} className="flex h-11 items-center gap-4 px-4">
+            <Skeleton className="h-3 w-24 shrink-0" /><Skeleton className="h-3 min-w-0 flex-1" /><Skeleton className="hidden h-3 w-24 sm:block" /><Skeleton className="hidden size-2 rounded-full sm:block" />
         </div>)}</div>
     </div>;
 }
@@ -314,25 +318,27 @@ function IssueRow({
                 state={{ backgroundLocation }}
                 tabIndex={0}
                 onFocus={onSelect}
-                className={`grid h-9 w-full grid-cols-[minmax(0,1fr)_8rem_8rem_10rem] items-center gap-3 border-b border-subtle px-3 text-left transition-colors duration-200 last:border-0 hover:bg-layer-1-hover focus-visible:z-10 focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-accent-strong max-sm:h-auto max-sm:grid-cols-1 max-sm:gap-2 max-sm:py-2 max-sm:pr-12 lg:grid-cols-[minmax(0,1fr)_7rem_7rem_9rem_7rem_4rem] ${
+                className={`grid ${listGrid} w-full border-b border-subtle pr-12 text-left transition-colors duration-200 last:border-0 hover:bg-layer-1-hover focus-visible:z-10 focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-accent-strong sm:pr-4 ${
                     selected ? "bg-accent-subtle" : ""
                 }`}
             >
-                <span className="flex min-w-0 items-center gap-2">
+                <span className="font-mono text-xs text-tertiary">{issue.identifier}</span>
+                <span className="min-w-0 truncate text-body-sm-medium text-primary">{issue.title}</span>
+                <span className="flex min-w-0 items-center gap-2 text-xs text-secondary">
                     <span aria-hidden="true" className="size-2 shrink-0 rounded-full" style={{ backgroundColor: column?.color ?? "#71717a" }} />
-                    <span className="w-16 shrink-0 text-xs text-tertiary">{issue.identifier}</span>
-                    <span className="min-w-0 truncate text-body-sm-medium text-primary">{issue.title}</span>
-                    <span className="ml-auto hidden shrink-0 text-[11px] text-tertiary max-sm:block">{column ? translateStatusName(column.name, t) : ""}</span>
+                    <span className="truncate">{column ? translateStatusName(column.name, t) : t("issue.unknown")}</span>
                 </span>
-                <span className="truncate text-xs text-secondary max-sm:hidden">{column ? translateStatusName(column.name, t) : t("issue.unknown")}</span>
                 <span className="max-sm:hidden"><ImportanceBadge importance={issue.priority} /></span>
                 <span className="flex min-w-0 items-center gap-2 text-xs text-tertiary max-sm:hidden">
                     {member ? <Avatar size="xs" src={member.avatarUrl ?? undefined} initials={initialsOf(member.name)} /> : <span className="size-6 shrink-0 rounded-full border border-dashed border-subtle" />}
                     <span className="truncate">{member?.name ?? t("issue.unassigned")}</span>
                 </span>
-                <span className="hidden truncate text-xs text-tertiary lg:block">{category?.name ?? "—"}</span>
+                <span className="hidden min-w-0 items-center gap-2 text-xs text-tertiary lg:flex">
+                    {category ? <span aria-hidden="true" className="size-2 shrink-0 rounded-[2px]" style={{ backgroundColor: category.color ?? "#7a5af8" }} /> : null}
+                    <span className="truncate">{category?.name ?? "—"}</span>
+                </span>
                 <span className="hidden text-right font-mono text-xs text-tertiary lg:block">{issue.estimate ?? "—"}</span>
-                <span className="hidden truncate text-[11px] text-tertiary max-sm:block">
+                <span className="truncate text-[11px] text-tertiary sm:hidden">
                     {[category?.name, `${t(`issue.${issue.priority}`)} · ${t("issue.priority")}`].filter(Boolean).join(" · ")}
                 </span>
             </Link>

@@ -1,19 +1,35 @@
-import type { ReactNode } from "react";
-import { useEffect } from "react";
+import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { applyTheme, readThemePreference, THEME_STORAGE_KEY, type ThemePreference } from "./theme";
 
-interface ThemeProviderProps {
-    children: ReactNode;
+interface ThemeContextValue {
+    preference: ThemePreference;
+    setPreference: (preference: ThemePreference) => void;
 }
 
-/** Rinia intentionally ships with a dark-only interface. */
-export const ThemeProvider = ({ children }: ThemeProviderProps) => {
-    useEffect(() => {
-        const root = document.documentElement;
-        root.classList.add("dark-mode");
-        root.dataset.theme = "dark";
-        root.style.colorScheme = "dark";
-        localStorage.removeItem("ui-theme");
-    }, []);
+const ThemeContext = createContext<ThemeContextValue | null>(null);
 
-    return children;
-};
+export function ThemeProvider({ children }: { children: ReactNode }) {
+    const [preference, setPreferenceState] = useState<ThemePreference>(readThemePreference);
+
+    useEffect(() => {
+        applyTheme(preference);
+        if (preference !== "system") return;
+        const media = window.matchMedia("(prefers-color-scheme: dark)");
+        const onChange = () => applyTheme("system");
+        media.addEventListener("change", onChange);
+        return () => media.removeEventListener("change", onChange);
+    }, [preference]);
+
+    const setPreference = (next: ThemePreference) => {
+        localStorage.setItem(THEME_STORAGE_KEY, next);
+        setPreferenceState(next);
+    };
+
+    return <ThemeContext.Provider value={{ preference, setPreference }}>{children}</ThemeContext.Provider>;
+}
+
+export function useTheme() {
+    const context = useContext(ThemeContext);
+    if (!context) throw new Error("useTheme must be used within ThemeProvider");
+    return context;
+}

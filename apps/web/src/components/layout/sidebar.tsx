@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useState, type Dispatch, type SetStateAction } from "react";
-import { AddOutline, ChevronDownOutline, ChevronRightOutline, LabelsOutline, MembersOutline, StateOutline } from "@makeplane/propel/icons";
+import { AddOutline, ChevronRightOutline, LabelsOutline, MembersOutline, StateOutline } from "@makeplane/propel/icons";
 import { Link, useLocation, useNavigate } from "react-router";
 import { Avatar } from "@/components/base/avatar/avatar";
 import { Button } from "@/components/base/buttons/button";
@@ -17,10 +17,10 @@ import type { ProjectCardSummary } from "@/features/projects/api";
 import { useProjects } from "@/features/projects/hooks/use-projects";
 import { useTranslation } from "react-i18next";
 
-const PROJECTS_GROUP_KEY = "rinia-projects-expanded";
 const OPEN_PROJECTS_KEY = "rinia-open-projects";
 const OPEN_DOCS_KEY = "rinia-open-project-docs";
 const NAV_CLASS = "flex h-7 items-center gap-2 rounded-md px-2 text-[13px] text-secondary hover:bg-layer-transparent-hover";
+const NEST_CLASS = "ml-[18px] border-l border-subtle py-0.5 pl-1.5";
 const PROJECT_VIEWS: Array<[string, "overview" | "issues" | "documents", AppIcon]> = [
     ["", "overview", AppIcons.Overview],
     ["/issues", "issues", AppIcons.Issues],
@@ -39,6 +39,14 @@ function readIdSet(key: string): Set<string> {
 
 function persistIdSet(key: string, ids: Set<string>) {
     localStorage.setItem(key, JSON.stringify([...ids]));
+}
+
+function readOpenProjectId(): string | null {
+    return [...readIdSet(OPEN_PROJECTS_KEY)].at(-1) ?? null;
+}
+
+function storeOpenProject(id: string) {
+    localStorage.setItem(OPEN_PROJECTS_KEY, JSON.stringify([id]));
 }
 
 function toggleStoredId(key: string, setter: Dispatch<SetStateAction<Set<string>>>, id: string) {
@@ -70,12 +78,7 @@ export function Sidebar({ onCollapse }: { onCollapse: () => void }) {
     const projectId = location.pathname.match(/^\/projects\/([^/]+)/)?.[1] ?? "";
     const { data: columns } = useColumns(projectId);
     const [creatingProjectId, setCreatingProjectId] = useState<string | null>(null);
-    const [expanded, setExpanded] = useState(() => localStorage.getItem(PROJECTS_GROUP_KEY) !== "false");
-    const [openProjects, setOpenProjects] = useState(() => {
-        const stored = readIdSet(OPEN_PROJECTS_KEY);
-        if (projectId) stored.add(projectId);
-        return stored;
-    });
+    const [openProjectId, setOpenProjectId] = useState<string | null>(() => projectId || readOpenProjectId());
     const [openDocs, setOpenDocs] = useState(() => {
         const stored = readIdSet(OPEN_DOCS_KEY);
         if (projectId && location.pathname.includes("/documents")) stored.add(projectId);
@@ -85,7 +88,9 @@ export function Sidebar({ onCollapse }: { onCollapse: () => void }) {
     const projectSettings = location.pathname.includes("/settings/");
     useEffect(() => setCreatingProjectId(null), [projectId]);
     useEffect(() => {
-        if (projectId) openStoredId(OPEN_PROJECTS_KEY, setOpenProjects, projectId);
+        if (!projectId) return;
+        setOpenProjectId(projectId);
+        storeOpenProject(projectId);
     }, [projectId]);
     useEffect(() => {
         if (projectId && location.pathname.includes("/documents")) openStoredId(OPEN_DOCS_KEY, setOpenDocs, projectId);
@@ -138,11 +143,22 @@ export function Sidebar({ onCollapse }: { onCollapse: () => void }) {
                     </>
                 ) : (
                     <>
-                        {projectId && (
-                            <Button size="sm" color="secondary" className="mb-2 w-full justify-start" iconLeading={AddOutline} onClick={() => setCreatingProjectId(projectId)}>
-                                {t("nav.newIssue")}
-                            </Button>
-                        )}
+                        <div className={`grid transition-[grid-template-rows,opacity,margin] duration-200 ease-out motion-reduce:transition-none ${projectId ? "mb-2 grid-rows-[1fr] opacity-100" : "mb-0 grid-rows-[0fr] opacity-0"}`}>
+                            <div className="overflow-hidden">
+                                <Button
+                                    size="sm"
+                                    color="secondary"
+                                    className="w-full justify-start"
+                                    iconLeading={AddOutline}
+                                    isDisabled={!projectId}
+                                    tabIndex={projectId ? 0 : -1}
+                                    aria-hidden={!projectId}
+                                    onClick={() => projectId && setCreatingProjectId(projectId)}
+                                >
+                                    {t("nav.newIssue")}
+                                </Button>
+                            </div>
+                        </div>
                         <Link
                             to="/"
                             className={`${NAV_CLASS} ${location.pathname === "/" ? "bg-layer-1 text-primary" : ""}`}
@@ -151,32 +167,21 @@ export function Sidebar({ onCollapse }: { onCollapse: () => void }) {
                             <AppIcons.Projects className="size-4" />
                             {t("nav.allProjects")}
                         </Link>
-                        <button
-                            type="button"
-                            className="mt-3 mb-0.5 flex w-full items-center gap-1 px-2 py-1 text-[11px] font-medium tracking-wide text-tertiary uppercase"
-                            aria-expanded={expanded}
-                            onClick={() =>
-                                setExpanded((value) => {
-                                    localStorage.setItem(PROJECTS_GROUP_KEY, String(!value));
-                                    return !value;
-                                })
-                            }
-                        >
-                            <ChevronDownOutline className={`size-3 transition-transform ${expanded ? "" : "-rotate-90"}`} />
-                            {t("nav.projects")}
-                        </button>
-                        {expanded &&
-                            (projects ?? []).map((project) => (
-                                <ProjectNavItem
-                                    key={project.id}
-                                    project={project}
-                                    currentProjectId={projectId}
-                                    open={openProjects.has(project.id)}
-                                    docsOpen={openDocs.has(project.id)}
-                                    onToggle={() => toggleStoredId(OPEN_PROJECTS_KEY, setOpenProjects, project.id)}
-                                    onToggleDocs={() => toggleStoredId(OPEN_DOCS_KEY, setOpenDocs, project.id)}
-                                />
-                            ))}
+                        <p className="mt-4 mb-1 px-2 text-[11px] font-medium tracking-wide text-placeholder uppercase">{t("nav.projects")}</p>
+                        {(projects ?? []).map((project) => (
+                            <ProjectNavItem
+                                key={project.id}
+                                project={project}
+                                currentProjectId={projectId}
+                                open={openProjectId === project.id}
+                                docsOpen={openDocs.has(project.id)}
+                                onOpen={() => {
+                                    setOpenProjectId(project.id);
+                                    storeOpenProject(project.id);
+                                }}
+                                onToggleDocs={() => toggleStoredId(OPEN_DOCS_KEY, setOpenDocs, project.id)}
+                            />
+                        ))}
                     </>
                 )}
             </div>
@@ -203,14 +208,14 @@ function ProjectNavItem({
     currentProjectId,
     open,
     docsOpen,
-    onToggle,
+    onOpen,
     onToggleDocs,
 }: {
     project: ProjectCardSummary;
     currentProjectId: string;
     open: boolean;
     docsOpen: boolean;
-    onToggle: () => void;
+    onOpen: () => void;
     onToggleDocs: () => void;
 }) {
     const location = useLocation();
@@ -226,20 +231,13 @@ function ProjectNavItem({
                 data-project-name={project.name}
                 data-project-issue-key={project.issueKey}
             >
-                <button
-                    type="button"
-                    aria-expanded={open}
-                    aria-label={`${open ? t("nav.collapseProject") : t("nav.expandProject")} ${project.name}`}
-                    className="flex size-7 shrink-0 items-center justify-center rounded-md text-tertiary hover:bg-layer-transparent-hover hover:text-primary"
-                    onClick={onToggle}
-                >
-                    <ChevronRightOutline className={`size-3 transition-transform ${open ? "rotate-90" : ""}`} />
-                </button>
                 <Link
                     to={`/projects/${project.id}`}
-                    className={`${NAV_CLASS} min-w-0 flex-1 font-medium ${current ? "text-primary" : ""}`}
+                    aria-expanded={open}
+                    onClick={onOpen}
+                    className={`${NAV_CLASS} min-w-0 flex-1 font-medium ${open ? "text-primary" : ""}`}
                 >
-                    <ProjectIcon icon={project.iconAppearance ?? project.icon} className="size-4 shrink-0 text-tertiary" />
+                    <ProjectIcon icon={project.iconAppearance ?? project.icon} className={`size-4 shrink-0 ${open ? "text-primary" : "text-tertiary"}`} />
                     <span className="truncate">{project.name}</span>
                 </Link>
                 <ContextMenuButton
@@ -248,21 +246,23 @@ function ProjectNavItem({
                 />
             </div>
             {open && (
-                <nav aria-label={`${project.name} views`} className="ml-4 border-l border-subtle pl-2">
+                <nav aria-label={`${project.name} views`} className={NEST_CLASS}>
                     {PROJECT_VIEWS.map(([suffix, key, Icon]) => {
                         const label = t(`nav.${key}`);
                         const active =
                             suffix === "/issues"
                                 ? current && /\/(issues|board)(\/|$)/.test(location.pathname)
-                                : location.pathname === `/projects/${project.id}${suffix}`;
+                                : suffix === "/documents"
+                                  ? current && location.pathname.includes("/documents")
+                                  : location.pathname === `/projects/${project.id}${suffix}`;
                         if (suffix === "/documents") {
                             return (
                                 <Fragment key={label}>
                                     <div className="flex min-w-0 items-center">
                                         <Link
                                             to={`/projects/${project.id}/documents`}
-                                            className={`${NAV_CLASS} min-w-0 flex-1 ${active ? "bg-layer-1 text-primary" : ""}`}
-                                            aria-current={active ? "page" : undefined}
+                                            className={`${NAV_CLASS} min-w-0 flex-1 ${location.pathname === `/projects/${project.id}/documents` ? "bg-layer-1 text-primary" : active ? "text-primary" : ""}`}
+                                            aria-current={location.pathname === `/projects/${project.id}/documents` ? "page" : undefined}
                                         >
                                             <Icon className="size-4 shrink-0" />
                                             {label}
@@ -277,7 +277,11 @@ function ProjectNavItem({
                                             <ChevronRightOutline className={`size-3 transition-transform ${docsOpen ? "rotate-90" : ""}`} />
                                         </button>
                                     </div>
-                                    {docsOpen && <ProjectDocumentsNav projectId={project.id} />}
+                                    {docsOpen && (
+                                        <div className={NEST_CLASS}>
+                                            <ProjectDocumentsNav projectId={project.id} />
+                                        </div>
+                                    )}
                                 </Fragment>
                             );
                         }
@@ -312,7 +316,7 @@ function ProjectDocumentsNav({ projectId }: { projectId: string }) {
             {documents?.map((page) => (
                 <div
                     key={page.id}
-                    className="ml-4 flex min-w-0 items-center"
+                    className="flex min-w-0 items-center"
                     data-document-context="true"
                     data-project-id={projectId}
                     data-document-id={page.id}
@@ -321,7 +325,7 @@ function ProjectDocumentsNav({ projectId }: { projectId: string }) {
                 >
                     <Link
                         to={`/projects/${projectId}/documents/${page.id}`}
-                        className={`${NAV_CLASS} min-w-0 flex-1 ${location.pathname.endsWith(`/documents/${page.id}`) ? "bg-layer-1 text-primary" : ""}`}
+                        className={`${NAV_CLASS} min-w-0 flex-1 text-[12px] ${location.pathname.endsWith(`/documents/${page.id}`) ? "bg-layer-1 text-primary" : "text-tertiary"}`}
                         aria-current={location.pathname.endsWith(`/documents/${page.id}`) ? "page" : undefined}
                     >
                         {page.iconAppearance ? <ProjectIcon icon={page.iconAppearance} className="size-3 shrink-0" /> : <AppIcons.Documents className="size-3 shrink-0" />}

@@ -3,6 +3,8 @@ const profile = {
         backupDescription: "Download all database data, including projects, issues, and users, for restoring the platform.",
         downloadBackup: "Download backup", profileSaved: "Profile saved.", couldNotSave: "Could not save the profile.",
         languageDescription: "Choose the language used across Rinia.",
+        theme: "Theme", themeDescription: "Choose the appearance used across Rinia.",
+        themeSystem: "System", themeLight: "Light", themeDark: "Dark", themeLightContrast: "Light high contrast", themeDarkContrast: "Dark high contrast",
     } as const;
 
 export default profile;

@@ -218,7 +218,8 @@ input[type="number"] {
 .peek-property-control > button:focus-visible,
 .peek-property-control > div:focus-within { outline: 1px solid var(--border-accent-strong); }
 .peek-property-control input,
-.peek-property-control button span { font-size: 13px; font-weight: 450; color: var(--txt-secondary); }
+.peek-property-control button span,
+.peek-property-control > div > span { font-size: 13px; font-weight: 450; color: var(--txt-secondary); }
 .peek-property-control input::placeholder { color: var(--txt-secondary); }
 .peek-property-control > button > span:last-child,
 .peek-property-control > div > button { opacity: 0; }
@@ -350,7 +351,8 @@ input[type="search"]::-webkit-search-cancel-button {
 }
 
 @layer base {
-    html { color-scheme: dark; background: var(--bg-canvas); }
+    html { color-scheme: light; background: var(--bg-canvas); }
+    html[data-theme*="dark"] { color-scheme: dark; }
     body { font-size: 13px; font-weight: 450; color: var(--txt-primary); }
     button:not(:disabled), [role="button"]:not([aria-disabled="true"]) { cursor: pointer; }
     :focus-visible { outline: 2px solid var(--border-accent-strong); outline-offset: 2px; }

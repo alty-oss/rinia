@@ -5,17 +5,17 @@ import { useLocation } from "react-router";
 import { AssigneeOutline, EstimateOutline } from "@makeplane/propel/icons";
 import { ContextMenuButton } from "@/components/overlay/context-menu-provider";
 import type { Issue, IssuePerson } from "@/features/issues/api";
+import { translateStatusName } from "@/i18n/status-label";
 import { cx } from "@/utils/cx";
-import { IssueAvatar, PriorityIcon } from "./issue-property-icons";
+import { IssueAvatar, PriorityIcon, StateIcon } from "./issue-property-icons";
 import { useTranslation } from "react-i18next";
 
 interface IssueCardContentProps {
     issue: Issue;
+    column: { name: string; color?: string | null };
     category?: { name: string; color: string | null };
     assignee?: IssuePerson;
 }
-
-const chip = "inline-flex h-5 max-w-full items-center gap-1 rounded-sm border border-subtle px-1 text-[11px] text-secondary";
 
 function firstIssueImage(document: Issue["descriptionJson"]): string | null {
     const visit = (nodes: unknown[]): string | null => {
@@ -45,19 +45,30 @@ function IssuePreviewImage({ src }: { src: string }) {
 }
 
 /** Shared with the drag overlay so picking up an issue preserves its geometry. */
-export const IssueCardContent = ({ issue, category, assignee }: IssueCardContentProps) => {
+export const IssueCardContent = ({ issue, column, category, assignee }: IssueCardContentProps) => {
     const { t } = useTranslation();
     const imagePreview = firstIssueImage(issue.descriptionJson);
     return <>
         {imagePreview && <IssuePreviewImage key={imagePreview} src={imagePreview} />}
-        <span className="block text-xs text-tertiary">{issue.identifier}</span>
-        <p className="mt-1 truncate text-body-sm-medium text-primary" title={issue.title}>{issue.title}</p>
-        <div className="flex flex-wrap items-center gap-2 pt-1.5 text-tertiary">
-            <PriorityIcon priority={issue.priority} withContainer />
-            {assignee ? <IssueAvatar name={assignee.name} avatarUrl={assignee.avatarUrl} /> : <span className={chip} title={t("issue.unassigned")}><AssigneeOutline className="size-3" /></span>}
-            {issue.estimate != null && <span className={chip} title={t("projects.points", { count: issue.estimate })}><EstimateOutline className="size-3" />{issue.estimate}</span>}
-            {category && <span className={chip}><span className="size-1.5 shrink-0 rounded-full" style={{ backgroundColor: category.color ?? "#7a5af8" }} />{category.name}</span>}
+        <span className="block text-[11px] font-medium tracking-wide text-tertiary">{issue.identifier}</span>
+        <p className="mt-1 line-clamp-2 text-[13px] leading-5 font-medium text-primary" title={issue.title}>{issue.title}</p>
+        <div className="mt-2 flex flex-wrap items-center gap-1.5 text-tertiary">
+            {column && (
+                <span className="inline-flex h-[22px] max-w-full items-center gap-1 rounded-md border border-subtle px-1.5 text-[11px] text-secondary">
+                    <StateIcon name={column.name} color={column.color} className="size-3.5" />
+                    <span className="truncate">{translateStatusName(column.name, t)}</span>
+                </span>
+            )}
+            <PriorityIcon priority={issue.priority} />
+            {assignee ? <IssueAvatar name={assignee.name} avatarUrl={assignee.avatarUrl} className="size-4 text-[9px]" /> : <span title={t("issue.unassigned")} className="inline-flex size-4 items-center justify-center rounded-full border border-subtle text-placeholder"><AssigneeOutline className="size-3" /></span>}
+            {issue.estimate != null && <span title={t("projects.points", { count: issue.estimate })} className="inline-flex items-center gap-0.5 text-[11px] text-secondary"><EstimateOutline className="size-3.5" />{issue.estimate}</span>}
         </div>
+        {category && (
+            <span className="mt-2 inline-flex max-w-full items-center gap-1.5 text-[11px] text-secondary">
+                <span className="size-2 shrink-0 rounded-[2px]" style={{ backgroundColor: category.color ?? "#7a5af8" }} />
+                <span className="truncate">{category.name}</span>
+            </span>
+        )}
     </>;
 };
 
@@ -66,7 +77,7 @@ interface IssueCardProps extends IssueCardContentProps {
     onClick: () => void;
 }
 
-export const IssueCard = ({ issue, category, assignee, projectId, onClick }: IssueCardProps) => {
+export const IssueCard = ({ issue, column, category, assignee, projectId, onClick }: IssueCardProps) => {
     const { attributes, listeners, setActivatorNodeRef, setNodeRef, transform, transition, isDragging } = useSortable({ id: issue.id });
 
     const location = useLocation();
@@ -78,7 +89,7 @@ export const IssueCard = ({ issue, category, assignee, projectId, onClick }: Iss
             ref={setNodeRef}
             style={style}
             data-issue-id={issue.id}
-            className={cx("relative mb-2", isDragging && "z-10 opacity-40")}
+            className={cx("relative", isDragging && "z-10 opacity-40")}
         >
             <button
                 ref={setActivatorNodeRef}
@@ -98,11 +109,11 @@ export const IssueCard = ({ issue, category, assignee, projectId, onClick }: Iss
                     } else listeners?.onKeyDown?.(event);
                 }}
                 className={cx(
-                    "block w-full cursor-pointer touch-none rounded-lg border border-subtle bg-layer-2 p-3 pr-9 text-left text-13 shadow-raised-100 outline-none transition-all duration-200 ease-out hover:border-strong hover:shadow-raised-200 focus-visible:ring-2 focus-visible:ring-accent-strong focus-visible:ring-offset-1 md:pr-3",
+                    "block w-full cursor-pointer touch-none rounded-md border border-subtle bg-surface-1 px-3 py-2.5 pr-9 text-left outline-none transition-colors duration-200 ease-out hover:border-strong focus-visible:ring-2 focus-visible:ring-accent-strong md:pr-3",
                     selected && "border-accent-strong",
                 )}
             >
-                <IssueCardContent issue={issue} category={category} assignee={assignee} />
+                <IssueCardContent issue={issue} column={column} category={category} assignee={assignee} />
             </button>
             <ContextMenuButton
                 entity={{ type: "issue", projectId, identifier: issue.identifier, title: issue.title }}
