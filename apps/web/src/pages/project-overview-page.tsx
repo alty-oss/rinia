@@ -114,7 +114,7 @@ export const ProjectOverviewPage = () => {
                                     >
                                         <span className="flex -space-x-1.5">
                                             {(members ?? []).slice(0, 4).map((member) => (
-                                                <Avatar key={member.id} src={member.avatarUrl ?? undefined} initials={memberInitials(member.name)} size="xs" className="ring-2 ring-surface-1" />
+                                                <Avatar key={member.id} src={member.avatarUrl ?? undefined} initials={memberInitials(member.name)} size="xs" className="ring-2 ring-[var(--bg-surface-1)]" />
                                             ))}
                                         </span>
                                         {members && members.length > 4 && <span className="pl-1 text-xs">+{members.length - 4}</span>}

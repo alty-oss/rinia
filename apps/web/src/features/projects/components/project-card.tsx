@@ -40,9 +40,9 @@ export const ProjectCard = ({ project }: { project: ProjectCardSummary }) => {
                     <div className="flex items-center justify-between gap-2">
                         <div className="flex min-w-0 -space-x-1.5">
                             {memberPreview.map((member) => (
-                                <Avatar key={member.id} src={member.avatarUrl ?? undefined} initials={member.name.slice(0, 2).toUpperCase()} size="xs" className="ring-2 ring-layer-2" />
+                                <Avatar key={member.id} src={member.avatarUrl ?? undefined} initials={member.name.slice(0, 2).toUpperCase()} size="xs" className="ring-2 ring-[var(--bg-layer-2)]" />
                             ))}
-                            {hiddenMembers > 0 && <span className="grid size-5 place-items-center rounded-full bg-surface-2 text-[10px] text-tertiary ring-2 ring-layer-2">+{hiddenMembers}</span>}
+                            {hiddenMembers > 0 && <span className="grid size-5 place-items-center rounded-full bg-surface-2 text-[10px] text-tertiary ring-2 ring-[var(--bg-layer-2)]">+{hiddenMembers}</span>}
                             {memberCount === 0 && <span className="text-[13px] italic text-placeholder">{t("projects.noMembers")}</span>}
                         </div>
                         <SettingsOutline className="size-3.5 text-placeholder transition-colors duration-200 group-hover/project-card:text-secondary" aria-hidden="true" />
