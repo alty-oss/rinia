@@ -53,7 +53,10 @@ You need Node.js 22+, pnpm 10+, and PostgreSQL.
 pnpm install
 docker run --name rinia-db -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=rinia -p 5432:5432 -d postgres:16
 pnpm db:migrate
+pnpm db:seed
 ```
+
+The seed creates three projects with issues, labels, and documents, plus the accounts `admin`, `ana`, and `bruno`, all with the password `rinia1234`. Run `pnpm db:reset` to drop the database and seed it again. Both commands refuse to run with `NODE_ENV=production` or against a database that is not on your machine.
 
 Then start the API and the web app in separate terminals:
 
