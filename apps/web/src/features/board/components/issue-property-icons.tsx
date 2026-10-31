@@ -1,9 +1,3 @@
-/**
- * State SVG geometry and priority icon mapping adapted from Plane 01064a7,
- * packages/propel/src/icons/state and priority-icon.tsx.
- * Copyright (c) 2023-present Plane Software, Inc. and contributors.
- * SPDX-License-Identifier: AGPL-3.0-only
- */
 import { SignalHigh, SignalMedium, SignalLow } from "lucide-react";
 import { cx } from "@/utils/cx";
 

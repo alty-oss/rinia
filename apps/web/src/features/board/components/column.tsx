@@ -38,6 +38,7 @@ export const Column = ({ column, issues, projectId, categoriesById, membersById,
     const [name, setName] = useState(column.name);
     const [error, setError] = useState<string | null>(null);
     const nameInputRef = useRef<HTMLInputElement>(null);
+    const label = translateStatusName(column.name, t);
 
     useEffect(() => {
         if (isEditingName) {
@@ -70,8 +71,12 @@ export const Column = ({ column, issues, projectId, categoriesById, membersById,
     }
 
     return (
-        <div data-board-column={column.id} className={cx("group/column flex h-full max-h-full shrink-0 flex-col transition-[width] duration-200 ease-out", collapsed ? "w-11" : "w-[326px]")}>
-            <div className="mb-2 flex h-7 shrink-0 items-center gap-2">
+        <div
+            data-board-column={column.id}
+            className={cx("group/column flex h-full max-h-full shrink-0 flex-col overflow-hidden rounded-md bg-layer-1 transition-[width] duration-200 ease-out", collapsed ? "w-11" : "w-[350px]")}
+        >
+            <div className="h-0.5 shrink-0" style={{ backgroundColor: column.color ?? "var(--border-subtle)" }} />
+            <div className="sticky top-0 z-[2] flex h-8 shrink-0 items-center gap-2 bg-surface-2 px-1.5 py-1">
                 {isEditingName ? (
                     <Input
                         size="sm"
@@ -93,33 +98,33 @@ export const Column = ({ column, issues, projectId, categoriesById, membersById,
                     <button
                         type="button"
                         onClick={startEditing}
-                        className="flex min-w-0 items-center gap-2 rounded px-0.5 text-left text-h6-medium text-primary hover:bg-layer-1-hover"
+                        className="flex min-w-0 items-center gap-2 rounded px-0.5 text-left font-medium text-primary hover:bg-layer-1-hover"
                     >
-                        <StateIcon name={column.name} color={column.color} />
-                        {!collapsed && <span className="truncate">{translateStatusName(column.name, t)}</span>}
+                        <span className="grid size-5 shrink-0 place-items-center rounded-xs">
+                            <StateIcon name={column.name} color={column.color} className="size-3.5" />
+                        </span>
+                        {!collapsed && <span className="truncate">{label}</span>}
                     </button>
                 )}
 
-                {!collapsed && <span className="text-body-sm-regular text-tertiary">{issues.length}</span>}
-                <div className="ml-auto flex shrink-0 items-center gap-1">
-                    <ButtonUtility icon={collapsed ? ArrowExpandOutline : ArrowCollapseOutline} size="xs" color="tertiary" tooltip={`${collapsed ? t("nav.expand") : t("nav.collapse")} ${translateStatusName(column.name, t)}`} onClick={() => setCollapsed(!collapsed)} />
-                    {!collapsed && <ButtonUtility icon={AddOutline} size="xs" color="tertiary" tooltip={`${t("issue.newIssue")} · ${translateStatusName(column.name, t)}`} onClick={() => onCreateIssue(column.id)} />}
-                    <div className="hidden group-hover/column:block group-focus-within/column:block">
+                {!collapsed && <span className="text-13 text-tertiary">{issues.length}</span>}
+                <div className="ml-auto flex shrink-0 items-center gap-1 opacity-0 transition-opacity duration-200 group-hover/column:opacity-100 group-focus-within/column:opacity-100">
+                    <ButtonUtility icon={collapsed ? ArrowExpandOutline : ArrowCollapseOutline} size="xs" color="tertiary" tooltip={`${collapsed ? t("nav.expand") : t("nav.collapse")} ${label}`} onClick={() => setCollapsed(!collapsed)} />
+                    {!collapsed && <ButtonUtility icon={AddOutline} size="xs" color="tertiary" tooltip={`${t("issue.newIssue")} · ${label}`} onClick={() => onCreateIssue(column.id)} />}
                     <ConfirmDialog
                         trigger={<ButtonUtility icon={DeleteOutline} size="xs" color="tertiary" tooltip={t("settings.deleteState")} />}
                         title={t("settings.deleteState")}
-                        description={t("settings.deleteStateDescription", { name: translateStatusName(column.name, t) })}
+                        description={t("settings.deleteStateDescription", { name: label })}
                         confirmLabel={t("settings.deleteState")}
                         isPending={deleteColumn.isPending}
                         onConfirm={handleDelete}
                     />
-                    </div>
                 </div>
             </div>
 
             {error && <p className="px-3 pb-2 text-xs text-danger-primary">{error}</p>}
 
-            <div ref={setDropRef} className={cx("min-h-0 flex-1 overflow-y-auto rounded-sm", collapsed && "hidden", isOver && "bg-accent-subtle/50")}>
+            <div ref={setDropRef} className={cx("min-h-0 flex-1 overflow-y-auto rounded-sm p-1", collapsed && "hidden", isOver && "bg-accent-subtle/50")}>
                 <SortableContext items={issues.map((issue) => issue.id)} strategy={verticalListSortingStrategy}>
                     {issues.map((issue) => (
                         <IssueCard

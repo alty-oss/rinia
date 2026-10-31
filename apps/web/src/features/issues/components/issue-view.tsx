@@ -426,7 +426,7 @@ export const IssueView = ({ identifier, projectId, mode = "page", onClose }: Iss
         if (value === "comments" || value === "activity") selectDiscussionTab(value);
     };
     const content = (
-        <div className={cx("flex h-full min-h-0 flex-col", mode === "peek" && "plane-issue-peek")}>
+        <div className={cx("flex h-full min-h-0 flex-col", mode === "peek" && "issue-peek-panel")}>
             <div className={cx("issue-view-header flex items-center justify-between gap-3 px-4 py-3", mode === "page" && "border-b border-subtle")}>
                 <div className="flex min-w-0 items-center gap-2 text-sm text-tertiary">
                     {onClose && <ButtonUtility icon={mode === "peek" ? ArrowRight : ArrowLeft} size="sm" color="tertiary" tooltip={t("issue.closeIssue")} onClick={onClose} />}
@@ -597,7 +597,7 @@ export const IssueView = ({ identifier, projectId, mode = "page", onClose }: Iss
                             <div className="mt-5 flex justify-end gap-1 text-caption-md-regular text-tertiary"><HistoryOutline className="size-3.5" />{t("issue.updatedAgo", { time: formatDistanceToNow(issue.updatedAt, i18n.language) })}</div>
                             <div className="mt-5 mb-6 flex flex-wrap items-center gap-2">
                                 <Button size="sm" color="secondary" iconLeading={Link2} onClick={() => setRelationsOpen(!relationsOpen)} aria-expanded={relationsOpen}>{t("issue.addRelation")}</Button>
-                                <Button size="sm" color="secondary" iconLeading={ParentOutline} onClick={() => document.querySelector<HTMLInputElement>(`.plane-issue-peek [aria-label='${t("issue.parent")}']`)?.focus()}>{t("issue.addParent")}</Button>
+                                <Button size="sm" color="secondary" iconLeading={ParentOutline} onClick={() => document.querySelector<HTMLInputElement>(`.issue-peek-panel [aria-label='${t("issue.parent")}']`)?.focus()}>{t("issue.addParent")}</Button>
                             </div>
                         </>}
                         <IssueSubIssues issue={issue} columns={columns ?? []} />

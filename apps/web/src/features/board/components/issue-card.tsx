@@ -6,15 +6,13 @@ import { AssigneeOutline, EstimateOutline } from "@makeplane/propel/icons";
 import { ContextMenuButton } from "@/components/overlay/context-menu-provider";
 import type { Issue, IssuePerson } from "@/features/issues/api";
 import { cx } from "@/utils/cx";
-import { IssueAvatar, PriorityIcon, StateIcon } from "./issue-property-icons";
+import { IssueAvatar, PriorityIcon } from "./issue-property-icons";
 import { useTranslation } from "react-i18next";
-import { translateStatusName } from "@/i18n/status-label";
 
 interface IssueCardContentProps {
     issue: Issue;
     category?: { name: string; color: string | null };
     assignee?: IssuePerson;
-    column?: { name: string; color: string | null };
 }
 
 const chip = "inline-flex h-5 max-w-full items-center gap-1 rounded-sm border border-subtle px-1 text-[11px] text-secondary";
@@ -47,15 +45,14 @@ function IssuePreviewImage({ src }: { src: string }) {
 }
 
 /** Shared with the drag overlay so picking up an issue preserves its geometry. */
-export const IssueCardContent = ({ issue, category, assignee, column }: IssueCardContentProps) => {
+export const IssueCardContent = ({ issue, category, assignee }: IssueCardContentProps) => {
     const { t } = useTranslation();
     const imagePreview = firstIssueImage(issue.descriptionJson);
     return <>
         {imagePreview && <IssuePreviewImage key={imagePreview} src={imagePreview} />}
-        <span className="block text-[11px] font-medium text-tertiary">{issue.identifier}</span>
-        <p className="mt-1 line-clamp-2 text-[13px] leading-5 font-medium text-primary" title={issue.title}>{issue.title}</p>
-        <div className="mt-2 flex flex-wrap items-center gap-1.5 text-tertiary">
-            {column && <span className={chip}><StateIcon name={column.name} color={column.color} /><span className="truncate">{translateStatusName(column.name, t)}</span></span>}
+        <span className="block text-xs text-tertiary">{issue.identifier}</span>
+        <p className="mt-1 truncate text-body-sm-medium text-primary" title={issue.title}>{issue.title}</p>
+        <div className="flex flex-wrap items-center gap-2 pt-1.5 text-tertiary">
             <PriorityIcon priority={issue.priority} withContainer />
             {assignee ? <IssueAvatar name={assignee.name} avatarUrl={assignee.avatarUrl} /> : <span className={chip} title={t("issue.unassigned")}><AssigneeOutline className="size-3" /></span>}
             {issue.estimate != null && <span className={chip} title={t("projects.points", { count: issue.estimate })}><EstimateOutline className="size-3" />{issue.estimate}</span>}
@@ -69,7 +66,7 @@ interface IssueCardProps extends IssueCardContentProps {
     onClick: () => void;
 }
 
-export const IssueCard = ({ issue, category, assignee, column, projectId, onClick }: IssueCardProps) => {
+export const IssueCard = ({ issue, category, assignee, projectId, onClick }: IssueCardProps) => {
     const { attributes, listeners, setActivatorNodeRef, setNodeRef, transform, transition, isDragging } = useSortable({ id: issue.id });
 
     const location = useLocation();
@@ -92,6 +89,7 @@ export const IssueCard = ({ issue, category, assignee, column, projectId, onClic
                 data-project-id={projectId}
                 data-issue-identifier={issue.identifier}
                 data-issue-title={issue.title}
+                data-peek-selected={selected || undefined}
                 onClick={onClick}
                 onKeyDown={(event) => {
                     if (event.key === "Enter") {
@@ -100,15 +98,15 @@ export const IssueCard = ({ issue, category, assignee, column, projectId, onClic
                     } else listeners?.onKeyDown?.(event);
                 }}
                 className={cx(
-                    "block w-full cursor-pointer touch-none rounded-md border border-subtle bg-layer-2 p-2.5 pr-9 text-left outline-none transition-all duration-200 ease-out hover:border-strong hover:shadow-raised-100 focus-visible:ring-2 focus-visible:ring-accent-strong focus-visible:ring-offset-1 md:pr-2.5",
+                    "block w-full cursor-pointer touch-none rounded-lg border border-subtle bg-layer-2 p-3 pr-9 text-left text-13 shadow-raised-100 outline-none transition-all duration-200 ease-out hover:border-strong hover:shadow-raised-200 focus-visible:ring-2 focus-visible:ring-accent-strong focus-visible:ring-offset-1 md:pr-3",
                     selected && "border-accent-strong",
                 )}
             >
-                <IssueCardContent issue={issue} category={category} assignee={assignee} column={column} />
+                <IssueCardContent issue={issue} category={category} assignee={assignee} />
             </button>
             <ContextMenuButton
                 entity={{ type: "issue", projectId, identifier: issue.identifier, title: issue.title }}
-                className="absolute top-1 right-1 z-10 rounded-md bg-layer-2"
+                className="absolute top-1.5 right-1.5 z-10 rounded-md bg-layer-2"
             />
         </div>
     );

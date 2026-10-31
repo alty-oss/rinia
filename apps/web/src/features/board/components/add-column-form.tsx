@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Plus } from "lucide-react";
+import { AddOutline } from "@makeplane/propel/icons";
 import { Button } from "@/components/base/buttons/button";
 import { Input } from "@/components/base/input/input";
 import { useCreateColumn } from "../hooks/use-board";
@@ -22,8 +22,8 @@ export const AddColumnForm = ({ projectId }: { projectId: string }) => {
 
     if (!isAdding) {
         return (
-            <div className="w-[326px] shrink-0">
-                <Button color="secondary" size="sm" iconLeading={Plus} onClick={() => setIsAdding(true)} className="w-full justify-start">
+            <div className="w-[350px] shrink-0">
+                <Button color="secondary" size="sm" iconLeading={AddOutline} onClick={() => setIsAdding(true)} className="w-full justify-start">
                     {t("settings.newColumn")}
                 </Button>
             </div>
@@ -32,7 +32,7 @@ export const AddColumnForm = ({ projectId }: { projectId: string }) => {
 
     return (
         <form
-            className="flex w-[326px] shrink-0 flex-col gap-2 rounded-md bg-layer-1 p-2"
+            className="flex w-[350px] shrink-0 flex-col gap-2 rounded-md bg-layer-1 p-2"
             onSubmit={(event) => {
                 event.preventDefault();
                 const trimmed = name.trim();
