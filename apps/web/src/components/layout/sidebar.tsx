@@ -25,6 +25,16 @@ const ITEM = "flex h-7 w-full min-w-0 items-center gap-2.5 rounded-md px-2 text-
 const IDLE = "text-tertiary hover:bg-layer-transparent-hover hover:text-primary";
 const ACTIVE = "bg-layer-1-selected text-white [&_svg]:text-white";
 
+/**
+ * Only one sidebar row is active at a time. A favorite and a project row can point at the same page,
+ * so the row the user actually clicked wins: favorite links tag their navigation, and the project tree
+ * stays quiet while that tag is present.
+ */
+function useViaFavorite() {
+    const location = useLocation();
+    return (location.state as { via?: string } | null)?.via === "favorite";
+}
+
 function itemClass(active: boolean, extra = "") {
     return `${ITEM} ${active ? ACTIVE : IDLE} ${extra}`;
 }
@@ -301,9 +311,10 @@ function ProjectNavItem({
     const location = useLocation();
     const { t } = useTranslation();
     const current = currentProjectId === project.id;
-    const home = location.pathname === `/projects/${project.id}`;
-    const issues = current && /\/issues(\/|$)/.test(location.pathname);
-    const documentsIndex = location.pathname === `/projects/${project.id}/documents`;
+    const viaFavorite = useViaFavorite();
+    const home = !viaFavorite && location.pathname === `/projects/${project.id}`;
+    const issues = !viaFavorite && current && /\/issues(\/|$)/.test(location.pathname);
+    const documentsIndex = !viaFavorite && location.pathname === `/projects/${project.id}/documents`;
 
     return (
         <div className="group/project">
@@ -361,12 +372,13 @@ function ChildLink({ to, icon: Icon, label, active }: { to: string; icon: AppIco
 
 function ProjectDocumentsNav({ projectId }: { projectId: string }) {
     const location = useLocation();
+    const viaFavorite = useViaFavorite();
     const { data: documents } = useDocuments(projectId);
 
     return (
         <div className="ml-4 flex flex-col gap-px">
             {documents?.map((page) => {
-                const active = location.pathname.endsWith(`/documents/${page.id}`);
+                const active = !viaFavorite && location.pathname.endsWith(`/documents/${page.id}`);
                 return (
                     <div key={page.id} className="group/doc relative flex min-w-0 items-center" data-document-context="true" data-project-id={projectId} data-document-id={page.id} data-document-title={page.title} data-document-author-id={page.createdBy}>
                         <Link to={`/projects/${projectId}/documents/${page.id}`} className={itemClass(active, "pr-7 font-normal")} aria-current={active ? "page" : undefined}>
@@ -442,12 +454,12 @@ function FavoriteRow({ favorite, leaving, animateIn }: { favorite: Favorite; lea
         return () => cancelAnimationFrame(frame);
     }, [entered]);
     const { to, icon, label, context } = describeFavorite(favorite, t("nav.issues"));
-    const active = location.pathname === to;
+    const active = useViaFavorite() && location.pathname === to;
 
     return (
         <Collapse open={entered && !leaving} lazy={false}>
             <div className="group/favorite relative pb-px">
-                <Link to={to} className={itemClass(active, "pr-7")} aria-current={active ? "page" : undefined}>
+                <Link to={to} state={{ via: "favorite" }} className={itemClass(active, "pr-7")} aria-current={active ? "page" : undefined}>
                     {icon}
                     <span className="truncate">{label}</span>
                     {context && <span className="min-w-0 shrink-[2] truncate font-normal text-placeholder">{context}</span>}
