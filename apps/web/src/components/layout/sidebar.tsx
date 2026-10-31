@@ -284,15 +284,15 @@ function Caret({ open }: { open: boolean }) {
  * Animates a group open and closed by easing its height and opacity.
  * Content mounts on first open, so collapsed projects do not fetch their documents.
  */
-function Collapse({ open, children }: { open: boolean; children: ReactNode }) {
-    const [mounted, setMounted] = useState(open);
+function Collapse({ open, lazy = true, animate = true, children }: { open: boolean; lazy?: boolean; animate?: boolean; children: ReactNode }) {
+    const [mounted, setMounted] = useState(open || !lazy);
     useEffect(() => {
         if (open) setMounted(true);
     }, [open]);
     return (
         <div
             inert={!open}
-            className={`grid transition-[grid-template-rows,opacity] duration-200 ease-[cubic-bezier(0.2,0,0,1)] motion-reduce:transition-none ${open ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"}`}
+            className={`grid ${animate ? "transition-[grid-template-rows,opacity] duration-200 ease-[cubic-bezier(0.2,0,0,1)] motion-reduce:transition-none" : ""} ${open ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"}`}
         >
             <div className="min-h-0 overflow-hidden">{mounted && children}</div>
         </div>
@@ -402,44 +402,86 @@ function ProjectDocumentsNav({ projectId }: { projectId: string }) {
     );
 }
 
+type FavoriteRowState = { favorite: Favorite; leaving: boolean; animateIn: boolean };
+
+/**
+ * Favorites slide in when added and out when removed, and the section itself grows or shrinks as it
+ * gains its first or loses its last item. The first load renders in place without animating.
+ */
 function FavoritesNav({ open, onToggle }: { open: boolean; onToggle: () => void }) {
     const { t } = useTranslation();
-    const location = useLocation();
     const { data: favorites } = useFavorites();
-    const remove = useRemoveFavorite();
-    if (!favorites?.length) return null;
+    const [rows, setRows] = useState<FavoriteRowState[]>([]);
+    const [ready, setReady] = useState(false);
+
+    useEffect(() => {
+        if (!favorites) return;
+        setRows((current) => {
+            const known = new Set(current.map((row) => row.favorite.id));
+            const next: FavoriteRowState[] = favorites.map((favorite) => ({ favorite, leaving: false, animateIn: ready && !known.has(favorite.id) }));
+            const present = new Set(favorites.map((favorite) => favorite.id));
+            current.forEach((row, index) => {
+                if (!present.has(row.favorite.id)) next.splice(Math.min(index, next.length), 0, { ...row, leaving: true, animateIn: false });
+            });
+            return next;
+        });
+        if (!ready) requestAnimationFrame(() => setReady(true));
+    }, [favorites, ready]);
+
+    const leaving = rows.some((row) => row.leaving);
+    useEffect(() => {
+        if (!leaving) return;
+        const timer = window.setTimeout(() => setRows((current) => current.filter((row) => !row.leaving)), 220);
+        return () => window.clearTimeout(timer);
+    }, [leaving]);
 
     return (
-        <>
+        <Collapse open={rows.some((row) => !row.leaving)} lazy={false} animate={ready}>
             <SectionLabel label={t("nav.favorites")} open={open} onToggle={onToggle} />
-            <Collapse open={open}>
-                <div className="flex flex-col gap-px">
-                    {favorites.map((favorite) => {
-                        const { to, icon, label, context } = describeFavorite(favorite, t("nav.issues"));
-                        const active = location.pathname === to;
-                        return (
-                            <div key={favorite.id} className="group/favorite relative">
-                                <Link to={to} className={itemClass(active, "pr-7")} aria-current={active ? "page" : undefined}>
-                                    {icon}
-                                    <span className="truncate">{label}</span>
-                                    {context && <span className="min-w-0 shrink-[2] truncate font-normal text-placeholder">{context}</span>}
-                                </Link>
-                                <button
-                                    type="button"
-                                    aria-label={`${t("nav.removeFavorite")}: ${label}`}
-                                    title={t("nav.removeFavorite")}
-                                    disabled={remove.isPending}
-                                    onClick={() => remove.mutate(favorite.id)}
-                                    className="absolute top-1/2 right-1 grid size-5 -translate-y-1/2 place-items-center rounded text-tertiary opacity-0 transition-opacity duration-150 group-hover/favorite:opacity-100 hover:bg-layer-transparent-hover hover:text-primary focus-visible:opacity-100"
-                                >
-                                    <X className="size-3.5" />
-                                </button>
-                            </div>
-                        );
-                    })}
+            <Collapse open={open} lazy={false}>
+                <div className="flex flex-col">
+                    {rows.map((row) => (
+                        <FavoriteRow key={row.favorite.id} favorite={row.favorite} leaving={row.leaving} animateIn={row.animateIn} />
+                    ))}
                 </div>
             </Collapse>
-        </>
+        </Collapse>
+    );
+}
+
+function FavoriteRow({ favorite, leaving, animateIn }: { favorite: Favorite; leaving: boolean; animateIn: boolean }) {
+    const { t } = useTranslation();
+    const location = useLocation();
+    const remove = useRemoveFavorite();
+    const [entered, setEntered] = useState(!animateIn);
+    useEffect(() => {
+        if (entered) return;
+        const frame = requestAnimationFrame(() => setEntered(true));
+        return () => cancelAnimationFrame(frame);
+    }, [entered]);
+    const { to, icon, label, context } = describeFavorite(favorite, t("nav.issues"));
+    const active = location.pathname === to;
+
+    return (
+        <Collapse open={entered && !leaving} lazy={false}>
+            <div className="group/favorite relative pb-px">
+                <Link to={to} className={itemClass(active, "pr-7")} aria-current={active ? "page" : undefined}>
+                    {icon}
+                    <span className="truncate">{label}</span>
+                    {context && <span className="min-w-0 shrink-[2] truncate font-normal text-placeholder">{context}</span>}
+                </Link>
+                <button
+                    type="button"
+                    aria-label={`${t("nav.removeFavorite")}: ${label}`}
+                    title={t("nav.removeFavorite")}
+                    disabled={remove.isPending || leaving}
+                    onClick={() => remove.mutate(favorite.id)}
+                    className="absolute top-1/2 right-1 grid size-5 -translate-y-1/2 place-items-center rounded text-tertiary opacity-0 transition-opacity duration-150 group-hover/favorite:opacity-100 hover:bg-layer-transparent-hover hover:text-primary focus-visible:opacity-100"
+                >
+                    <X className="size-3.5" />
+                </button>
+            </div>
+        </Collapse>
     );
 }
 
