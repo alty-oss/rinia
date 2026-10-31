@@ -48,9 +48,9 @@ export function IssueToolbar({ projectId, onCreate, layout = "list", compact = f
             <div className={chrome ? "flex items-center gap-1" : compact ? "flex items-center gap-2" : "flex h-[45px] flex-wrap items-center gap-2 px-3.5"}>
                 <Popover.Root>
                     {(compact || chrome) && count === 0 ? (
-                        <Popover.Trigger render={<Button aria-label={t("issue.filters")} color="secondary" iconLeading={FilterOutline} />} />
+                        <Popover.Trigger render={<Button aria-label={t("issue.filters")} size={chrome ? "xs" : undefined} color="secondary" iconLeading={FilterOutline} />} />
                     ) : (
-                        <Popover.Trigger render={<Button aria-label={t("issue.filters")} color={compact || chrome ? "secondary" : "tertiary"} iconLeading={FilterOutline} />}>
+                        <Popover.Trigger render={<Button aria-label={t("issue.filters")} size={chrome ? "xs" : undefined} color={compact || chrome ? "secondary" : "tertiary"} iconLeading={FilterOutline} />}>
                             {!compact && !chrome ? t("issue.filters") : null}{count ? ` · ${count}` : ""}
                         </Popover.Trigger>
                     )}
@@ -90,9 +90,9 @@ export function IssueToolbar({ projectId, onCreate, layout = "list", compact = f
                         wrapperClassName="bg-transparent ring-0 shadow-none focus-within:ring-1"
                     />
                 </div>)}
-                <div className="ml-auto flex items-center gap-2">
+                <div className={cx("ml-auto flex items-center", chrome ? "gap-1" : "gap-2")}>
                     <Popover.Root>
-                    <Popover.Trigger render={<Button aria-label={t("issue.display")} color={compact || chrome ? "secondary" : "tertiary"} iconLeading={compact || chrome ? DisplayOutline : DisplayOutline} />}>{chrome || compact ? null : t("issue.display")}</Popover.Trigger>
+                    <Popover.Trigger render={<Button aria-label={t("issue.display")} size={chrome ? "xs" : undefined} color={compact || chrome ? "secondary" : "tertiary"} iconLeading={DisplayOutline} />}>{chrome || compact ? null : t("issue.display")}</Popover.Trigger>
                         <Popover.Portal>
                             <Popover.Positioner sideOffset={8} align="end" className="z-30">
                                 <Popover.Popup className={popup}>

@@ -2,19 +2,20 @@ import { useState } from "react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { useLocation } from "react-router";
-import { AssigneeOutline, EstimateOutline } from "@makeplane/propel/icons";
+import type { UpdateIssueInput } from "@rinia/shared";
 import { ContextMenuButton } from "@/components/overlay/context-menu-provider";
 import type { Issue, IssuePerson } from "@/features/issues/api";
-import { translateStatusName } from "@/i18n/status-label";
+import { AssigneeMenu, EstimateMenu, LabelMenu, PriorityMenu } from "@/features/issues/components/issue-property-menus";
 import { cx } from "@/utils/cx";
-import { IssueAvatar, PriorityIcon, StateIcon } from "./issue-property-icons";
-import { useTranslation } from "react-i18next";
 
 interface IssueCardContentProps {
     issue: Issue;
-    column: { name: string; color?: string | null };
     category?: { name: string; color: string | null };
     assignee?: IssuePerson;
+    /** Choices for the property menus. The drag overlay leaves them out: its copy of the card is never clicked. */
+    people?: IssuePerson[];
+    labels?: Array<{ id: string; name: string; color: string | null }>;
+    onUpdate?: (input: UpdateIssueInput) => void;
 }
 
 function firstIssueImage(document: Issue["descriptionJson"]): string | null {
@@ -44,31 +45,28 @@ function IssuePreviewImage({ src }: { src: string }) {
     return <img src={src} alt="" loading="lazy" referrerPolicy="no-referrer" onError={() => setFailed(true)} className="mb-2 block h-24 w-full rounded object-cover" />;
 }
 
-/** Shared with the drag overlay so picking up an issue preserves its geometry. */
-export const IssueCardContent = ({ issue, column, category, assignee }: IssueCardContentProps) => {
-    const { t } = useTranslation();
+// Unset estimate and label icons only show while the card is hovered or focused, or their menu is open.
+const revealOnHover = "opacity-0 group-hover/card:opacity-100 group-focus-within/card:opacity-100 data-popup-open:opacity-100";
+
+/**
+ * Shared with the drag overlay so picking up an issue preserves its geometry. The column already names the
+ * status, so the card does not repeat it; each property is a 16px icon that opens a menu to change it.
+ */
+export const IssueCardContent = ({ issue, category, assignee, people = [], labels = [], onUpdate = () => {} }: IssueCardContentProps) => {
     const imagePreview = firstIssueImage(issue.descriptionJson);
+    const estimate = <EstimateMenu key="estimate" value={issue.estimate} onChange={(next) => onUpdate({ estimate: next })} className={issue.estimate == null ? revealOnHover : undefined} />;
+    const label = <LabelMenu key="label" value={category && issue.categoryId ? { id: issue.categoryId, ...category } : undefined} labels={labels} onChange={(categoryId) => onUpdate({ categoryId })} className={category ? "min-w-0" : revealOnHover} />;
+    // Set properties come first so the hidden, unset ones never leave a gap between visible icons.
+    const optional = [issue.estimate != null && estimate, category && label, issue.estimate == null && estimate, !category && label];
     return <>
         {imagePreview && <IssuePreviewImage key={imagePreview} src={imagePreview} />}
         <span className="block text-[11px] font-medium tracking-wide text-tertiary">{issue.identifier}</span>
         <p className="mt-1 line-clamp-2 text-[13px] leading-5 font-medium text-primary" title={issue.title}>{issue.title}</p>
-        <div className="mt-2 flex flex-wrap items-center gap-1.5 text-tertiary">
-            {column && (
-                <span className="inline-flex h-[22px] max-w-full items-center gap-1 rounded-md border border-subtle px-1.5 text-[11px] text-secondary">
-                    <StateIcon name={column.name} color={column.color} className="size-3.5" />
-                    <span className="truncate">{translateStatusName(column.name, t)}</span>
-                </span>
-            )}
-            <PriorityIcon priority={issue.priority} />
-            {assignee ? <IssueAvatar name={assignee.name} avatarUrl={assignee.avatarUrl} className="size-4 text-[9px]" /> : <span title={t("issue.unassigned")} className="inline-flex size-4 items-center justify-center rounded-full border border-subtle text-placeholder"><AssigneeOutline className="size-3" /></span>}
-            {issue.estimate != null && <span title={t("projects.points", { count: issue.estimate })} className="inline-flex items-center gap-0.5 text-[11px] text-secondary"><EstimateOutline className="size-3.5" />{issue.estimate}</span>}
+        <div className="mt-2 flex min-w-0 flex-wrap items-center gap-1 text-tertiary">
+            <PriorityMenu value={issue.priority} onChange={(priority) => onUpdate({ priority })} />
+            <AssigneeMenu value={assignee} people={people} onChange={(assigneeId) => onUpdate({ assigneeId })} />
+            {optional}
         </div>
-        {category && (
-            <span className="mt-2 inline-flex max-w-full items-center gap-1.5 text-[11px] text-secondary">
-                <span className="size-2 shrink-0 rounded-[2px]" style={{ backgroundColor: category.color ?? "#7a5af8" }} />
-                <span className="truncate">{category.name}</span>
-            </span>
-        )}
     </>;
 };
 
@@ -77,7 +75,7 @@ interface IssueCardProps extends IssueCardContentProps {
     onClick: () => void;
 }
 
-export const IssueCard = ({ issue, column, category, assignee, projectId, onClick }: IssueCardProps) => {
+export const IssueCard = ({ issue, category, assignee, people, labels, onUpdate, projectId, onClick }: IssueCardProps) => {
     const { attributes, listeners, setActivatorNodeRef, setNodeRef, transform, transition, isDragging } = useSortable({ id: issue.id });
 
     const location = useLocation();
@@ -89,11 +87,11 @@ export const IssueCard = ({ issue, column, category, assignee, projectId, onClic
             ref={setNodeRef}
             style={style}
             data-issue-id={issue.id}
-            className={cx("relative", isDragging && "z-10 opacity-40")}
+            className={cx("group/card relative", isDragging && "z-10 opacity-40")}
         >
-            <button
+            {/* A div rather than a button: the property menus inside it are buttons themselves. */}
+            <div
                 ref={setActivatorNodeRef}
-                type="button"
                 {...attributes}
                 {...listeners}
                 data-issue-context="true"
@@ -113,8 +111,8 @@ export const IssueCard = ({ issue, column, category, assignee, projectId, onClic
                     selected && "border-accent-strong",
                 )}
             >
-                <IssueCardContent issue={issue} column={column} category={category} assignee={assignee} />
-            </button>
+                <IssueCardContent issue={issue} category={category} assignee={assignee} people={people} labels={labels} onUpdate={onUpdate} />
+            </div>
             <ContextMenuButton
                 entity={{ type: "issue", projectId, identifier: issue.identifier, title: issue.title }}
                 className="absolute top-1.5 right-1.5 z-10 rounded-md bg-layer-2"

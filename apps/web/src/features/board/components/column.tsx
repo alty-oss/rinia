@@ -8,6 +8,7 @@ import { AddOutline } from "@makeplane/propel/icons";
 import { ButtonUtility } from "@/components/base/buttons/button-utility";
 import { Input } from "@/components/base/input/input";
 import { ConfirmDialog } from "@/components/overlay/confirm-dialog";
+import type { UpdateIssueInput } from "@rinia/shared";
 import type { Issue, IssuePerson } from "@/features/issues/api";
 import { ApiError } from "@/lib/api-client";
 import { cx } from "@/utils/cx";
@@ -26,12 +27,15 @@ interface ColumnProps {
     projectId: string;
     categoriesById: Map<string, { name: string; color: string | null }>;
     membersById: Map<string, IssuePerson>;
+    people: IssuePerson[];
+    labels: Array<{ id: string; name: string; color: string | null }>;
+    onUpdateIssue: (identifier: string, input: UpdateIssueInput) => void;
     onOpenIssue: (identifier: string) => void;
     onCreateIssue: (columnId: string) => void;
     onHide: (columnId: string) => void;
 }
 
-export const Column = ({ column, issues, projectId, categoriesById, membersById, onOpenIssue, onCreateIssue, onHide }: ColumnProps) => {
+export const Column = ({ column, issues, projectId, categoriesById, membersById, people, labels, onUpdateIssue, onOpenIssue, onCreateIssue, onHide }: ColumnProps) => {
     const { t } = useTranslation();
     const { setNodeRef: setDropRef, isOver } = useDroppable({ id: column.id });
 
@@ -152,10 +156,12 @@ export const Column = ({ column, issues, projectId, categoriesById, membersById,
                         <IssueCard
                             key={issue.id}
                             issue={issue}
-                            column={column}
                             projectId={projectId}
                             category={issue.categoryId ? categoriesById.get(issue.categoryId) : undefined}
                             assignee={issue.assigneeId ? membersById.get(issue.assigneeId) : undefined}
+                            people={people}
+                            labels={labels}
+                            onUpdate={(input) => onUpdateIssue(issue.identifier, input)}
                             onClick={() => onOpenIssue(issue.identifier)}
                         />
                     ))}

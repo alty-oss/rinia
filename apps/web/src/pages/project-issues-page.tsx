@@ -5,6 +5,7 @@ import { AddOutline, ChevronDownOutline } from "@makeplane/propel/icons";
 import { Plus } from "lucide-react";
 import { useNavigate, useParams, useSearchParams } from "react-router";
 import { urls } from "@/lib/urls";
+import { cx } from "@/utils/cx";
 import { useRouteProject } from "@/features/projects/route-project";
 import { Button } from "@/components/base/buttons/button";
 import { Input } from "@/components/base/input/input";
@@ -181,9 +182,6 @@ export const ProjectIssuesPage = () => {
         navigate(`${urls.issues(projectKey, next)}${query ? `?${query}` : ""}`, { replace: true });
     }
 
-    const pill = "flex h-6 items-center rounded-md px-2 text-[13px]";
-    const pillOff = "text-tertiary hover:bg-layer-transparent-hover hover:text-primary";
-    const pillOn = "bg-layer-1-selected text-primary";
 
     return (
         <div className="flex h-full min-h-0 flex-col bg-surface-1">
@@ -205,19 +203,29 @@ export const ProjectIssuesPage = () => {
                     </button>
                 }
             />
+            {/* The view switch leads the bar so neither view leaves its left side empty; every control in it is 28px tall. */}
             <div className="flex h-10 shrink-0 items-center gap-1 border-b border-subtle px-3">
-                {view === "list" && ([
-                    ["active", t("issue.active")],
-                    ["backlog", t("issue.backlog")],
-                    ["all", t("issue.allIssues")],
-                ] as const).map(([value, label]) => (
-                    <button key={value} type="button" aria-pressed={scope === value} className={`${pill} ${scope === value ? pillOn : pillOff}`} onClick={() => setScope(value)}>
-                        {label}
-                    </button>
-                ))}
                 {view && (
-                    <div className="animate-enter ml-auto flex items-center gap-2">
+                    <div className="animate-enter flex min-w-0 items-center gap-1">
                         <ViewSwitch view={view} onChange={setView} />
+                        {view === "list" && (
+                            <div key="scopes" className="animate-enter flex items-center gap-1">
+                                <span aria-hidden="true" className="mx-1 h-4 w-px bg-border-secondary" />
+                                {([
+                                    ["active", t("issue.active")],
+                                    ["backlog", t("issue.backlog")],
+                                    ["all", t("issue.allIssues")],
+                                ] as const).map(([value, label]) => (
+                                    <button key={value} type="button" aria-pressed={scope === value} className={tab(scope === value)} onClick={() => setScope(value)}>
+                                        {label}
+                                    </button>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                )}
+                {view && (
+                    <div className="animate-enter ml-auto flex items-center gap-1">
                         <IssueToolbar chrome layout={view} projectId={projectId!} onCreate={() => setIsCreating(true)} />
                     </div>
                 )}
@@ -342,13 +350,16 @@ export const ProjectIssuesPage = () => {
     );
 };
 
+/** A tab in the issues bar: the view switch and the list's scopes share it, at the toolbar buttons' 28px. */
+const tab = (active: boolean) =>
+    cx("flex h-7 items-center gap-1.5 rounded-md px-2 text-[13px]", active ? "bg-layer-1-selected text-primary" : "text-tertiary hover:bg-layer-transparent-hover hover:text-primary");
+
 function ViewSwitch({ view, onChange }: { view: IssueView; onChange: (view: IssueView) => void }) {
     const { t } = useTranslation();
-    const button = "flex h-6 items-center gap-1 rounded px-2 text-[13px]";
     return (
-        <div role="group" aria-label={t("issue.view")} className="flex items-center gap-0.5 rounded-md bg-layer-1 p-0.5">
+        <div role="group" aria-label={t("issue.view")} className="flex items-center gap-1">
             {issueViews.map(({ value, icon: Icon, label }) => (
-                <button key={value} type="button" aria-pressed={view === value} className={`${button} ${view === value ? "bg-layer-1-selected text-primary" : "text-tertiary hover:text-primary"}`} onClick={() => onChange(value)}>
+                <button key={value} type="button" aria-pressed={view === value} className={tab(view === value)} onClick={() => onChange(value)}>
                     <Icon className="size-3.5" />
                     {t(label)}
                 </button>

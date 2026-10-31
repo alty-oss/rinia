@@ -231,6 +231,9 @@ export const Board = ({ projectId, filters = new URLSearchParams() }: { projectI
                             projectId={projectId}
                             categoriesById={categoriesById}
                             membersById={membersById}
+                            people={members ?? []}
+                            labels={categories ?? []}
+                            onUpdateIssue={(identifier, input) => updateIssue.mutate({ identifier, input })}
                             onOpenIssue={(identifier) => navigate(urls.issue(identifier))}
                             onCreateIssue={(columnId) => setCreateColumnId(columnId)}
                             onHide={hideColumn}
@@ -253,7 +256,6 @@ export const Board = ({ projectId, filters = new URLSearchParams() }: { projectI
                         >
                             <IssueCardContent
                                 issue={activeIssue}
-                                column={columns?.find((column) => column.id === activeIssue.columnId) ?? { name: "" }}
                                 category={activeCategory}
                                 assignee={activeAssignee}
                             />
