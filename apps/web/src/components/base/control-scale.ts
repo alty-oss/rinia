@@ -1,4 +1,3 @@
-/** Plane 01064a7: packages/propel/src/button/helper.tsx. Preserve Rinia's public size names. */
 export const controlScale = {
     button: {
         xs: "h-5 px-1.5 text-xs", sm: "h-6 px-2 text-xs", md: "h-7 px-2 text-xs",

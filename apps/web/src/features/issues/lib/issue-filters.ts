@@ -8,8 +8,7 @@ export function filterIssues(issues: Issue[], query: URLSearchParams) {
             (!query.get("priority") || issue.priority === query.get("priority")) &&
             (!query.get("status") || issue.columnId === query.get("status")) &&
             (!query.get("assignee") || issue.assigneeId === query.get("assignee")) &&
-            (!query.get("label") || issue.categoryId === query.get("label")) &&
-            (!query.get("cycle") || issue.cycleId === query.get("cycle")),
+            (!query.get("label") || issue.categoryId === query.get("label")),
     );
 }
 export function readIssueOrder(value: string | null): "position" | "priority" | "updated" | "number" {

@@ -22,7 +22,7 @@ import { Alert } from "@/components/base/feedback/alert";
 import { Skeleton } from "@/components/base/feedback/skeleton";
 import { useCategories } from "@/features/categories/hooks/use-categories";
 import type { Issue } from "@/features/issues/api";
-import { useCycles, useIssues, useUpdateIssue } from "@/features/issues/hooks/use-issues";
+import { useIssues, useUpdateIssue } from "@/features/issues/hooks/use-issues";
 import { IssueQuickCreateModal } from "@/features/issues/components/issue-quick-create-modal";
 import { useProjectMembers } from "@/features/projects/hooks/use-project-members";
 import { ApiError } from "@/lib/api-client";
@@ -55,7 +55,6 @@ export const Board = ({ projectId, filters = new URLSearchParams() }: { projectI
     const { data: issues, isLoading: issuesLoading, isError: issuesError } = useIssues(projectId, { orderBy });
     const filtered = useMemo(() => filterIssues(issues ?? [], filters), [issues, filters]);
     const { data: categories } = useCategories(projectId);
-    const { data: cycles } = useCycles(projectId);
     const { data: members } = useProjectMembers(projectId);
     const updateIssue = useUpdateIssue(projectId);
 
@@ -70,7 +69,6 @@ export const Board = ({ projectId, filters = new URLSearchParams() }: { projectI
         useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
     );
 
-    const cyclesById = useMemo(() => new Map((cycles ?? []).map((cycle) => [cycle.id, cycle])), [cycles]);
     const categoriesById = useMemo(() => new Map((categories ?? []).map((category) => [category.id, category])), [categories]);
     const membersById = useMemo(() => new Map((members ?? []).map((member) => [member.id, member])), [members]);
 
@@ -221,7 +219,7 @@ export const Board = ({ projectId, filters = new URLSearchParams() }: { projectI
                 onDragEnd={handleDragEnd}
                 onDragCancel={handleDragCancel}
             >
-                <div className="flex h-full items-start gap-3 overflow-x-auto">
+                <div className="flex h-full items-start gap-4 overflow-x-auto">
                     {columns?.map((column) => (
                         <Column
                             key={column.id}
@@ -230,7 +228,6 @@ export const Board = ({ projectId, filters = new URLSearchParams() }: { projectI
                             projectId={projectId}
                             categoriesById={categoriesById}
                             membersById={membersById}
-                            cyclesById={cyclesById}
                             onOpenIssue={(identifier) => navigate(`/projects/${projectId}/issues/${identifier}`, { state: { backgroundLocation: location } })}
                             onCreateIssue={(columnId) => setCreateColumnId(columnId)}
                         />
@@ -242,9 +239,9 @@ export const Board = ({ projectId, filters = new URLSearchParams() }: { projectI
                     {activeIssue && (
                         <div
                             style={{ width: activeIssueWidth }}
-                            className="block rotate-1 cursor-grabbing rounded-md border border-accent-strong bg-layer-2 p-2.5 shadow-overlay-200"
+                            className="block rotate-1 cursor-grabbing rounded-lg border border-accent-strong bg-layer-2 p-3 text-13 shadow-overlay-200"
                         >
-                            <IssueCardContent issue={activeIssue} category={activeCategory} assignee={activeAssignee} column={columns?.find((column) => column.id === activeIssue.columnId)} cycle={activeIssue.cycleId ? cyclesById.get(activeIssue.cycleId) : undefined} />
+                            <IssueCardContent issue={activeIssue} category={activeCategory} assignee={activeAssignee} />
                         </div>
                     )}
                 </DragOverlay>
@@ -258,9 +255,10 @@ export const Board = ({ projectId, filters = new URLSearchParams() }: { projectI
 function BoardSkeleton() {
     const { t } = useTranslation();
     return <div className="flex h-full min-w-max items-start gap-4" aria-label={t("common.loading")} role="status">
-        {["one", "two", "three"].map((key) => <div key={key} className="flex h-full w-[326px] shrink-0 flex-col gap-3 rounded-md bg-layer-1 p-1">
-            <div className="flex h-8 items-center justify-between px-1"><Skeleton className="h-3 w-28" /><Skeleton className="size-4 rounded-full" /></div>
-            <div className="space-y-2"><Skeleton className="h-24 w-full rounded-md" /><Skeleton className="h-20 w-full rounded-md" /><Skeleton className="h-28 w-full rounded-md" /></div>
+        {["one", "two", "three"].map((key) => <div key={key} className="flex h-full w-[350px] shrink-0 flex-col overflow-hidden rounded-md bg-layer-1">
+            <div className="h-0.5 bg-subtle" />
+            <div className="flex h-8 items-center justify-between bg-surface-2 px-1.5"><Skeleton className="h-3 w-28" /><Skeleton className="size-4 rounded-full" /></div>
+            <div className="space-y-2 p-1"><Skeleton className="h-24 w-full rounded-lg" /><Skeleton className="h-20 w-full rounded-lg" /><Skeleton className="h-28 w-full rounded-lg" /></div>
         </div>)}
     </div>;
 }

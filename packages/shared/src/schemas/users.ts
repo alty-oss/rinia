@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { localeSchema } from "../locales";
-import { coverSchema, remoteImageUrlSchema } from "./appearance";
+import { remoteImageUrlSchema } from "./appearance";
 
 export const updateProfileSchema = z
     .object({
@@ -13,7 +13,6 @@ export const updateProfileSchema = z
             .optional()
             .transform((value) => (value === "" ? null : value)),
         locale: localeSchema.optional(),
-        cover: coverSchema.nullable().optional(),
     })
     .strict();
 export type UpdateProfileInput = z.infer<typeof updateProfileSchema>;

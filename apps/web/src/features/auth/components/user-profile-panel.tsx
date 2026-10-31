@@ -2,7 +2,6 @@ import { updateProfileSchema } from "@rinia/shared";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Download } from "lucide-react";
-import { useRef } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { Avatar } from "@/components/base/avatar/avatar";
 import { Button } from "@/components/base/buttons/button";
@@ -10,8 +9,6 @@ import { Alert } from "@/components/base/feedback/alert";
 import { ControlledSettingsInput as ControlledInput, SettingsInput as Input } from "@/components/settings/settings-input";
 import { SettingsControl } from "@/components/settings/settings-layout";
 import { AvatarUrlPicker } from "@/components/appearance/avatar-url-picker";
-import { CoverImage } from "@/components/appearance/cover-image";
-import { CoverPicker } from "@/components/appearance/cover-picker";
 import { AUTH_QUERY_KEY, updateProfile } from "@/features/auth/api";
 import { useAuth } from "@/features/auth/hooks/use-auth";
 import { ApiError } from "@/lib/api-client";
@@ -26,20 +23,18 @@ export const UserProfilePanel = () => {
     const queryClient = useQueryClient();
     const { control, handleSubmit, watch, reset, setError, formState } = useForm({
         resolver: zodResolver(updateProfileSchema),
-        defaultValues: { name: user?.name ?? "", avatarUrl: user?.avatarUrl ?? "", cover: user?.cover ?? null },
+        defaultValues: { name: user?.name ?? "", avatarUrl: user?.avatarUrl ?? "" },
     });
     const mutation = useMutation({
         mutationFn: updateProfile,
         onSuccess: (updatedUser) => {
             queryClient.setQueryData(AUTH_QUERY_KEY, updatedUser);
-            reset({ name: updatedUser.name, avatarUrl: updatedUser.avatarUrl ?? "", cover: updatedUser.cover ?? null });
+            reset({ name: updatedUser.name, avatarUrl: updatedUser.avatarUrl ?? "" });
         },
         onError: (error) => setError("root", { message: error instanceof ApiError ? error.message : t("profile.couldNotSave") }),
     });
-    const coverRef = useRef<HTMLDivElement>(null);
     if (!user) return null;
     const previewUrl = watch("avatarUrl");
-    const previewCover = watch("cover");
     const initials = user.name
         .split(" ")
         .filter(Boolean)
@@ -49,17 +44,11 @@ export const UserProfilePanel = () => {
 
     return (
         <div className="w-full">
-            <div className="relative">
-                <div ref={coverRef} data-profile-cover className="relative h-36 overflow-hidden rounded-md border border-subtle bg-surface-2">
-                    <CoverImage cover={previewCover} className="absolute inset-0" />
-                    <div className="absolute right-3 top-3"><Controller control={control} name="cover" render={({ field }) => <CoverPicker cover={field.value} onChange={field.onChange} disabled={mutation.isPending} containerRef={coverRef} />} /></div>
-                </div>
-                <div data-profile-avatar className="absolute -bottom-6 left-6 rounded-lg bg-surface-1 p-1">
-                    <Avatar key={previewUrl} src={previewUrl || undefined} initials={initials} size="2xl" rounded={false} className="rounded-lg" />
-                    <Controller control={control} name="avatarUrl" render={({ field }) => <AvatarUrlPicker value={field.value} initials={initials} onChange={field.onChange} disabled={mutation.isPending} />} />
-                </div>
+            <div data-profile-avatar className="relative w-fit rounded-lg bg-surface-1 p-1">
+                <Avatar key={previewUrl} src={previewUrl || undefined} initials={initials} size="2xl" rounded={false} className="rounded-lg" />
+                <Controller control={control} name="avatarUrl" render={({ field }) => <AvatarUrlPicker value={field.value} initials={initials} onChange={field.onChange} disabled={mutation.isPending} />} />
             </div>
-            <div className="mt-8 mb-5 space-y-1">
+            <div className="mt-4 mb-5 space-y-1">
                 <h1 className="text-base font-medium text-secondary">{user.name}</h1>
                 <p className="text-sm text-tertiary">{user.email}</p>
             </div>

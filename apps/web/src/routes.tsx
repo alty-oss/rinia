@@ -10,7 +10,6 @@ import { useTranslation } from "react-i18next";
 
 const ProjectSettingsPage = lazy(() => import("@/pages/project-settings-page").then((module) => ({ default: module.ProjectSettingsPage })));
 const ProfileSettingsPage = lazy(() => import("@/pages/profile-settings-page").then((module) => ({ default: module.ProfileSettingsPage })));
-const ProjectCyclesPage = lazy(() => import("@/pages/project-cycles-page").then((module) => ({ default: module.ProjectCyclesPage })));
 const DesignSystemPage = lazy(() => import("@/pages/design-system-page").then((module) => ({ default: module.default })));
 
 const IssueView = lazy(() => import("@/features/issues/components/issue-view").then((module) => ({ default: module.IssueView })));
@@ -54,7 +53,6 @@ export const AppRoutes = () => {
                     <Route path="/settings/profile" element={<ProfileSettingsPage />} />
                     <Route path="/projects/:projectId/settings" element={<ProjectSettingsRedirect />} />
                     <Route path="/projects/:projectId/settings/:section" element={<ProjectSettingsPage />} />
-                    <Route path="/projects/:projectId/cycles" element={<ProjectCyclesPage />} />
                     <Route path="/projects/:projectId" element={<ProjectOverviewPage />} />
                     <Route path="/projects/:projectId/issues" element={<ProjectBoardPage />} />
                     <Route path="/projects/:projectId/issues/list" element={<ProjectIssuesPage />} />

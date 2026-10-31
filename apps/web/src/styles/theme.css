@@ -1,5 +1,4 @@
-/* Plane 01064a7 / Propel 0.3.0 is the source of truth.
- * Compatibility aliases support remaining library examples, not a second palette. */
+/* Compatibility aliases support remaining library examples, not a second palette. */
 @theme inline {
     --font-display: var(--font-heading);
     --font-mono: var(--font-code);

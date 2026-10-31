@@ -1,12 +1,10 @@
 import type {
     CreateIssueCommentInput,
-    CreateCycleInput,
     CreateIssueInput,
     CreateIssueRelationInput,
     IssueListQuery,
     TiptapDocument,
     UpdateIssueCommentInput,
-    UpdateCycleInput,
     UpdateIssueInput,
 } from "@rinia/shared";
 import { apiClient } from "@/lib/api-client";
@@ -33,7 +31,6 @@ export interface Issue {
     createdBy: string;
     position: number;
     parentIssueId: string | null;
-    cycleId: string | null;
     estimate: number | null;
     createdAt: string;
     updatedAt: string;
@@ -45,7 +42,6 @@ export type IssueDetail = Omit<Issue, "createdBy"> & {
     createdBy: IssuePerson;
     category: { id: string; name: string; color: string | null } | null;
     column: { id: string; name: string };
-    cycle: { id: string; number: number; name: string; status: string } | null;
     parent: { id: string; number: number; title: string } | null;
     children: Array<{ id: string; number: number; title: string; columnId: string; priority: Issue["priority"] }>;
 };
@@ -76,16 +72,6 @@ export interface IssueRelation {
     targetIssueId: string;
     type: "blocks" | "blocked_by" | "related" | "duplicate";
     target: { id: string; number: number; title: string; projectId: string; project: { issueKey: string } };
-}
-
-export interface Cycle {
-    id: string;
-    projectId: string;
-    number: number;
-    name: string;
-    status: "planned" | "active" | "completed";
-    startsAt: string | null;
-    endsAt: string | null;
 }
 
 function queryString(query: IssueListQuery) {
@@ -144,20 +130,4 @@ export function createIssueRelation(identifier: string, input: CreateIssueRelati
 
 export function deleteIssueRelation(relationId: string): Promise<void> {
     return apiClient.delete<void>(`/relations/${relationId}`);
-}
-
-export function listCycles(projectId: string): Promise<Cycle[]> {
-    return apiClient.get<{ cycles: Cycle[] }>(`/projects/${projectId}/cycles`).then((res) => res.cycles);
-}
-
-export function createCycle(projectId: string, input: CreateCycleInput): Promise<Cycle> {
-    return apiClient.post<{ cycle: Cycle }>(`/projects/${projectId}/cycles`, input).then((res) => res.cycle);
-}
-
-export function updateCycle(cycleId: string, input: UpdateCycleInput): Promise<Cycle> {
-    return apiClient.patch<{ cycle: Cycle }>(`/cycles/${cycleId}`, input).then((res) => res.cycle);
-}
-
-export function deleteCycle(cycleId: string): Promise<void> {
-    return apiClient.delete<void>(`/cycles/${cycleId}`);
 }

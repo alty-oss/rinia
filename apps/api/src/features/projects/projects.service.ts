@@ -1,4 +1,4 @@
-import { resolveLocale, suggestProjectKey, type CreateProjectInput, type Locale, type UpdateProjectInput, type UpdateProjectPageInput } from "@rinia/shared";
+import { parseProjectCover, resolveLocale, suggestProjectKey, type CreateProjectInput, type Locale, type UpdateProjectInput, type UpdateProjectPageInput } from "@rinia/shared";
 import { and, count, desc, eq, inArray, sql } from "drizzle-orm";
 import { db } from "../../db";
 import { boardColumns, issues, projectMembers, projects, users } from "../../db/schema";
@@ -46,6 +46,10 @@ function projectAppearance(input: ProjectAppearanceInput) {
     return input.icon === undefined ? {} : { icon: input.icon, iconAppearance: input.icon ? { type: "icon" as const, key: input.icon } : null };
 }
 
+function withParsedCover<T extends { cover: unknown }>(project: T) {
+    return { ...project, cover: parseProjectCover(project.cover) };
+}
+
 async function resolveProjectKey(name: string) {
     const existing = await db.query.projects.findMany({ columns: { issueKey: true } });
     const taken = new Set(existing.map((project) => project.issueKey));
@@ -91,7 +95,7 @@ export async function createProject(input: CreateProjectInput, creatorId: string
                     })),
                 );
 
-                return project;
+                return withParsedCover(project);
             });
         } catch (error) {
             if (!isProjectKeyConflict(error)) throw error;
@@ -110,7 +114,7 @@ export async function listProjectsForUser(userId: string, isAdmin: boolean) {
               with: { project: { columns: PROJECT_LIST_COLUMNS } },
           })).map((membership) => membership.project);
 
-    if (projectList.length === 0) return projectList.map((project) => ({ ...project, memberCount: 0, memberPreview: [] }));
+    if (projectList.length === 0) return projectList.map((project) => ({ ...withParsedCover(project), memberCount: 0, memberPreview: [] }));
     const projectIds = projectList.map((project) => project.id);
     const memberships = await db.query.projectMembers.findMany({
         where: inArray(projectMembers.projectId, projectIds),
@@ -125,7 +129,7 @@ export async function listProjectsForUser(userId: string, isAdmin: boolean) {
     }
     return projectList.map((project) => {
         const members = memberMap.get(project.id) ?? [];
-        return { ...project, memberCount: members.length, memberPreview: members.slice(0, 3) };
+        return { ...withParsedCover(project), memberCount: members.length, memberPreview: members.slice(0, 3) };
     });
 }
 
@@ -134,7 +138,7 @@ export async function getProjectById(projectId: string) {
     if (!project) {
         throw new HttpError(404, "Project not found");
     }
-    return project;
+    return withParsedCover(project);
 }
 
 export async function updateProject(projectId: string, input: UpdateProjectInput) {
@@ -166,7 +170,7 @@ export async function updateProject(projectId: string, input: UpdateProjectInput
     if (!project) {
         throw new HttpError(404, "Project not found");
     }
-    return project;
+    return withParsedCover(project);
 }
 
 export async function updateProjectPage(projectId: string, input: UpdateProjectPageInput) {

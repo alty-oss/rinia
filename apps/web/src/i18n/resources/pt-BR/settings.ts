@@ -13,9 +13,6 @@ const settings = {
         couldNotRemoveMember: "Não foi possível remover o membro.", couldNotAddMember: "Não foi possível adicionar o membro.", projectDetailsSaved: "Dados do projeto salvos.", couldNotSaveProject: "Não foi possível salvar o projeto.",
         loadingProject: "Carregando projeto…", couldNotLoadProject: "Não foi possível carregar o projeto.", changeProjectIcon: "Alterar ícone do projeto", projectIcon: "Ícone do projeto", loadingIcons: "Carregando ícones…", projectIdLocked: "Bloqueado após a criação da primeira tarefa.",
         deleteProjectDescription: "Exclua permanentemente este projeto e todos os seus dados e recursos. Não será possível recuperar projetos excluídos.",
-        newCycle: "Novo ciclo", planCycleDescription: "Planeje um período de trabalho focado para este projeto.", cycleName: "Nome do ciclo", starts: "Início", ends: "Término", createCycle: "Criar ciclo", loadingCycles: "Carregando ciclos…", couldNotLoadCycles: "Não foi possível carregar os ciclos do projeto.",
-        noCycles: "Nenhum ciclo ainda", createCycleHint: "Crie um ciclo para organizar um período de trabalho focado.", noCyclesAvailable: "Este projeto ainda não tem ciclos.", couldNotCreateCycle: "Não foi possível criar o ciclo.", couldNotUpdateCycle: "Não foi possível atualizar o ciclo.", couldNotDeleteCycle: "Não foi possível excluir o ciclo.",
-        deleteCycle: "Excluir ciclo", deleteCycleDescription: "O ciclo “{{name}}” será excluído. As tarefas dele continuarão disponíveis.", editCycle: "Editar ciclo", noPeriodSet: "Nenhum período definido", planned: "Planejado", active: "Ativo", completed: "Concluído",
         newColumn: "Nova coluna", columnName: "Nome da coluna", color: "Cor", colorValue: "Cor {{color}}", customColor: "Cor personalizada", chooseColor: "Escolher cor",
     } as const;
 

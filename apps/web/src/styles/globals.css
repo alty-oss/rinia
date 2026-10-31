@@ -129,7 +129,6 @@ input[type="number"] {
     outline-offset: -2px;
 }
 
-/* The project document is a full-height writing surface, similar to Plane's page editor. */
 .tiptap-editor-document {
     display: flex;
     min-height: 100%;
@@ -174,15 +173,13 @@ input[type="number"] {
     padding: 0;
 }
 
-/* Plane 01064a7: Kanban block.tsx and peek-overview/{view,properties}.tsx.
- * Scoped because the full issue page has a separate property sidebar. */
-.plane-board-page > header { height: 45px; position: relative; }
-.plane-board-page [data-peek-selected="true"] { border-color: var(--border-accent-strong); }
-.plane-issue-peek .issue-view-header { height: 60px; flex-shrink: 0; }
-.plane-issue-peek .issue-view-header > div:last-child button { width: 28px; height: 28px; }
-.plane-issue-peek .issue-view-header > div:last-child button:not(:first-of-type) { background: var(--bg-layer-2); box-shadow: inset 0 0 0 1px var(--border-strong); }
-.plane-issue-peek .peek-description .tiptap-editor { min-height: 0; }
-.plane-issue-peek .peek-description .ProseMirror {
+.project-board-page > header { height: 45px; position: relative; }
+.project-board-page [data-peek-selected="true"] { border-color: var(--border-accent-strong); }
+.issue-peek-panel .issue-view-header { height: 60px; flex-shrink: 0; }
+.issue-peek-panel .issue-view-header > div:last-child button { width: 28px; height: 28px; }
+.issue-peek-panel .issue-view-header > div:last-child button:not(:first-of-type) { background: var(--bg-layer-2); box-shadow: inset 0 0 0 1px var(--border-strong); }
+.issue-peek-panel .peek-description .tiptap-editor { min-height: 0; }
+.issue-peek-panel .peek-description .ProseMirror {
     min-height: 24px;
     padding: 0;
     font-size: 16px;
@@ -190,7 +187,7 @@ input[type="number"] {
     font-weight: 400;
     color: var(--txt-primary);
 }
-.plane-issue-peek .peek-description .tiptap-toolbar { margin-bottom: 8px; }
+.issue-peek-panel .peek-description .tiptap-toolbar { margin-bottom: 8px; }
 .peek-property-control > label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
 .peek-property-control { gap: 0; }
 .peek-property-control > button,
@@ -221,8 +218,8 @@ input[type="number"] {
 .peek-comments .tiptap-editor { min-height: 0; }
 .peek-comments .ProseMirror { min-height: 60px; padding: 8px; font-size: 13px; }
 @media (max-width: 767px) {
-    .plane-board-page > header { height: auto; min-height: 45px; flex-wrap: wrap; padding-block: 8px; }
-    .plane-issue-peek .issue-peek-body { padding: 16px; }
+    .project-board-page > header { height: auto; min-height: 45px; flex-wrap: wrap; padding-block: 8px; }
+    .issue-peek-panel .issue-peek-body { padding: 16px; }
     .peek-property-row > span { width: 110px; }
 }
 

@@ -2,12 +2,13 @@ import { Popover } from "@base-ui/react/popover";
 import { AddOutline, CloseOutline, DisplayOutline, FilterOutline, SearchOutline } from "@makeplane/propel/icons";
 import { useSearchParams } from "react-router";
 import { Button } from "@/components/base/buttons/button";
+import { overlayChrome } from "@/components/overlay/overlay-chrome";
+import { cx } from "@/utils/cx";
 import { Input } from "@/components/base/input/input";
 import { Select } from "@/components/base/select/select";
 import { useColumns } from "@/features/board/hooks/use-board";
 import { useCategories } from "@/features/categories/hooks/use-categories";
 import { useProjectMembers } from "@/features/projects/hooks/use-project-members";
-import { useCycles } from "../hooks/use-issues";
 import { readIssueOrder } from "../lib/issue-filters";
 import { useTranslation } from "react-i18next";
 import { translateStatusName } from "@/i18n/status-label";
@@ -18,7 +19,6 @@ export function IssueToolbar({ projectId, onCreate, layout = "list", compact = f
     const { data: columns } = useColumns(projectId);
     const { data: categories } = useCategories(projectId);
     const { data: members } = useProjectMembers(projectId);
-    const { data: cycles } = useCycles(projectId);
     function update(key: string, value: string) {
         setQuery(
             (current) => {
@@ -35,10 +35,9 @@ export function IssueToolbar({ projectId, onCreate, layout = "list", compact = f
         { key: "priority", label: t("issue.priority"), items: (["high", "medium", "low"] as const).map((id) => ({ id, name: t(`issue.${id}`) })) },
         { key: "assignee", label: t("issue.assignee"), items: members ?? [] },
         { key: "label", label: t("issue.label"), items: categories ?? [] },
-        { key: "cycle", label: t("issue.cycle"), items: cycles ?? [] },
     ];
     const count = filters.filter((filter) => query.get(filter.key)).length;
-    const popup = "grid w-[min(320px,calc(100vw-32px))] gap-3 rounded-md border border-subtle bg-layer-2 p-3 shadow-overlay-200 outline-none";
+    const popup = cx("grid w-[min(320px,calc(100vw-32px))] gap-3", overlayChrome.popupPadded);
     return (
         <div className={compact ? "board-toolbar min-w-0" : "shrink-0 border-b border-subtle"}>
             <div className={compact ? "flex items-center gap-2" : "flex h-[45px] flex-wrap items-center gap-2 px-3.5"}>
@@ -117,7 +116,6 @@ export function IssueToolbar({ projectId, onCreate, layout = "list", compact = f
                                                 { id: "none", label: t("issue.noGrouping") },
                                                 { id: "status", label: t("issue.status") },
                                                 { id: "assignee", label: t("issue.assignee") },
-                                                { id: "cycle", label: t("issue.cycle") },
                                             ]}
                                         >
                                             {(item) => <Select.Item id={item.id}>{item.label}</Select.Item>}

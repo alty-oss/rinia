@@ -5,8 +5,9 @@ import { AppIcons } from "@/components/foundations/icons";
 import { Topbar } from "@/components/layout/topbar";
 import { ContextMenuButton } from "@/components/overlay/context-menu-provider";
 import { useProject } from "@/features/projects/hooks/use-project";
+import { useProjectPermissions } from "@/features/projects/hooks/use-project-permissions";
 import { useProjects } from "@/features/projects/hooks/use-projects";
-import { ProjectIcon } from "./project-icon";
+import { ProjectIconControl } from "./project-appearance-controls";
 import { useTranslation } from "react-i18next";
 
 export function ProjectWorkspaceHeader({
@@ -16,15 +17,16 @@ export function ProjectWorkspaceHeader({
 }: {
     projectId: string;
     actions?: ReactNode;
-    activeView: "overview" | "issues" | "board" | "documents" | "cycles" | "settings";
+    activeView: "overview" | "issues" | "board" | "documents" | "settings";
 }) {
     const { data: projectData } = useProject(projectId);
     const { data: projects } = useProjects();
+    const { isProjectOwner } = useProjectPermissions(projectId);
     const project = projectData ?? projects?.find((candidate) => candidate.id === projectId);
     const location = useLocation();
     const { t } = useTranslation();
     const issues = activeView === "issues" || activeView === "board";
-    const title = issues ? t("nav.issues") : activeView === "overview" ? t("nav.overview") : activeView === "documents" ? t("nav.documents") : activeView === "cycles" ? t("nav.cycles") : t("nav.projectSettings");
+    const title = issues ? t("nav.issues") : activeView === "overview" ? t("nav.overview") : activeView === "documents" ? t("nav.documents") : t("nav.projectSettings");
     return (
         <Topbar
             title={
@@ -36,7 +38,13 @@ export function ProjectWorkspaceHeader({
                         data-project-name={project?.name ?? t("projects.project")}
                         data-project-issue-key={project?.issueKey ?? ""}
                     >
-                    <ProjectIcon icon={project?.iconAppearance ?? project?.icon} className="size-4 shrink-0 text-tertiary" />
+                    <ProjectIconControl
+                        projectId={projectId}
+                        icon={project?.iconAppearance ?? project?.icon}
+                        isProjectOwner={isProjectOwner}
+                        className="flex size-6 shrink-0 items-center justify-center rounded text-tertiary hover:bg-layer-1-hover hover:text-primary"
+                        iconClassName="size-4"
+                    />
                     <Link
                         to={`/projects/${projectId}`}
                         className="truncate text-secondary hover:text-primary"

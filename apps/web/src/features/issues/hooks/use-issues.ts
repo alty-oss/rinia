@@ -25,8 +25,6 @@ import {
     updateIssue,
     updateIssueComment,
 } from "../api";
-import { createCycle, deleteCycle, listCycles, updateCycle } from "../api";
-import type { CreateCycleInput, UpdateCycleInput } from "@rinia/shared";
 
 export const issuesKey = (projectId: string, query: IssueListQuery = { orderBy: "position" }) => ["projects", projectId, "issues", query] as const;
 export const issueKey = (identifier: string) => ["issues", identifier] as const;
@@ -140,34 +138,6 @@ export function useIssueActivity(identifier: string | null) {
 
 export function useIssueRelations(identifier: string | null) {
     return useQuery({ queryKey: [...issueKey(identifier ?? ""), "relations"], queryFn: () => listIssueRelations(identifier!), enabled: !!identifier });
-}
-
-export function useCycles(projectId: string) {
-    return useQuery({ queryKey: ["projects", projectId, "cycles"], queryFn: () => listCycles(projectId), enabled: !!projectId });
-}
-
-export function useCreateCycle(projectId: string) {
-    const queryClient = useQueryClient();
-    return useMutation({
-        mutationFn: (input: CreateCycleInput) => createCycle(projectId, input),
-        onSuccess: () => queryClient.invalidateQueries({ queryKey: ["projects", projectId, "cycles"] }),
-    });
-}
-
-export function useUpdateCycle(projectId: string) {
-    const queryClient = useQueryClient();
-    return useMutation({
-        mutationFn: ({ cycleId, input }: { cycleId: string; input: UpdateCycleInput }) => updateCycle(cycleId, input),
-        onSuccess: () => queryClient.invalidateQueries({ queryKey: ["projects", projectId, "cycles"] }),
-    });
-}
-
-export function useDeleteCycle(projectId: string) {
-    const queryClient = useQueryClient();
-    return useMutation({
-        mutationFn: (cycleId: string) => deleteCycle(cycleId),
-        onSuccess: () => queryClient.invalidateQueries({ queryKey: ["projects", projectId, "cycles"] }),
-    });
 }
 
 export function useCreateIssueComment(identifier: string) {

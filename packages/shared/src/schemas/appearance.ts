@@ -29,5 +29,18 @@ export const coverSchema = z.object({
     }),
 });
 
+export const projectGradientKeys = ["aurora", "dusk", "ember", "lagoon", "midnight", "orchid", "pine", "slate"] as const;
+export const projectCoverSchema = z.object({
+    type: z.literal("gradient"),
+    key: z.enum(projectGradientKeys),
+});
+
 export type EntityIcon = z.infer<typeof entityIconSchema>;
 export type EntityCover = z.infer<typeof coverSchema>;
+export type ProjectGradientKey = (typeof projectGradientKeys)[number];
+export type ProjectCover = z.infer<typeof projectCoverSchema>;
+
+export function parseProjectCover(value: unknown): ProjectCover | null {
+    const parsed = projectCoverSchema.safeParse(value);
+    return parsed.success ? parsed.data : null;
+}

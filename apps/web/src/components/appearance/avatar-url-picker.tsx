@@ -3,6 +3,8 @@ import { useEffect, useState } from "react";
 import { Pencil } from "lucide-react";
 import { Avatar } from "@/components/base/avatar/avatar";
 import { Button } from "@/components/base/buttons/button";
+import { overlayChrome } from "@/components/overlay/overlay-chrome";
+import { cx } from "@/utils/cx";
 import { Input } from "@/components/base/input/input";
 import { useTranslation } from "react-i18next";
 
@@ -49,7 +51,7 @@ export function AvatarUrlPicker({ value, initials, onChange, disabled }: AvatarU
             </Popover.Trigger>
             <Popover.Portal>
                 <Popover.Positioner side="bottom" align="start" sideOffset={8} collisionPadding={12} className="z-[60]">
-                    <Popover.Popup className="w-80 max-w-[calc(100vw-2rem)] rounded-lg border border-subtle bg-layer-2 p-3 shadow-overlay-200 outline-none">
+                    <Popover.Popup className={cx("w-80 max-w-[calc(100vw-2rem)] rounded-lg", overlayChrome.popupPadded)}>
                         <Popover.Title className="mb-3 text-sm font-medium text-primary">{t("profile.profilePhoto")}</Popover.Title>
                         <div className="space-y-3">
                             <Input

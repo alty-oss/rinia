@@ -2,6 +2,8 @@ import { Menu } from "@base-ui/react/menu";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router";
 import { Avatar } from "@/components/base/avatar/avatar";
+import { overlayChrome } from "@/components/overlay/overlay-chrome";
+import { cx } from "@/utils/cx";
 import { AppIcons } from "@/components/foundations/icons";
 import { AUTH_QUERY_KEY, logout } from "@/features/auth/api";
 import { useAuth } from "@/features/auth/hooks/use-auth";
@@ -54,7 +56,7 @@ export function SidebarAccount({ variant = "icon" }: { variant?: "icon" | "row" 
             </Menu.Trigger>
             <Menu.Portal>
                 <Menu.Positioner align={variant === "row" ? "start" : "end"} side={variant === "row" ? "top" : "bottom"} sideOffset={6} className="z-50">
-                    <Menu.Popup className="w-64 rounded-md border border-subtle bg-layer-2 p-1 shadow-overlay-200 outline-none">
+                    <Menu.Popup className={cx("w-64", overlayChrome.menu)}>
                         <div className="border-b border-subtle px-2 py-2">
                             <p className="truncate text-sm font-medium text-primary">{user.name}</p>
                             <p className="truncate text-xs text-tertiary">{user.email}</p>

@@ -1,7 +1,6 @@
 import { relations } from "drizzle-orm";
 import { boardColumns } from "./board-columns";
 import { categories } from "./categories";
-import { projectCycles } from "./cycles";
 import { issueActivities } from "./issue-activities";
 import { issueComments } from "./issue-comments";
 import { issueRelations } from "./issue-relations";
@@ -13,7 +12,6 @@ import { users } from "./users";
 
 export * from "./board-columns";
 export * from "./categories";
-export * from "./cycles";
 export * from "./issue-activities";
 export * from "./issue-comments";
 export * from "./issue-relations";
@@ -39,7 +37,6 @@ export const projectsRelations = relations(projects, ({ one, many }) => ({
     categories: many(categories),
     columns: many(boardColumns),
     issues: many(issues),
-    cycles: many(projectCycles),
     documents: many(projectDocuments),
 }));
 
@@ -73,18 +70,12 @@ export const issuesRelations = relations(issues, ({ one, many }) => ({
         relationName: "issueCreatedBy",
     }),
     category: one(categories, { fields: [issues.categoryId], references: [categories.id] }),
-    cycle: one(projectCycles, { fields: [issues.cycleId], references: [projectCycles.id] }),
     parent: one(issues, { fields: [issues.parentIssueId], references: [issues.id], relationName: "issueParent" }),
     children: many(issues, { relationName: "issueParent" }),
     comments: many(issueComments),
     activities: many(issueActivities),
     outgoingRelations: many(issueRelations, { relationName: "relationSource" }),
     incomingRelations: many(issueRelations, { relationName: "relationTarget" }),
-}));
-
-export const projectCyclesRelations = relations(projectCycles, ({ one, many }) => ({
-    project: one(projects, { fields: [projectCycles.projectId], references: [projects.id] }),
-    issues: many(issues),
 }));
 
 export const issueCommentsRelations = relations(issueComments, ({ one }) => ({

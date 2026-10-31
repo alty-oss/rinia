@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import type { Issue } from "@/features/issues/api";
-import { ChevronDown, Plus } from "lucide-react";
+import { AddOutline, ChevronDownOutline } from "@makeplane/propel/icons";
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from "react-router";
 import type { Location } from "react-router";
 import { Avatar } from "@/components/base/avatar/avatar";
@@ -13,7 +13,7 @@ import { Skeleton } from "@/components/base/feedback/skeleton";
 import { ImportanceBadge } from "@/features/board/components/importance-badge";
 import { useColumns } from "@/features/board/hooks/use-board";
 import { useCategories } from "@/features/categories/hooks/use-categories";
-import { useCreateIssue, useCycles, useIssues } from "@/features/issues/hooks/use-issues";
+import { useCreateIssue, useIssues } from "@/features/issues/hooks/use-issues";
 import { ProjectWorkspaceHeader } from "@/features/projects/components/project-workspace-header";
 import { IssueToolbar } from "@/features/issues/components/issue-toolbar";
 import { useProjectMembers } from "@/features/projects/hooks/use-project-members";
@@ -22,7 +22,7 @@ import { useTranslation } from "react-i18next";
 import { translateStatusName } from "@/i18n/status-label";
 
 type OrderBy = "position" | "priority" | "updated" | "number";
-type GroupBy = "none" | "status" | "assignee" | "cycle";
+type GroupBy = "none" | "status" | "assignee";
 
 export const ProjectIssuesPage = () => {
     const { t } = useTranslation();
@@ -37,12 +37,10 @@ export const ProjectIssuesPage = () => {
     const status = searchParams.get("status") ?? "";
     const assignee = searchParams.get("assignee") ?? "";
     const category = searchParams.get("label") ?? "";
-    const cycle = searchParams.get("cycle") ?? "";
     const { data: issues, isLoading, isError } = useIssues(projectId!, { orderBy });
     const { data: columns } = useColumns(projectId!);
     const { data: categories } = useCategories(projectId!);
     const { data: members } = useProjectMembers(projectId!);
-    const { data: cycles } = useCycles(projectId!);
     const createIssue = useCreateIssue(projectId!);
     const [isCreating, setIsCreating] = useState(false);
     const [title, setTitle] = useState("");
@@ -53,7 +51,6 @@ export const ProjectIssuesPage = () => {
     const columnById = useMemo(() => new Map((columns ?? []).map((column) => [column.id, column])), [columns]);
     const memberById = useMemo(() => new Map((members ?? []).map((member) => [member.id, member])), [members]);
     const categoryById = useMemo(() => new Map((categories ?? []).map((item) => [item.id, item])), [categories]);
-    const cycleById = useMemo(() => new Map((cycles ?? []).map((item) => [item.id, item])), [cycles]);
 
     const filteredIssues = useMemo(
         () =>
@@ -64,11 +61,10 @@ export const ProjectIssuesPage = () => {
                     (!priority || issue.priority === priority) &&
                     (!status || issue.columnId === status) &&
                     (!assignee || issue.assigneeId === assignee) &&
-                    (!category || issue.categoryId === category) &&
-                    (!cycle || issue.cycleId === cycle)
+                    (!category || issue.categoryId === category)
                 );
             }),
-        [assignee, category, cycle, issues, priority, search, status],
+        [assignee, category, issues, priority, search, status],
     );
 
     const groups = useMemo(() => {
@@ -76,7 +72,7 @@ export const ProjectIssuesPage = () => {
 
         const grouped = new Map<string, Issue[]>();
         for (const issue of filteredIssues) {
-            const key = groupBy === "status" ? issue.columnId : groupBy === "assignee" ? issue.assigneeId ?? "unassigned" : issue.cycleId ?? "no-cycle";
+            const key = groupBy === "status" ? issue.columnId : issue.assigneeId ?? "unassigned";
             grouped.set(key, [...(grouped.get(key) ?? []), issue]);
         }
 
@@ -85,12 +81,10 @@ export const ProjectIssuesPage = () => {
             label:
                 groupBy === "status"
                     ? columnById.get(key)?.name ?? t("issue.unknownStatus")
-                    : groupBy === "assignee"
-                      ? memberById.get(key)?.name ?? t("issue.unassigned")
-                      : cycleById.get(key)?.name ?? t("issue.noCycle"),
+                    : memberById.get(key)?.name ?? t("issue.unassigned"),
             issues: groupedIssues,
         }));
-    }, [columnById, cycleById, filteredIssues, groupBy, memberById, t]);
+    }, [columnById, filteredIssues, groupBy, memberById, t]);
     const orderedIssues = useMemo(() => groups.flatMap((group) => group.issues), [groups]);
 
     useEffect(() => {
@@ -128,7 +122,7 @@ export const ProjectIssuesPage = () => {
     function clearFilters() {
         setSearchParams(
             (current) => {
-                for (const key of ["q", "priority", "status", "assignee", "label", "cycle", "group"]) current.delete(key);
+                for (const key of ["q", "priority", "status", "assignee", "label", "group"]) current.delete(key);
                 return current;
             },
             { replace: true },
@@ -199,13 +193,12 @@ export const ProjectIssuesPage = () => {
                     {isError && <ErrorMessage message={t("issue.couldNotLoadIssues")} />}
                     {!isLoading && !isError && (
                         <div className="overflow-hidden">
-                            <div className="hidden grid-cols-[minmax(0,1fr)_8rem_8rem_10rem] gap-3 border-b border-subtle px-3 py-1.5 text-[11px] font-medium text-tertiary sm:grid lg:grid-cols-[minmax(0,1fr)_7rem_7rem_9rem_7rem_7rem_4rem]">
+                            <div className="hidden grid-cols-[minmax(0,1fr)_8rem_8rem_10rem] gap-3 border-b border-subtle px-3 py-1.5 text-[11px] font-medium text-tertiary sm:grid lg:grid-cols-[minmax(0,1fr)_7rem_7rem_9rem_7rem_4rem]">
                                 <span>{t("issue.title")}</span>
                                 <span>{t("issue.status")}</span>
                                 <span>{t("issue.priority")}</span>
                                 <span>{t("issue.assignee")}</span>
                                 <span className="hidden lg:block">{t("issue.label")}</span>
-                                <span className="hidden lg:block">{t("issue.cycle")}</span>
                                 <span className="hidden text-right lg:block">{t("issue.estimate")}</span>
                             </div>
                             {groups.map((group) => (
@@ -223,7 +216,7 @@ export const ProjectIssuesPage = () => {
                                                 })}
                                                 className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-[11px] font-medium text-secondary hover:bg-layer-1-hover"
                                             >
-                                                <ChevronDown className={`size-3.5 text-placeholder transition-transform ${collapsedGroups.has(group.key) ? "-rotate-90" : ""}`} aria-hidden="true" />
+                                                <ChevronDownOutline className={`size-3.5 text-placeholder transition-transform duration-200 ${collapsedGroups.has(group.key) ? "-rotate-90" : ""}`} aria-hidden="true" />
                                                 <span>{group.label === "Unknown status" ? t("issue.unknownStatus") : translateStatusName(group.label, t)}</span>
                                                 <span className="text-tertiary">{group.issues.length}</span>
                                             </button>
@@ -237,7 +230,6 @@ export const ProjectIssuesPage = () => {
                                             column={columnById.get(issue.columnId)}
                                             member={issue.assigneeId ? memberById.get(issue.assigneeId) : undefined}
                                             category={issue.categoryId ? categoryById.get(issue.categoryId) : undefined}
-                                            cycle={issue.cycleId ? cycleById.get(issue.cycleId) : undefined}
                                             backgroundLocation={location}
                                             selected={selectedIssueId === issue.id}
                                             onSelect={() => setSelectedIssueId(issue.id)}
@@ -255,7 +247,7 @@ export const ProjectIssuesPage = () => {
                                                 {t("issue.clearFilters")}
                                             </Button>
                                         ) : (
-                                            <Button size="sm" iconLeading={Plus} onClick={() => setIsCreating(true)}>
+                                            <Button size="sm" iconLeading={AddOutline} onClick={() => setIsCreating(true)}>
                                                 {t("issue.newIssue")}
                                             </Button>
                                         )
@@ -285,7 +277,7 @@ function readOrder(value: string | null): OrderBy {
 }
 
 function readGroup(value: string | null): GroupBy {
-    return value === "status" || value === "assignee" || value === "cycle" ? value : "none";
+    return value === "status" || value === "assignee" ? value : "none";
 }
 
 function IssueRow({
@@ -294,7 +286,6 @@ function IssueRow({
     column,
     member,
     category,
-    cycle,
     backgroundLocation,
     selected,
     onSelect,
@@ -304,7 +295,6 @@ function IssueRow({
     column?: { name: string; color: string | null };
     member?: { name: string; avatarUrl: string | null };
     category?: { name: string; color: string | null };
-    cycle?: { name: string };
     backgroundLocation: Location;
     selected: boolean;
     onSelect: () => void;
@@ -324,14 +314,14 @@ function IssueRow({
                 state={{ backgroundLocation }}
                 tabIndex={0}
                 onFocus={onSelect}
-                className={`grid w-full grid-cols-[minmax(0,1fr)_8rem_8rem_10rem] items-center gap-3 border-b border-subtle px-3 py-1.5 text-left transition-colors duration-150 last:border-0 hover:bg-layer-1-hover focus-visible:z-10 focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-accent-strong max-sm:grid-cols-1 max-sm:gap-2 max-sm:pr-12 lg:grid-cols-[minmax(0,1fr)_7rem_7rem_9rem_7rem_7rem_4rem] ${
-                    selected ? "bg-layer-1" : ""
+                className={`grid h-9 w-full grid-cols-[minmax(0,1fr)_8rem_8rem_10rem] items-center gap-3 border-b border-subtle px-3 text-left transition-colors duration-200 last:border-0 hover:bg-layer-1-hover focus-visible:z-10 focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-accent-strong max-sm:h-auto max-sm:grid-cols-1 max-sm:gap-2 max-sm:py-2 max-sm:pr-12 lg:grid-cols-[minmax(0,1fr)_7rem_7rem_9rem_7rem_4rem] ${
+                    selected ? "bg-accent-subtle" : ""
                 }`}
             >
                 <span className="flex min-w-0 items-center gap-2">
                     <span aria-hidden="true" className="size-2 shrink-0 rounded-full" style={{ backgroundColor: column?.color ?? "#71717a" }} />
-                    <span className="w-16 shrink-0 text-[11px] text-tertiary">{issue.identifier}</span>
-                    <span className="min-w-0 truncate text-[13px] text-primary">{issue.title}</span>
+                    <span className="w-16 shrink-0 text-xs text-tertiary">{issue.identifier}</span>
+                    <span className="min-w-0 truncate text-body-sm-medium text-primary">{issue.title}</span>
                     <span className="ml-auto hidden shrink-0 text-[11px] text-tertiary max-sm:block">{column ? translateStatusName(column.name, t) : ""}</span>
                 </span>
                 <span className="truncate text-xs text-secondary max-sm:hidden">{column ? translateStatusName(column.name, t) : t("issue.unknown")}</span>
@@ -341,10 +331,9 @@ function IssueRow({
                     <span className="truncate">{member?.name ?? t("issue.unassigned")}</span>
                 </span>
                 <span className="hidden truncate text-xs text-tertiary lg:block">{category?.name ?? "—"}</span>
-                <span className="hidden truncate text-xs text-tertiary lg:block">{cycle?.name ?? "—"}</span>
                 <span className="hidden text-right font-mono text-xs text-tertiary lg:block">{issue.estimate ?? "—"}</span>
                 <span className="hidden truncate text-[11px] text-tertiary max-sm:block">
-                    {[category?.name, cycle?.name, `${t(`issue.${issue.priority}`)} · ${t("issue.priority")}`].filter(Boolean).join(" · ")}
+                    {[category?.name, `${t(`issue.${issue.priority}`)} · ${t("issue.priority")}`].filter(Boolean).join(" · ")}
                 </span>
             </Link>
             <ContextMenuButton

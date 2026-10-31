@@ -3,6 +3,8 @@ import { Popover } from "@base-ui/react/popover";
 import { useEffect, useRef, useState } from "react";
 import { ImagePlus, Move, Trash2 } from "lucide-react";
 import { Button } from "@/components/base/buttons/button";
+import { overlayChrome } from "@/components/overlay/overlay-chrome";
+import { cx } from "@/utils/cx";
 import { Input } from "@/components/base/input/input";
 import { CoverImage } from "./cover-image";
 import { useTranslation } from "react-i18next";
@@ -17,6 +19,7 @@ interface CoverPickerProps {
     cover: EntityCover | null | undefined;
     onChange: (cover: EntityCover | null) => void;
     disabled?: boolean;
+    triggerClassName?: string;
     /** Ref to the element the cover is actually rendered into elsewhere on the page. Its
      * aspect ratio is measured when the popover opens so the drag preview matches how
      * `object-position` will crop the image there — the stored x/y percentages only line up
@@ -24,7 +27,7 @@ interface CoverPickerProps {
     containerRef?: React.RefObject<HTMLElement | null>;
 }
 
-export function CoverPicker({ cover, onChange, disabled, containerRef }: CoverPickerProps) {
+export function CoverPicker({ cover, onChange, disabled, containerRef, triggerClassName }: CoverPickerProps) {
     const { t } = useTranslation();
     const [open, setOpen] = useState(false);
     const [url, setUrl] = useState(cover?.url ?? "");
@@ -56,10 +59,10 @@ export function CoverPicker({ cover, onChange, disabled, containerRef }: CoverPi
     };
     return (
         <Popover.Root open={open} onOpenChange={setOpen}>
-            <Popover.Trigger disabled={disabled} className="inline-flex h-8 items-center gap-2 rounded px-2 text-xs font-medium text-tertiary hover:bg-layer-1-hover hover:text-secondary disabled:opacity-50">
+            <Popover.Trigger disabled={disabled} className={triggerClassName ?? "inline-flex h-8 items-center gap-2 rounded px-2 text-xs font-medium text-tertiary hover:bg-layer-1-hover hover:text-secondary disabled:opacity-50"}>
                 <ImagePlus className="size-3.5" /> {cover ? t("appearance.changeCover") : t("appearance.addCover")}
             </Popover.Trigger>
-            <Popover.Portal><Popover.Positioner sideOffset={8} collisionPadding={12} className="z-[60]"><Popover.Popup className="w-80 max-w-[calc(100vw-2rem)] rounded-lg border border-subtle bg-layer-2 p-3 shadow-overlay-200 outline-none">
+            <Popover.Portal><Popover.Positioner sideOffset={8} collisionPadding={12} className="z-[60]"><Popover.Popup className={cx("w-80 max-w-[calc(100vw-2rem)] rounded-lg", overlayChrome.popupPadded)}>
                 <Popover.Title className="sr-only">{t("appearance.cover")}</Popover.Title>
                 <div className="space-y-3">
                     <Input label={t("appearance.coverImageUrl")} value={url} onChange={(value) => { setUrl(value); setError(""); }} placeholder="https://..." isInvalid={!!error} hint={error || t("appearance.dragCover")} />

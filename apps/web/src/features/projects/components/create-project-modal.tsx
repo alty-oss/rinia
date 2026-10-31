@@ -10,8 +10,10 @@ import { Input } from "@/components/base/input/input";
 import { ControlledInput } from "@/components/form/controlled-input";
 import { ControlledTextarea } from "@/components/form/controlled-textarea";
 import { ModalDialog } from "@/components/overlay/modal-dialog";
+import { overlayChrome } from "@/components/overlay/overlay-chrome";
+import { cx } from "@/utils/cx";
 import { AppearancePicker } from "@/components/appearance/appearance-picker";
-import { CoverPicker } from "@/components/appearance/cover-picker";
+import { GradientPicker } from "@/components/appearance/gradient-picker";
 import { ApiError } from "@/lib/api-client";
 import { useCreateProject } from "../hooks/use-projects";
 import { DEFAULT_PROJECT_ICON, ProjectIcon } from "./project-icon";
@@ -70,7 +72,7 @@ export const CreateProjectModal = () => {
                                     </Popover.Trigger>
                                     <Popover.Portal>
                                         <Popover.Positioner side="bottom" align="start" sideOffset={8} collisionPadding={12} className="z-[60]">
-                                            <Popover.Popup className="max-h-[calc(100dvh-1.5rem)] w-80 max-w-[calc(100vw-2rem)] overflow-hidden rounded-lg border border-subtle bg-layer-2 p-3 shadow-overlay-200 outline-none">
+                                            <Popover.Popup className={cx("max-h-[calc(100dvh-1.5rem)] w-80 max-w-[calc(100vw-2rem)] overflow-hidden rounded-lg", overlayChrome.popupPadded)}>
                                                 <Popover.Title className="sr-only">{t("projects.chooseIcon")}</Popover.Title>
                                                 <AppearancePicker value={field.value} onChange={field.onChange} onComplete={() => setIconPickerOpen(false)} />
                                             </Popover.Popup>
@@ -102,7 +104,7 @@ export const CreateProjectModal = () => {
                     />
                     <ControlledTextarea control={control} name="description" label={t("projects.description")} rows={3} />
                     <ControlledInput control={control} name="repositoryUrl" label={t("projects.repository")} placeholder="https://github.com/..." />
-                    <Controller control={control} name="cover" render={({ field }) => <CoverPicker cover={field.value} onChange={field.onChange} />} />
+                    <Controller control={control} name="cover" render={({ field }) => <GradientPicker cover={field.value} onChange={field.onChange} />} />
 
                     {formState.errors.root && <p className="text-sm text-danger-primary">{formState.errors.root.message}</p>}
 

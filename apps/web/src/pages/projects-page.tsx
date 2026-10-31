@@ -31,5 +31,5 @@ export const ProjectsPage = () => {
 
 function ProjectListSkeleton() {
     const { t } = useTranslation();
-    return <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3" aria-label={t("common.loading")} role="status">{["one", "two", "three"].map((key) => <div key={key} className="h-[188px] overflow-hidden rounded-md border border-subtle"><Skeleton className="h-24 rounded-none" /><div className="space-y-2 p-3"><Skeleton className="h-3 w-full" /><Skeleton className="h-3 w-3/5" /></div></div>)}</div>;
+        return <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3" aria-label={t("common.loading")} role="status">{["one", "two", "three"].map((key) => <div key={key} className="h-[188px] overflow-hidden rounded-lg border border-subtle shadow-raised-100"><Skeleton className="h-24 rounded-none" /><div className="space-y-2 p-3"><Skeleton className="h-3 w-full" /><Skeleton className="h-3 w-3/5" /></div></div>)}</div>;
 }

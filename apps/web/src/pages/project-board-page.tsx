@@ -14,9 +14,9 @@ export function ProjectBoardPage() {
     const navigate = useNavigate();
     const location = useLocation();
     return (
-        <div className="plane-board-page flex h-full min-h-0 flex-col">
+        <div className="project-board-page flex h-full min-h-0 flex-col">
             <ProjectWorkspaceHeader projectId={projectId} activeView="board" actions={<IssueToolbar compact projectId={projectId} layout="board" onCreate={() => setCreating(true)} />} />
-            <div className="min-h-0 flex-1 overflow-x-auto bg-layer-1 px-4 pt-3 pb-3">
+            <div className="min-h-0 flex-1 overflow-x-auto bg-surface-2 px-4 pt-3 pb-3">
                 <Board projectId={projectId} filters={params} />
             </div>
             {creating && columns?.[0] && (

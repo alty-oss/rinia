@@ -13,7 +13,7 @@
     line-height: 26px;
 }
 
-.plane-issue-peek .peek-description .tiptap-editor-description .ProseMirror {
+.issue-peek-panel .peek-description .tiptap-editor-description .ProseMirror {
     min-height: 28px;
     padding: 0;
     font-size: 16px;
@@ -28,7 +28,7 @@
     line-height: 22px;
 }
 
-.plane-issue-peek .peek-comments .tiptap-editor-comment .ProseMirror {
+.issue-peek-panel .peek-comments .tiptap-editor-comment .ProseMirror {
     min-height: 72px;
     padding: 8px;
     font-size: 14px;

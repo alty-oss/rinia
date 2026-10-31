@@ -17,7 +17,6 @@ interface SettingsInputProps extends Omit<InputHTMLAttributes<HTMLInputElement>,
     ref?: Ref<HTMLInputElement>;
 }
 
-/** The same Propel 2xl controls used by Plane's project and account forms. */
 export function SettingsInput({ label, hint, isRequired, isDisabled, isInvalid, onChange, id, ...props }: SettingsInputProps) {
     const generatedId = useId();
     const inputId = id ?? generatedId;

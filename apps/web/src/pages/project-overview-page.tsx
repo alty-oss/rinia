@@ -1,28 +1,29 @@
-import { ArrowRight, Gauge, ListChecks } from "lucide-react";
+import { ArrowNarrowRightOutline } from "@makeplane/propel/icons";
+import { parseProjectCover } from "@rinia/shared";
 import { Link, useParams } from "react-router";
 import { Skeleton } from "@/components/base/feedback/skeleton";
 import { EmptyState } from "@/components/feedback/empty-state";
 import { ErrorMessage } from "@/components/feedback/error-message";
 import { AppIcons } from "@/components/foundations/icons";
-import { CoverImage } from "@/components/appearance/cover-image";
+import { GradientCover } from "@/components/appearance/gradient-cover";
 import { useColumns } from "@/features/board/hooks/use-board";
-import { useCycles, useIssues } from "@/features/issues/hooks/use-issues";
+import { useIssues } from "@/features/issues/hooks/use-issues";
+import { ProjectCoverControl, ProjectIconControl } from "@/features/projects/components/project-appearance-controls";
 import { ProjectWorkspaceHeader } from "@/features/projects/components/project-workspace-header";
-import { ProjectIcon } from "@/features/projects/components/project-icon";
 import { useProject } from "@/features/projects/hooks/use-project";
+import { useProjectPermissions } from "@/features/projects/hooks/use-project-permissions";
 import { useTranslation } from "react-i18next";
 
 export const ProjectOverviewPage = () => {
     const { projectId } = useParams<{ projectId: string }>();
     const { t } = useTranslation();
     const { data: project, isLoading, isError } = useProject(projectId!);
+    const { isProjectOwner } = useProjectPermissions(projectId!);
     const { data: issues, isLoading: issuesLoading, isError: issuesError } = useIssues(projectId!);
     const { data: columns, isLoading: columnsLoading, isError: columnsError } = useColumns(projectId!);
-    const { data: cycles, isLoading: cyclesLoading, isError: cyclesError } = useCycles(projectId!);
-    const activeCycle = cycles?.find((cycle) => cycle.status === "active");
     const totalEstimate = (issues ?? []).reduce((total, issue) => total + (issue.estimate ?? 0), 0);
-    const overviewLoading = isLoading || issuesLoading || columnsLoading || cyclesLoading;
-    const overviewError = isError || issuesError || columnsError || cyclesError;
+    const overviewLoading = isLoading || issuesLoading || columnsLoading;
+    const overviewError = isError || issuesError || columnsError;
 
     return (
         <div className="flex h-full min-h-0 flex-col bg-surface-1">
@@ -35,9 +36,27 @@ export const ProjectOverviewPage = () => {
                 ) : (
                 <div className="flex flex-col">
                     <header className="overflow-hidden rounded-md border border-subtle">
-                        <CoverImage cover={project.cover} className="h-28 sm:h-36" />
-                        <div className={`relative px-4 pb-4 sm:px-5 ${project.cover ? "-mt-6" : "pt-4"}`}>
-                            <span className="grid size-12 place-items-center rounded-md border border-subtle bg-layer-2 text-primary shadow-raised-100"><ProjectIcon icon={project.iconAppearance ?? project.icon} className="size-6" /></span>
+                        <div className="relative">
+                            <GradientCover cover={project.cover} className="h-28 sm:h-36" />
+                            <div className="absolute right-3 top-3">
+                                <ProjectCoverControl
+                                    projectId={project.id}
+                                    cover={project.cover}
+                                    isProjectOwner={isProjectOwner}
+                                    triggerClassName={parseProjectCover(project.cover)
+                                        ? "inline-flex h-8 items-center gap-2 rounded px-2 text-xs font-medium text-white hover:bg-white/15 disabled:opacity-50"
+                                        : undefined}
+                                />
+                            </div>
+                        </div>
+                        <div className={`relative px-4 pb-4 sm:px-5 ${parseProjectCover(project.cover) ? "-mt-6" : "pt-4"}`}>
+                            <ProjectIconControl
+                                projectId={project.id}
+                                icon={project.iconAppearance ?? project.icon}
+                                isProjectOwner={isProjectOwner}
+                                className="grid size-12 place-items-center rounded-md border border-subtle bg-layer-2 text-primary shadow-raised-100 outline-accent-strong hover:bg-layer-2-hover"
+                                iconClassName="size-6"
+                            />
                             <div className="mt-3 min-w-0">
                                 <p className="font-mono text-[11px] text-accent-primary">{project.issueKey}</p>
                                 <h1 className="mt-0.5 text-xl font-semibold tracking-tight text-primary">{project.name}</h1>
@@ -73,8 +92,7 @@ export const ProjectOverviewPage = () => {
                         </div>
 
                         <div className="grid grid-cols-2 gap-4 lg:grid-cols-1">
-                            <Fact icon={Gauge} label={t("projects.activeCycle")} value={activeCycle?.name ?? t("projects.noActiveCycle")} />
-                            <Fact icon={ListChecks} label={t("projects.estimate")} value={t("projects.points", { count: totalEstimate })} />
+                            <Fact icon={AppIcons.Issues} label={t("projects.estimate")} value={t("projects.points", { count: totalEstimate })} />
                         </div>
                     </section>
 
@@ -122,7 +140,7 @@ function OverviewSkeleton() {
     );
 }
 
-function Fact({ icon: Icon, label, value }: { icon: typeof Gauge; label: string; value: string }) {
+function Fact({ icon: Icon, label, value }: { icon: typeof AppIcons.Issues; label: string; value: string }) {
     return (
         <div className="rounded-lg border border-subtle p-4">
             <div className="flex items-center gap-2 text-xs text-tertiary">
@@ -136,7 +154,7 @@ function Fact({ icon: Icon, label, value }: { icon: typeof Gauge; label: string;
 
 function OverviewLink({ href, icon: Icon, title, description }: { href: string; icon: typeof AppIcons.Issues; title: string; description: string }) {
     return (
-        <Link to={href} className="group flex items-center gap-4 px-3 py-3 transition hover:bg-surface-2">
+        <Link to={href} className="group flex items-center gap-4 px-3 py-3 transition-colors duration-200 hover:bg-surface-2">
             <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-surface-2 text-placeholder group-hover:text-accent-primary">
                 <Icon className="size-4" aria-hidden="true" />
             </span>
@@ -144,7 +162,7 @@ function OverviewLink({ href, icon: Icon, title, description }: { href: string; 
                 <span className="block text-sm font-medium text-primary">{title}</span>
                 <span className="mt-0.5 block truncate text-sm text-tertiary">{description}</span>
             </span>
-            <ArrowRight className="size-4 shrink-0 text-placeholder transition group-hover:translate-x-0.5 group-hover:text-accent-primary" aria-hidden="true" />
+            <ArrowNarrowRightOutline className="size-4 shrink-0 text-placeholder transition duration-200 group-hover:translate-x-0.5 group-hover:text-accent-primary" aria-hidden="true" />
         </Link>
     );
 }

@@ -61,7 +61,6 @@ function buildIssueClipboardContent({
         `- **${t("issue.priority")}:** ${t(`issue.${issue.priority}`)}`,
         `- **${t("issue.assignee")}:** ${issue.assignee?.name ?? t("issue.unassigned")}`,
         `- **${t("issue.category")}:** ${issue.category?.name ?? t("issue.noneValue")}`,
-        `- **${t("issue.cycle")}:** ${issue.cycle?.name ?? t("issue.noneValue")}`,
         `- **${t("issue.estimate")}:** ${issue.estimate ?? t("issue.noneValue")}`,
         `- **${t("issue.createdBy")}:** ${issue.createdBy.name}`,
         `- **${t("issue.created")}:** ${formatDate(issue.createdAt, locale)}`,

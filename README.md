@@ -1,6 +1,6 @@
 # Rinia
 
-Rinia is a dark workspace for organizing projects and tracking issues. Each project includes an issue list, Kanban board, documents, members, labels, cycles, comments, and activity history.
+Rinia is a dark workspace for organizing projects and tracking issues. Each project includes an issue list, Kanban board, documents, members, labels, comments, and activity history.
 
 ## Stack
 

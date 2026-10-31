@@ -1,6 +1,5 @@
 import type { ReactNode } from "react";
 
-/** Geometry and typography: Plane 01064a7 settings/{heading,boxed-control-item}. */
 export function SettingsHeading({ title, description, control }: { title: string; description?: string; control?: ReactNode }) {
     return (
         <header className="flex flex-col items-start justify-between gap-3 md:flex-row md:items-center">

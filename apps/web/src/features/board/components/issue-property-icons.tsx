@@ -1,11 +1,4 @@
-/**
- * State SVG geometry and priority icon mapping adapted from Plane 01064a7,
- * packages/propel/src/icons/state and priority-icon.tsx.
- * Copyright (c) 2023-present Plane Software, Inc. and contributors.
- * SPDX-License-Identifier: AGPL-3.0-only
- */
 import { SignalHigh, SignalMedium, SignalLow } from "lucide-react";
-import { CyclesOutline } from "@makeplane/propel/icons";
 import { cx } from "@/utils/cx";
 
 /** State groups are presentation only; Rinia continues to store project columns. */
@@ -29,5 +22,3 @@ export function IssueAvatar({ name, avatarUrl, className }: { name: string; avat
         {avatarUrl ? <img src={avatarUrl} alt={name} className="size-full object-cover" /> : name.charAt(0).toUpperCase()}
     </span>;
 }
-
-export const CycleIcon = CyclesOutline;

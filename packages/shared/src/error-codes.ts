@@ -20,7 +20,6 @@ const messageCodes: Record<string, string> = {
     "You do not have permission to update this category": "errors.permissionDenied",
     "You do not have permission to delete this category": "errors.permissionDenied",
     "Only the project owner can do this": "errors.permissionDenied",
-    "Only the project owner can manage cycles": "errors.permissionDenied",
     "Only the author or project owner can delete this page": "errors.permissionDenied",
 };
 
