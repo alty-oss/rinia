@@ -42,24 +42,24 @@ export function DeleteProjectDialog({ project, trigger, hideTrigger = false, ope
             open={open}
             onOpenChange={changeOpen}
         >
-            {!hideTrigger && <Dialog.Trigger render={trigger ?? <Button color="secondary-destructive" size="lg" />}>{t("projects.deleteProject")}</Dialog.Trigger>}
+            {!hideTrigger && <Dialog.Trigger render={trigger ?? <Button color="secondary-destructive" />}>{t("projects.deleteProject")}</Dialog.Trigger>}
             <Dialog.Portal>
-                <Dialog.Backdrop className="fixed inset-0 z-50 bg-overlay/70" />
+                <Dialog.Backdrop className="fixed inset-0 z-50 bg-overlay/70 transition-opacity duration-200 data-[ending-style]:opacity-0 data-[starting-style]:opacity-0" />
                 <Dialog.Viewport className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto p-4">
-                    <Dialog.Popup className="max-h-full w-full max-w-lg overflow-y-auto rounded-lg border border-subtle bg-surface-1 p-6 shadow-overlay-200 outline-none">
+                    <Dialog.Popup className="max-h-full w-full max-w-md overflow-y-auto rounded-lg border border-subtle bg-surface-1 p-4 shadow-overlay-200 outline-none transition-[transform,opacity] duration-200 ease-[cubic-bezier(0.2,0,0,1)] data-[ending-style]:translate-y-2 data-[ending-style]:opacity-0 data-[starting-style]:translate-y-2 data-[starting-style]:opacity-0">
                         <form
-                            className="flex flex-col gap-6"
+                            className="flex flex-col gap-4"
                             onSubmit={(event) => {
                                 event.preventDefault();
                                 if (canDelete && !mutation.isPending) mutation.mutate(undefined, { onSuccess: () => changeOpen(false) });
                             }}
                         >
-                            <div className="flex items-start gap-4">
-                                <span className="rounded-full bg-danger-subtle p-4 text-danger-primary">
-                                    <AlertTriangle className="size-6" />
+                            <div className="flex items-start gap-3">
+                                <span className="rounded-full bg-danger-subtle p-2 text-danger-primary">
+                                    <AlertTriangle className="size-4" />
                                 </span>
-                                <div className="min-w-0 space-y-2">
-                                    <Dialog.Title className="text-lg font-medium">{t("projects.deleteProject")}</Dialog.Title>
+                                <div className="min-w-0 space-y-1.5">
+                                    <Dialog.Title className="text-base font-medium">{t("projects.deleteProject")}</Dialog.Title>
                                     <Dialog.Description className="text-sm text-tertiary">
                                         {t("projects.deleteDescription", { name: project.name })}
                                     </Dialog.Description>
@@ -79,10 +79,10 @@ export function DeleteProjectDialog({ project, trigger, hideTrigger = false, ope
                                 </Alert>
                             )}
                             <div className="flex justify-end gap-2">
-                                <Button color="secondary" size="lg" isDisabled={mutation.isPending} onClick={() => changeOpen(false)}>
+                                <Button color="secondary" isDisabled={mutation.isPending} onClick={() => changeOpen(false)}>
                                     {t("common.cancel")}
                                 </Button>
-                                <Button type="submit" color="primary-destructive" size="lg" isDisabled={!canDelete} isLoading={mutation.isPending}>
+                                <Button type="submit" color="primary-destructive" isDisabled={!canDelete} isLoading={mutation.isPending}>
                                     {t("projects.confirmDelete")}
                                 </Button>
                             </div>
