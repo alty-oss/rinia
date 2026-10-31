@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { afterEach, mock, test } from "node:test";
+import { afterEach, mock, spyOn, test } from "bun:test";
 import type { Request, Response, NextFunction } from "express";
 import { createProjectSchema } from "@rinia/shared";
 import { db } from "../src/db";
@@ -10,16 +10,16 @@ import { HttpError } from "../src/lib/http-error";
 import { requireProjectOwner } from "../src/middleware/project-membership.middleware";
 
 // Stub the database boundary: these tests never connect to or mutate a development database.
-afterEach(() => mock.restoreAll());
+afterEach(() => mock.restore());
 const collision = { code: "23505", constraint: "projects_issue_key_unique" };
 const creatorId = "creator";
 const mockReservedKeys = (aliases: Array<{ key: string; projectId: string }> = []) => {
-    mock.method(db.query.projectKeyAliases, "findMany", async () => aliases as never);
-    mock.method(db.query.projectKeyAliases, "findFirst", async () => aliases[0] as never);
+    spyOn(db.query.projectKeyAliases, "findMany").mockImplementation(async () => aliases as never);
+    spyOn(db.query.projectKeyAliases, "findFirst").mockImplementation(async () => aliases[0] as never);
 };
 const mockProjectCreator = () => {
     mockReservedKeys();
-    return mock.method(db.query.users, "findFirst", async () => ({ locale: "en" }) as never);
+    return spyOn(db.query.users, "findFirst").mockImplementation(async () => ({ locale: "en" }) as never);
 };
 
 test("creation accepts a custom key, normalizes it, and keeps old clients compatible", () => {
@@ -45,8 +45,8 @@ test("project appearance validates custom icons and remote covers while keeping 
 test("custom key is persisted verbatim without querying automatic suggestions", async () => {
     mockProjectCreator();
     const inserts: Array<{ table: unknown; values: Record<string, unknown> | unknown[] }> = [];
-    mock.method(db.query.projects, "findMany", async () => { throw new Error("Automatic allocation must not run"); });
-    mock.method(db, "transaction", async (work: (tx: unknown) => Promise<unknown>) => work({
+    spyOn(db.query.projects, "findMany").mockImplementation(async () => { throw new Error("Automatic allocation must not run"); });
+    spyOn(db, "transaction").mockImplementation(async (work: (tx: unknown) => Promise<unknown>) => work({
         insert: (table: unknown) => ({ values: (values: Record<string, unknown>) => {
             inserts.push({ table, values });
             return { returning: async () => [{ id: "new-project", ...values }] };
@@ -61,17 +61,17 @@ test("custom key is persisted verbatim without querying automatic suggestions", 
 
 test("an explicit duplicate key returns 409 instead of silently suffixing it", async () => {
     mockProjectCreator();
-    const transaction = mock.method(db, "transaction", async () => { throw new Error("Query failed", { cause: collision }); });
+    const transaction = spyOn(db, "transaction").mockImplementation(async () => { throw new Error("Query failed", { cause: collision }); });
     await assert.rejects(createProject({ name: "My project", issueKey: "CUSTOM" }, creatorId), (error: unknown) =>
         error instanceof HttpError && error.statusCode === 409 && error.message === "Project key is already in use");
-    assert.equal(transaction.mock.callCount(), 1);
+    assert.equal(transaction.mock.calls.length, 1);
 });
 
 test("automatic keys retry with a fresh suggestion after a concurrent collision", async () => {
     mockProjectCreator();
     let attempts = 0;
-    mock.method(db.query.projects, "findMany", async () => attempts === 0 ? [{ issueKey: "MP" }] : [{ issueKey: "MP" }, { issueKey: "MP1" }]);
-    mock.method(db, "transaction", async (work: (tx: unknown) => Promise<unknown>) => {
+    spyOn(db.query.projects, "findMany").mockImplementation(async () => attempts === 0 ? [{ issueKey: "MP" }] : [{ issueKey: "MP" }, { issueKey: "MP1" }]);
+    spyOn(db, "transaction").mockImplementation(async (work: (tx: unknown) => Promise<unknown>) => {
         attempts++;
         if (attempts === 1) throw collision;
         return work({ insert: () => ({ values: (values: Record<string, unknown>) => ({ returning: async () => [{ id: "new-project", ...values }] }) }) });
@@ -82,18 +82,18 @@ test("automatic keys retry with a fresh suggestion after a concurrent collision"
 
 test("automatic allocation reports exhausted collisions as 409", async () => {
     mockProjectCreator();
-    mock.method(db.query.projects, "findMany", async () => []);
-    const transaction = mock.method(db, "transaction", async () => { throw collision; });
+    spyOn(db.query.projects, "findMany").mockImplementation(async () => []);
+    const transaction = spyOn(db, "transaction").mockImplementation(async () => { throw collision; });
     await assert.rejects(createProject({ name: "My project" }, creatorId), (error: unknown) => error instanceof HttpError && error.statusCode === 409);
-    assert.equal(transaction.mock.callCount(), 5);
+    assert.equal(transaction.mock.calls.length, 5);
 });
 
 test("unrelated database errors propagate without being retried as key conflicts", async () => {
     mockProjectCreator();
     const unavailable = new Error("Database unavailable");
-    const transaction = mock.method(db, "transaction", async () => { throw unavailable; });
+    const transaction = spyOn(db, "transaction").mockImplementation(async () => { throw unavailable; });
     await assert.rejects(createProject({ name: "My project", issueKey: "CUSTOM" }, creatorId), (error) => error === unavailable);
-    assert.equal(transaction.mock.callCount(), 1);
+    assert.equal(transaction.mock.calls.length, 1);
     assert.equal(isProjectKeyConflict({ code: "23505", constraint: "other_unique_constraint" }), false);
     const cyclic: { cause?: unknown } = {}; cyclic.cause = cyclic;
     assert.equal(isProjectKeyConflict(cyclic), false);
@@ -102,17 +102,17 @@ test("unrelated database errors propagate without being retried as key conflicts
 test("a key another project used before is reserved for its old links", async () => {
     mockProjectCreator();
     mockReservedKeys([{ key: "OLD", projectId: "other-project" }]);
-    const transaction = mock.method(db, "transaction", async () => { throw new Error("Must not insert"); });
+    const transaction = spyOn(db, "transaction").mockImplementation(async () => { throw new Error("Must not insert"); });
     await assert.rejects(createProject({ name: "My project", issueKey: "OLD" }, creatorId), (error: unknown) =>
         error instanceof HttpError && error.statusCode === 409);
-    assert.equal(transaction.mock.callCount(), 0);
+    assert.equal(transaction.mock.calls.length, 0);
 });
 
 test("automatic keys skip former keys of other projects", async () => {
     mockProjectCreator();
     mockReservedKeys([{ key: "MP", projectId: "other-project" }]);
-    mock.method(db.query.projects, "findMany", async () => []);
-    mock.method(db, "transaction", async (work: (tx: unknown) => Promise<unknown>) =>
+    spyOn(db.query.projects, "findMany").mockImplementation(async () => []);
+    spyOn(db, "transaction").mockImplementation(async (work: (tx: unknown) => Promise<unknown>) =>
         work({ insert: () => ({ values: (values: Record<string, unknown>) => ({ returning: async () => [{ id: "new-project", ...values }] }) }) }));
     assert.equal((await createProject({ name: "My project" }, creatorId)).issueKey, "MP1");
 });
@@ -121,9 +121,9 @@ function mockRename(current: { issueKey: string; nextIssueNumber: number }) {
     const calls: Array<{ op: string; table: unknown; values?: unknown }> = [];
     let lookups = 0;
     // The first lookup loads the project being renamed; the second checks the new key against other projects.
-    mock.method(db.query.projects, "findFirst", async () => (lookups++ === 0 ? { id: "project", cover: null, ...current } : undefined) as never);
+    spyOn(db.query.projects, "findFirst").mockImplementation(async () => (lookups++ === 0 ? { id: "project", cover: null, ...current } : undefined) as never);
     mockReservedKeys();
-    mock.method(db, "transaction", async (work: (tx: unknown) => Promise<unknown>) => work({
+    spyOn(db, "transaction").mockImplementation(async (work: (tx: unknown) => Promise<unknown>) => work({
         delete: (table: unknown) => ({ where: async () => { calls.push({ op: "delete", table }); } }),
         insert: (table: unknown) => ({ values: (values: unknown) => ({ onConflictDoNothing: async () => { calls.push({ op: "insert", table, values }); } }) }),
         update: (table: unknown) => ({ set: (values: Record<string, unknown>) => ({ where: () => ({ returning: async () => {
@@ -163,31 +163,31 @@ function authorize(isAdmin: boolean): Promise<number> {
 }
 
 test("project deletion/settings guard rejects members and nonmembers", async () => {
-    mock.method(db.query.projects, "findFirst", async () => ({ id: "project" }));
-    const membership = mock.method(db.query.projectMembers, "findFirst", async () => ({ role: "member" }));
+    spyOn(db.query.projects, "findFirst").mockImplementation(async () => ({ id: "project" }));
+    const membership = spyOn(db.query.projectMembers, "findFirst").mockImplementation(async () => ({ role: "member" }));
     assert.equal(await authorize(false), 403);
-    membership.mock.mockImplementation(async () => undefined);
+    membership.mockImplementation(async () => undefined);
     assert.equal(await authorize(false), 403);
 });
 
 test("project deletion/settings guard permits owner and admin, but not a missing project", async () => {
-    const project = mock.method(db.query.projects, "findFirst", async () => ({ id: "project" }));
-    mock.method(db.query.projectMembers, "findFirst", async () => ({ role: "owner" }));
+    const project = spyOn(db.query.projects, "findFirst").mockImplementation(async () => ({ id: "project" }));
+    spyOn(db.query.projectMembers, "findFirst").mockImplementation(async () => ({ role: "owner" }));
     assert.equal(await authorize(false), 200);
     assert.equal(await authorize(true), 200);
-    project.mock.mockImplementation(async () => undefined);
+    project.mockImplementation(async () => undefined);
     await assert.rejects(authorize(true), (error: unknown) => error instanceof HttpError && error.statusCode === 404);
 });
 
 test("a project resolves by its current key or by a key it used before", async () => {
     const project = { id: "project", issueKey: "NEW", cover: null };
-    const lookup = mock.method(db.query.projects, "findFirst", async () => (lookup.mock.callCount() === 1 ? undefined : project) as never);
-    mock.method(db.query.projectKeyAliases, "findFirst", async () => ({ projectId: "project" }) as never);
+    const lookup = spyOn(db.query.projects, "findFirst").mockImplementation(async () => (lookup.mock.calls.length === 1 ? undefined : project) as never);
+    spyOn(db.query.projectKeyAliases, "findFirst").mockImplementation(async () => ({ projectId: "project" }) as never);
     assert.equal((await getProjectByKey("old")).issueKey, "NEW");
 });
 
 test("an unknown key is a missing project", async () => {
-    mock.method(db.query.projects, "findFirst", async () => undefined);
-    mock.method(db.query.projectKeyAliases, "findFirst", async () => undefined);
+    spyOn(db.query.projects, "findFirst").mockImplementation(async () => undefined);
+    spyOn(db.query.projectKeyAliases, "findFirst").mockImplementation(async () => undefined);
     await assert.rejects(getProjectByKey("NOPE"), (error: unknown) => error instanceof HttpError && error.statusCode === 404);
 });

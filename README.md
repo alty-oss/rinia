@@ -47,22 +47,22 @@ docker run -p 3000:3000 \
 
 ### Local development
 
-You need Node.js 22+, pnpm 10+, and PostgreSQL.
+You need [Bun](https://bun.com) 1.3.14+ and PostgreSQL.
 
 ```bash
-pnpm install
+bun install
 docker run --name rinia-db -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=rinia -p 5432:5432 -d postgres:16
-pnpm db:migrate
-pnpm db:seed
+bun run db:migrate
+bun run db:seed
 ```
 
-The seed creates three projects with issues, labels, and documents, plus the accounts `admin`, `ana`, and `bruno`, all with the password `rinia1234`. Run `pnpm db:reset` to drop the database and seed it again. Both commands refuse to run with `NODE_ENV=production` or against a database that is not on your machine.
+The seed creates three projects with issues, labels, and documents, plus the accounts `admin`, `ana`, and `bruno`, all with the password `rinia1234`. Run `bun run db:reset` to drop the database and seed it again. Both commands refuse to run with `NODE_ENV=production` or against a database that is not on your machine.
 
 Then start the API and the web app in separate terminals:
 
 ```bash
-pnpm dev:api   # http://localhost:3000
-pnpm dev:web   # http://localhost:5173
+bun run dev:api   # http://localhost:3000
+bun run dev:web   # http://localhost:5173
 ```
 
 ### Environment variables
@@ -84,6 +84,7 @@ Set these in `apps/api/.env`, or pass them to the container.
 [![Vite](https://img.shields.io/badge/Vite-646CFF?style=for-the-badge&logo=vite&logoColor=white)](https://vite.dev/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-06B6D4?style=for-the-badge&logo=tailwindcss&logoColor=white)](https://tailwindcss.com/)
+[![Bun](https://img.shields.io/badge/Bun-000000?style=for-the-badge&logo=bun&logoColor=white)](https://bun.com/)
 [![Express](https://img.shields.io/badge/Express-000000?style=for-the-badge&logo=express&logoColor=white)](https://expressjs.com/)
 [![Drizzle](https://img.shields.io/badge/Drizzle-C5F74F?style=for-the-badge&logo=drizzle&logoColor=black)](https://orm.drizzle.team/)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-4169E1?style=for-the-badge&logo=postgresql&logoColor=white)](https://www.postgresql.org/)
@@ -95,6 +96,7 @@ Found a bug or have an idea? [Open an issue](https://github.com/alty-oss/rinia/i
 Before opening a pull request, run:
 
 ```bash
-pnpm typecheck
-pnpm build
+bun run typecheck
+bun run test
+bun run build
 ```

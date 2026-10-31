@@ -1,4 +1,3 @@
-import "dotenv/config";
 import { markdownToTiptap, type CreateIssueInput, type CreateProjectInput } from "@rinia/shared";
 import { count } from "drizzle-orm";
 import { createCategory } from "../features/categories/categories.service";
@@ -216,7 +215,7 @@ async function main() {
 
     const [{ value: existingUsers }] = await db.select({ value: count() }).from(users);
     if (existingUsers > 0) {
-        throw new Error("The database already has users. Run `pnpm db:reset` to start from a clean seed.");
+        throw new Error("The database already has users. Run `bun run db:reset` to start from a clean seed.");
     }
 
     const passwordHash = await hashPassword(SEED_PASSWORD);

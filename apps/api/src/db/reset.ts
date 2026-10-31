@@ -1,8 +1,7 @@
-import "dotenv/config";
 import { Pool } from "pg";
 import { assertDevelopmentDatabase } from "./dev-guard";
 
-/** Drops every table and the migration journal. `pnpm db:reset` then migrates and seeds again. */
+/** Drops every table and the migration journal. `bun run db:reset` then migrates and seeds again. */
 async function main() {
     assertDevelopmentDatabase("reset the database");
 

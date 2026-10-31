@@ -1,21 +1,23 @@
 {
   "name": "rinia",
   "private": true,
-  "packageManager": "pnpm@10.9.0",
+  "packageManager": "bun@1.3.14",
   "engines": {
-    "node": ">=22"
+    "bun": ">=1.3.14"
   },
-  "pnpm": {
-    "onlyBuiltDependencies": ["esbuild"]
-  },
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
   "scripts": {
-    "dev:api": "pnpm --filter @rinia/api dev",
-    "dev:web": "pnpm --filter @rinia/web dev",
-    "build": "pnpm --filter @rinia/web build && pnpm --filter @rinia/api build",
-    "typecheck": "pnpm -r typecheck",
-    "db:generate": "pnpm --filter @rinia/api db:generate",
-    "db:migrate": "pnpm --filter @rinia/api db:migrate",
-    "db:seed": "pnpm --filter @rinia/api db:seed",
-    "db:reset": "pnpm --filter @rinia/api db:reset"
+    "dev:api": "bun run --cwd apps/api dev",
+    "dev:web": "bun run --cwd apps/web dev",
+    "build": "bun run --cwd apps/web build && bun run --cwd apps/api build",
+    "typecheck": "bun run --filter '*' typecheck",
+    "test": "bun run --cwd apps/api test:unit",
+    "db:generate": "bun run --cwd apps/api db:generate",
+    "db:migrate": "bun run --cwd apps/api db:migrate",
+    "db:seed": "bun run --cwd apps/api db:seed",
+    "db:reset": "bun run --cwd apps/api db:reset"
   }
 }
