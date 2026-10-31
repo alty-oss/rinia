@@ -9,6 +9,7 @@ const nav = {
         home: "Home",
         backToApp: "Back to app", preferences: "Preferences", personal: "Personal",
         favorite: "Favorite",
+        searchSettings: "Search settings", yourProjects: "Your projects", administration: "Administration", noSettingsFound: "No settings found.",
     } as const;
 
 export default nav;

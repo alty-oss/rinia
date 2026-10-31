@@ -1,11 +1,12 @@
-import { Fragment, useEffect, useState, type Dispatch, type SetStateAction } from "react";
+import { Fragment, useEffect, useState, type Dispatch, type ReactNode, type SetStateAction } from "react";
 import { ChevronRightOutline } from "@makeplane/propel/icons";
-import { Circle, House, LayoutGrid, Search, SquarePen, UserRound, Users } from "lucide-react";
+import { Circle, House, Search, ShieldCheck, SlidersHorizontal, SquarePen, UserRound } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router";
 import { AppIcons } from "@/components/foundations/icons";
 import type { AppIcon } from "@/components/foundations/icons";
 import { ContextMenuButton } from "@/components/overlay/context-menu-provider";
 import { SidebarAccount } from "./sidebar-account";
+import { useAuth } from "@/features/auth/hooks/use-auth";
 import { useColumns } from "@/features/board/hooks/use-board";
 import { useDocuments } from "@/features/documents/hooks/use-documents";
 import { IssueQuickCreateModal } from "@/features/issues/components/issue-quick-create-modal";
@@ -119,7 +120,7 @@ export function Sidebar({ onSearch, onNavigate }: { onSearch: () => void; onNavi
     return (
         <div className="flex h-full flex-col">
             {settings ? (
-                <SettingsNav projectId={projectId} onSearch={onSearch} />
+                <SettingsNav projectId={projectId} projects={projects} />
             ) : (
                 <>
                     <div className="flex h-12 shrink-0 items-center gap-1 px-3">
@@ -203,49 +204,66 @@ function SectionLabel({ label, open, onToggle, to }: { label: string; open: bool
     );
 }
 
-function SettingsNav({ projectId, onSearch }: { projectId: string; onSearch: () => void }) {
+function SettingsNav({ projectId, projects }: { projectId: string; projects: ProjectCardSummary[] | undefined }) {
     const { t } = useTranslation();
     const location = useLocation();
-    const item = (path: string) => itemClass(location.pathname === path);
+    const { user } = useAuth();
+    const [query, setQuery] = useState("");
+    const matches = (label: string) => label.toLowerCase().includes(query.trim().toLowerCase());
+    const link = (path: string, label: string, Icon: AppIcon, active = location.pathname === path) =>
+        matches(label) && (
+            <Link key={path} to={path} className={itemClass(active)} aria-current={active ? "page" : undefined}>
+                <Icon className="size-4 shrink-0" />
+                <span className="truncate">{label}</span>
+            </Link>
+        );
+    const personal = [link("/settings/preferences", t("nav.preferences"), SlidersHorizontal), link("/settings/profile", t("nav.profile"), UserRound)].filter(Boolean);
+    const projectLinks = (projects ?? []).filter((project) => matches(project.name));
+    const admin = user?.isAdmin ? [link("/settings/admin", t("nav.administration"), ShieldCheck)].filter(Boolean) : [];
+
     return (
-        <div className="min-h-0 flex-1 overflow-y-auto px-3 pt-3">
+        <div className="min-h-0 flex-1 overflow-y-auto px-3 pt-3 pb-4">
             <Link to={projectId ? `/projects/${projectId}` : "/"} className={`${itemClass(false)} mb-3`}>
                 <AppIcons.Back className="size-4" />
                 {t("nav.backToApp")}
             </Link>
-            <button type="button" onClick={onSearch} className="mb-4 flex h-8 w-full items-center gap-2 rounded-md border border-subtle px-2 text-[13px] text-placeholder hover:bg-layer-transparent-hover">
-                <Search className="size-3.5" />
-                {t("nav.search")}
-            </button>
-            <p className="px-2 py-2 text-[12px] text-tertiary">{t("nav.personal")}</p>
-            <Link to="/settings/preferences" className={item("/settings/preferences")} aria-current={location.pathname === "/settings/preferences" ? "page" : undefined}>
-                <AppIcons.Settings className="size-4" />
-                {t("nav.preferences")}
-            </Link>
-            <Link to="/settings/profile" className={item("/settings/profile")} aria-current={location.pathname === "/settings/profile" ? "page" : undefined}>
-                <UserRound className="size-4" />
-                {t("nav.profile")}
-            </Link>
-            {projectId && (
-                <>
-                    <p className="mt-4 px-2 py-2 text-[12px] text-tertiary">{t("nav.projects")}</p>
-                    {[
-                        ["general", t("settings.general"), AppIcons.General],
-                        ["states", t("settings.states"), Circle],
-                        ["members", t("settings.members"), Users],
-                        ["labels", t("settings.labels"), LayoutGrid],
-                    ].map(([section, label, Icon]) => {
-                        const path = `/projects/${projectId}/settings/${section}`;
-                        const IconComponent = Icon as AppIcon;
+            <label className="mb-2 flex h-8 w-full items-center gap-2 rounded-md border border-subtle px-2 text-[13px] focus-within:border-accent-strong">
+                <Search className="size-3.5 shrink-0 text-placeholder" />
+                <input
+                    type="search"
+                    value={query}
+                    onChange={(event) => setQuery(event.target.value)}
+                    placeholder={t("nav.searchSettings")}
+                    aria-label={t("nav.searchSettings")}
+                    className="min-w-0 flex-1 bg-transparent text-primary outline-none placeholder:text-placeholder"
+                />
+            </label>
+            {personal.length > 0 && <SettingsNavSection label={t("nav.personal")}>{personal}</SettingsNavSection>}
+            {projectLinks.length > 0 && (
+                <SettingsNavSection label={t("nav.yourProjects")}>
+                    {projectLinks.map((project) => {
+                        const path = `/projects/${project.id}/settings`;
+                        const active = location.pathname === path || location.pathname.startsWith(`${path}/`);
                         return (
-                            <Link key={String(section)} to={path} className={item(path)} aria-current={location.pathname === path ? "page" : undefined}>
-                                <IconComponent className="size-4 shrink-0" />
-                                {label as string}
+                            <Link key={project.id} to={path} className={itemClass(active)} aria-current={active ? "page" : undefined}>
+                                <ProjectIcon icon={project.iconAppearance ?? project.icon} className="size-4 shrink-0" />
+                                <span className="truncate">{project.name}</span>
                             </Link>
                         );
                     })}
-                </>
+                </SettingsNavSection>
             )}
+            {admin.length > 0 && <SettingsNavSection label={t("nav.administration")}>{admin}</SettingsNavSection>}
+            {query && personal.length + projectLinks.length + admin.length === 0 && <p className="px-2 py-3 text-[13px] text-placeholder">{t("nav.noSettingsFound")}</p>}
+        </div>
+    );
+}
+
+function SettingsNavSection({ label, children }: { label: string; children: ReactNode }) {
+    return (
+        <div className="mt-4">
+            <p className="px-2 pb-1.5 text-[12px] text-tertiary">{label}</p>
+            <div className="flex flex-col gap-px">{children}</div>
         </div>
     );
 }

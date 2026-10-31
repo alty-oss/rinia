@@ -9,6 +9,7 @@ const nav = {
         home: "Início",
         backToApp: "Voltar ao app", preferences: "Preferências", personal: "Pessoal",
         favorite: "Favorito",
+        searchSettings: "Buscar configurações", yourProjects: "Seus projetos", administration: "Administração", noSettingsFound: "Nenhuma configuração encontrada.",
     } as const;
 
 export default nav;

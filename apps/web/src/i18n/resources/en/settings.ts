@@ -14,6 +14,14 @@ const settings = {
         loadingProject: "Loading project…", couldNotLoadProject: "Could not load the project.", changeProjectIcon: "Change project icon", projectIcon: "Project icon", loadingIcons: "Loading icons…", projectIdRename: "Changing it renames every issue identifier. Old links keep working.",
         deleteProjectDescription: "Permanently remove this project and all of its data and resources. Deleted projects cannot be recovered.",
         newColumn: "New column", columnName: "Column name", color: "Color", colorValue: "Color {{color}}", customColor: "Custom color", chooseColor: "Choose color",
+        projectAccess: "Visible to project members", projectOverview: "Project overview", none: "None",
+        generalSummary: "Name, identifier, icon, banner, and description", membersSummary: "Manage who works on this project",
+        memberCount_one: "{{count}} member", memberCount_other: "{{count}} members", issuesSection: "Issues",
+        statesSummary: "Workflow steps for issues and the board", stateCount_one: "{{count}} state", stateCount_other: "{{count}} states",
+        labelsSummary: "Labels available to this project's issues", labelCount_one: "{{count}} label", labelCount_other: "{{count}} labels",
+        identifier: "Identifier", identifierHint: "Used in issue IDs", repositoryHint: "Linked from the project header", bannerHint: "Shown on the project card",
+        descriptionHint: "A short summary shown on the project page", descriptionPlaceholder: "e.g. Customer-facing web app and its API",
+        dangerZone: "Danger zone", administrationDescription: "Settings that apply to the whole instance.", data: "Data", interfaceAndLanguage: "Interface and language",
     } as const;
 
 export default settings;

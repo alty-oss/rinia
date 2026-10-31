@@ -12,6 +12,7 @@ import { EmptyState } from "@/components/feedback/empty-state";
 import { ErrorMessage } from "@/components/feedback/error-message";
 import { LoadingState } from "@/components/feedback/loading-state";
 import { ControlledInput } from "@/components/form/controlled-input";
+import { SettingsHeading } from "@/components/settings/settings-layout";
 import { ConfirmDialog } from "@/components/overlay/confirm-dialog";
 import { ModalDialog } from "@/components/overlay/modal-dialog";
 import { ApiError } from "@/lib/api-client";
@@ -27,33 +28,36 @@ export const MembersPanel = ({ projectId, isProjectOwner }: { projectId: string;
 
     return (
         <div>
-            <header className="flex flex-wrap items-center justify-between gap-4 border-b border-subtle py-2">
-                <h1 className="text-sm font-semibold text-primary">{t("settings.members")}</h1>
-                <div className="flex flex-wrap items-center gap-3">
-                    <Input
-                        size="sm"
-                        aria-label={t("settings.searchMembers")}
-                        placeholder={t("settings.searchMembers")}
-                        icon={Search}
-                        value={search}
-                        onChange={setSearch}
-                        className="w-56 max-w-full"
-                    />
-                    {isProjectOwner && (
-                        <ModalDialog
-                            trigger={
-                                <Button size="sm" iconLeading={Plus}>
-                                    {t("settings.addMember")}
-                                </Button>
-                            }
-                            title={t("settings.addMember")}
-                            description={t("settings.addMemberDescription")}
-                        >
-                            {({ close }) => <AddMemberForm projectId={projectId} onClose={close} />}
-                        </ModalDialog>
-                    )}
-                </div>
-            </header>
+            <SettingsHeading
+                title={t("settings.members")}
+                description={t("settings.membersSummary")}
+                control={
+                    <div className="flex flex-wrap items-center gap-2">
+                        <Input
+                            size="sm"
+                            aria-label={t("settings.searchMembers")}
+                            placeholder={t("settings.searchMembers")}
+                            icon={Search}
+                            value={search}
+                            onChange={setSearch}
+                            className="w-48 max-w-full"
+                        />
+                        {isProjectOwner && (
+                            <ModalDialog
+                                trigger={
+                                    <Button size="sm" iconLeading={Plus}>
+                                        {t("settings.addMember")}
+                                    </Button>
+                                }
+                                title={t("settings.addMember")}
+                                description={t("settings.addMemberDescription")}
+                            >
+                                {({ close }) => <AddMemberForm projectId={projectId} onClose={close} />}
+                            </ModalDialog>
+                        )}
+                    </div>
+                }
+            />
             {removeMutation.isError && (
                 <div className="mt-4">
                     <Alert tone="error">{removeMutation.error instanceof ApiError ? removeMutation.error.message : t("settings.couldNotRemoveMember")}</Alert>
@@ -68,7 +72,7 @@ export const MembersPanel = ({ projectId, isProjectOwner }: { projectId: string;
                 />
             )}
             {!!filtered?.length && (
-                <div className="overflow-x-auto">
+                <div className="mt-6 overflow-x-auto">
                     <table className="w-full text-left text-sm text-secondary">
                         <thead>
                             <tr className="border-b border-subtle text-xs text-tertiary">

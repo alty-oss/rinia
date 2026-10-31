@@ -9,6 +9,7 @@ import { RequireAuth } from "@/features/auth/components/require-auth";
 import { useTranslation } from "react-i18next";
 
 const ProjectSettingsPage = lazy(() => import("@/pages/project-settings-page").then((module) => ({ default: module.ProjectSettingsPage })));
+const AdminSettingsPage = lazy(() => import("@/pages/admin-settings-page").then((module) => ({ default: module.AdminSettingsPage })));
 const ProfileSettingsPage = lazy(() => import("@/pages/profile-settings-page").then((module) => ({ default: module.ProfileSettingsPage })));
 const DesignSystemPage = lazy(() => import("@/pages/design-system-page").then((module) => ({ default: module.default })));
 
@@ -23,11 +24,6 @@ const ProjectOverviewPage = lazy(() => import("@/pages/project-overview-page").t
 const PreferencesSettingsPage = lazy(() => import("@/pages/preferences-settings-page").then((module) => ({ default: module.PreferencesSettingsPage })));
 const ProjectsPage = lazy(() => import("@/pages/projects-page").then((module) => ({ default: module.ProjectsPage })));
 const RegisterPage = lazy(() => import("@/pages/register-page").then((module) => ({ default: module.RegisterPage })));
-
-function ProjectSettingsRedirect() {
-    const { projectId } = useParams();
-    return <Navigate replace to={`/projects/${projectId}/settings/general`} />;
-}
 
 function IssuesListRedirect() {
     const { projectId } = useParams();
@@ -68,7 +64,8 @@ export const AppRoutes = () => {
                     <Route path="/" element={<ProjectsPage />} />
                     <Route path="/settings/profile" element={<ProfileSettingsPage />} />
                     <Route path="/settings/preferences" element={<PreferencesSettingsPage />} />
-                    <Route path="/projects/:projectId/settings" element={<ProjectSettingsRedirect />} />
+                    <Route path="/settings/admin" element={<AdminSettingsPage />} />
+                    <Route path="/projects/:projectId/settings" element={<ProjectSettingsPage />} />
                     <Route path="/projects/:projectId/settings/:section" element={<ProjectSettingsPage />} />
                     <Route path="/projects/:projectId" element={<ProjectOverviewPage />} />
                     <Route path="/projects/:projectId/issues" element={<ProjectIssuesPage />} />

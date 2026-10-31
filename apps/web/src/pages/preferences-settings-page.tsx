@@ -9,7 +9,7 @@ export function PreferencesSettingsPage() {
     const { syncFailed } = useLanguage();
     return (
         <SettingsPage title={t("nav.preferences")}>
-            <SettingsGroup title={t("settings.general")}>
+            <SettingsGroup title={t("settings.interfaceAndLanguage")}>
                 <SettingsControl title={t("profile.theme")} description={t("profile.themeDescription")}>
                     <ThemeSelector />
                 </SettingsControl>
