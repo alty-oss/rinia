@@ -100,7 +100,7 @@ export const IssueCard = ({ issue, category, assignee, column, projectId, onClic
                     } else listeners?.onKeyDown?.(event);
                 }}
                 className={cx(
-                    "block w-full cursor-pointer touch-none rounded-md border border-subtle bg-layer-2 p-2.5 pr-9 text-left outline-none transition duration-150 ease-[cubic-bezier(0.2,0,0,1)] hover:border-strong hover:shadow-raised-100 focus-visible:ring-1 focus-visible:ring-accent-strong md:pr-2.5",
+                    "block w-full cursor-pointer touch-none rounded-md border border-subtle bg-layer-2 p-2.5 pr-9 text-left outline-none transition-all duration-200 ease-out hover:border-strong hover:shadow-raised-100 focus-visible:ring-2 focus-visible:ring-accent-strong focus-visible:ring-offset-1 md:pr-2.5",
                     selected && "border-accent-strong",
                 )}
             >

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useDroppable } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
-import { Plus, Trash2 } from "lucide-react";
+import { AddOutline, ArrowCollapseOutline, ArrowExpandOutline, DeleteOutline } from "@makeplane/propel/icons";
 import { Button } from "@/components/base/buttons/button";
 import { ButtonUtility } from "@/components/base/buttons/button-utility";
 import { Input } from "@/components/base/input/input";
@@ -12,7 +12,6 @@ import { cx } from "@/utils/cx";
 import type { BoardColumn } from "../api";
 import { useDeleteColumn, useUpdateColumn } from "../hooks/use-board";
 import { StateIcon } from "./issue-property-icons";
-import { ArrowCollapseOutline, ArrowExpandOutline } from "@makeplane/propel/icons";
 import { IssueCard } from "./issue-card";
 import { useTranslation } from "react-i18next";
 import { translateStatusName } from "@/i18n/status-label";
@@ -71,7 +70,7 @@ export const Column = ({ column, issues, projectId, categoriesById, membersById,
     }
 
     return (
-        <div data-board-column={column.id} className={cx("group/column flex h-full max-h-full shrink-0 flex-col", collapsed ? "w-11" : "w-[326px]")}>
+        <div data-board-column={column.id} className={cx("group/column flex h-full max-h-full shrink-0 flex-col transition-[width] duration-200 ease-out", collapsed ? "w-11" : "w-[326px]")}>
             <div className="mb-2 flex h-7 shrink-0 items-center gap-2">
                 {isEditingName ? (
                     <Input
@@ -104,10 +103,10 @@ export const Column = ({ column, issues, projectId, categoriesById, membersById,
                 {!collapsed && <span className="text-body-sm-regular text-tertiary">{issues.length}</span>}
                 <div className="ml-auto flex shrink-0 items-center gap-1">
                     <ButtonUtility icon={collapsed ? ArrowExpandOutline : ArrowCollapseOutline} size="xs" color="tertiary" tooltip={`${collapsed ? t("nav.expand") : t("nav.collapse")} ${translateStatusName(column.name, t)}`} onClick={() => setCollapsed(!collapsed)} />
-                    {!collapsed && <ButtonUtility icon={Plus} size="xs" color="tertiary" tooltip={`${t("issue.newIssue")} · ${translateStatusName(column.name, t)}`} onClick={() => onCreateIssue(column.id)} />}
+                    {!collapsed && <ButtonUtility icon={AddOutline} size="xs" color="tertiary" tooltip={`${t("issue.newIssue")} · ${translateStatusName(column.name, t)}`} onClick={() => onCreateIssue(column.id)} />}
                     <div className="hidden group-hover/column:block group-focus-within/column:block">
                     <ConfirmDialog
-                        trigger={<ButtonUtility icon={Trash2} size="xs" color="tertiary" tooltip={t("settings.deleteState")} />}
+                        trigger={<ButtonUtility icon={DeleteOutline} size="xs" color="tertiary" tooltip={t("settings.deleteState")} />}
                         title={t("settings.deleteState")}
                         description={t("settings.deleteStateDescription", { name: translateStatusName(column.name, t) })}
                         confirmLabel={t("settings.deleteState")}
@@ -133,7 +132,7 @@ export const Column = ({ column, issues, projectId, categoriesById, membersById,
                         />
                     ))}
                 </SortableContext>
-                <Button color="tertiary" size="sm" iconLeading={Plus} onClick={() => onCreateIssue(column.id)} className="mt-0.5 w-full justify-start px-2 text-secondary">
+                <Button color="tertiary" size="sm" iconLeading={AddOutline} onClick={() => onCreateIssue(column.id)} className="mt-0.5 w-full justify-start px-2 text-secondary">
                     {t("issue.newIssue")}
                 </Button>
             </div>

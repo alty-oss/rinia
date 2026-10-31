@@ -1,5 +1,7 @@
 import { Popover } from "@base-ui/react/popover";
+import { overlayChrome } from "@/components/overlay/overlay-chrome";
 import { ColumnColorPicker } from "@/features/board/components/column-color-picker";
+import { cx } from "@/utils/cx";
 import { useTranslation } from "react-i18next";
 
 export function SettingColorPicker({ value, onChange, isDisabled }: { value: string | null; onChange: (color: string) => void; isDisabled?: boolean }) {
@@ -15,7 +17,7 @@ export function SettingColorPicker({ value, onChange, isDisabled }: { value: str
             </Popover.Trigger>
             <Popover.Portal>
                 <Popover.Positioner sideOffset={8} className="z-50">
-                    <Popover.Popup className="w-60 rounded-md border border-subtle bg-layer-2 p-3 shadow-overlay-200 outline-none">
+                    <Popover.Popup className={cx("w-60", overlayChrome.popupPadded)}>
                         <Popover.Title className="mb-3 text-sm font-medium">{t("settings.color")}</Popover.Title>
                         <ColumnColorPicker label="" value={value} onChange={onChange} />
                     </Popover.Popup>

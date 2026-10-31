@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { AlertTriangle } from "lucide-react";
+import { WarningTriangleOutline } from "@makeplane/propel/icons";
 import { Dialog, DialogTrigger, Modal, ModalOverlay } from "@/components/application/modals/modal";
 import { Button } from "@/components/base/buttons/button";
 import { useTranslation } from "react-i18next";
@@ -32,7 +32,7 @@ export const ConfirmDialog = ({ trigger, title, description, confirmLabel, isPen
                             <div className="w-full rounded-lg bg-surface-1 p-4 shadow-xl ring-1 ring-subtle">
                                 <div className="flex gap-3">
                                     <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-danger-primary text-fg-white">
-                                        <AlertTriangle className="size-4" />
+                                        <WarningTriangleOutline className="size-4" />
                                     </span>
                                     <div className="min-w-0 flex-1">
                                         <h2 className="text-base font-semibold text-primary">{title}</h2>

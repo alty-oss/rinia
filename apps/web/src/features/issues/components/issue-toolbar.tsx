@@ -2,6 +2,8 @@ import { Popover } from "@base-ui/react/popover";
 import { AddOutline, CloseOutline, DisplayOutline, FilterOutline, SearchOutline } from "@makeplane/propel/icons";
 import { useSearchParams } from "react-router";
 import { Button } from "@/components/base/buttons/button";
+import { overlayChrome } from "@/components/overlay/overlay-chrome";
+import { cx } from "@/utils/cx";
 import { Input } from "@/components/base/input/input";
 import { Select } from "@/components/base/select/select";
 import { useColumns } from "@/features/board/hooks/use-board";
@@ -35,7 +37,7 @@ export function IssueToolbar({ projectId, onCreate, layout = "list", compact = f
         { key: "label", label: t("issue.label"), items: categories ?? [] },
     ];
     const count = filters.filter((filter) => query.get(filter.key)).length;
-    const popup = "grid w-[min(320px,calc(100vw-32px))] gap-3 rounded-md border border-subtle bg-layer-2 p-3 shadow-overlay-200 outline-none";
+    const popup = cx("grid w-[min(320px,calc(100vw-32px))] gap-3", overlayChrome.popupPadded);
     return (
         <div className={compact ? "board-toolbar min-w-0" : "shrink-0 border-b border-subtle"}>
             <div className={compact ? "flex items-center gap-2" : "flex h-[45px] flex-wrap items-center gap-2 px-3.5"}>

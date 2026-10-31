@@ -8,7 +8,7 @@ import { controlScale } from "@/components/base/control-scale";
 export const styles = sortCx({
     common: {
         root: [
-            "group relative inline-flex h-max cursor-pointer items-center justify-center whitespace-nowrap outline-accent-strong transition duration-100 ease-linear before:absolute focus-visible:outline-2 focus-visible:outline-offset-2",
+            "group relative inline-flex h-max cursor-pointer items-center justify-center whitespace-nowrap transition-all duration-200 ease-out before:absolute focus-visible:ring-2 focus-visible:ring-accent-strong focus-visible:ring-offset-1",
             // When button is used within `InputGroup`
             "in-data-input-wrapper:shadow-xs in-data-input-wrapper:focus:!z-50 in-data-input-wrapper:in-data-leading:-mr-px in-data-input-wrapper:in-data-leading:rounded-r-none in-data-input-wrapper:in-data-leading:before:rounded-r-none in-data-input-wrapper:in-data-trailing:-ml-px in-data-input-wrapper:in-data-trailing:rounded-l-none in-data-input-wrapper:in-data-trailing:before:rounded-l-none",
             // Disabled styles
@@ -59,12 +59,12 @@ export const styles = sortCx({
             root: [
                 "bg-accent-primary text-white ring-1 ring-transparent ring-inset hover:bg-accent-primary-hover data-loading:bg-accent-primary-hover",
                 // Icon styles
-                "*:data-icon:text-white/60 hover:*:data-icon:text-white/70",
+                "*:data-icon:text-white/70 hover:*:data-icon:text-white",
             ].join(" "),
         },
         secondary: {
             root: [
-                "bg-layer-2 text-secondary shadow-raised-100 ring-1 ring-strong ring-inset hover:bg-layer-2-hover hover:text-primary data-loading:bg-layer-1-hover",
+                "border border-strong bg-layer-2 text-secondary shadow-raised-100 hover:bg-layer-2-hover hover:text-primary data-loading:bg-layer-1-hover",
                 // Icon styles
                 "*:data-icon:text-placeholder hover:*:data-icon:text-secondary",
             ].join(" "),

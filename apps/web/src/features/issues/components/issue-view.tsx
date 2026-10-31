@@ -7,6 +7,7 @@ import { Popover } from "@base-ui/react/popover";
 import { IssueAvatar, PriorityIcon, StateIcon } from "@/features/board/components/issue-property-icons";
 import { cx } from "@/utils/cx";
 import { Button } from "@/components/base/buttons/button";
+import { overlayChrome } from "@/components/overlay/overlay-chrome";
 import { ButtonUtility } from "@/components/base/buttons/button-utility";
 import { Skeleton } from "@/components/base/feedback/skeleton";
 import { Sheet } from "@/components/base/sheet/sheet";
@@ -465,7 +466,7 @@ export const IssueView = ({ identifier, projectId, mode = "page", onClose }: Iss
                     )}
                     {mode === "peek" ? <Popover.Root>
                         <Popover.Trigger render={<ButtonUtility icon={MoreHorizontalOutline} size="sm" color="tertiary" tooltip={t("issue.issueActions")} />} />
-                        <Popover.Portal><Popover.Positioner sideOffset={4} align="end" className="z-50"><Popover.Popup className="rounded-md border border-subtle bg-layer-2 p-1 shadow-overlay-100">
+                        <Popover.Portal><Popover.Positioner sideOffset={4} align="end" className="z-50"><Popover.Popup className={overlayChrome.menu}>
                             <Popover.Title className="sr-only">{t("issue.issueActions")}</Popover.Title>
                             <ConfirmDialog trigger={<Button color="tertiary" size="sm" iconLeading={Trash2}>{t("issue.deleteIssue")}</Button>} title={t("issue.deleteIssue")} description={t("issue.deleteIssueDescription", { title: issue.title })} confirmLabel={t("issue.deleteIssue")} isPending={deleteIssue.isPending} onConfirm={() => deleteIssue.mutate(issue.identifier, { onSuccess: onClose })} />
                         </Popover.Popup></Popover.Positioner></Popover.Portal>
@@ -838,7 +839,6 @@ function IssueProperties({
     );
 }
 
-/** Plane side-peek uses a single property list with 30px controls and 12px row gaps. */
 function PeekProperties({ issue, projectIssues, columns, members, categories, save, error, isPending }: Parameters<typeof IssueProperties>[0]) {
     const { t } = useTranslation();
     const assignee = members?.find((member) => member.id === issue.assigneeId);

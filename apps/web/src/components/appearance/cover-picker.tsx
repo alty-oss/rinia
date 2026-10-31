@@ -3,6 +3,8 @@ import { Popover } from "@base-ui/react/popover";
 import { useEffect, useRef, useState } from "react";
 import { ImagePlus, Move, Trash2 } from "lucide-react";
 import { Button } from "@/components/base/buttons/button";
+import { overlayChrome } from "@/components/overlay/overlay-chrome";
+import { cx } from "@/utils/cx";
 import { Input } from "@/components/base/input/input";
 import { CoverImage } from "./cover-image";
 import { useTranslation } from "react-i18next";
@@ -60,7 +62,7 @@ export function CoverPicker({ cover, onChange, disabled, containerRef, triggerCl
             <Popover.Trigger disabled={disabled} className={triggerClassName ?? "inline-flex h-8 items-center gap-2 rounded px-2 text-xs font-medium text-tertiary hover:bg-layer-1-hover hover:text-secondary disabled:opacity-50"}>
                 <ImagePlus className="size-3.5" /> {cover ? t("appearance.changeCover") : t("appearance.addCover")}
             </Popover.Trigger>
-            <Popover.Portal><Popover.Positioner sideOffset={8} collisionPadding={12} className="z-[60]"><Popover.Popup className="w-80 max-w-[calc(100vw-2rem)] rounded-lg border border-subtle bg-layer-2 p-3 shadow-overlay-200 outline-none">
+            <Popover.Portal><Popover.Positioner sideOffset={8} collisionPadding={12} className="z-[60]"><Popover.Popup className={cx("w-80 max-w-[calc(100vw-2rem)] rounded-lg", overlayChrome.popupPadded)}>
                 <Popover.Title className="sr-only">{t("appearance.cover")}</Popover.Title>
                 <div className="space-y-3">
                     <Input label={t("appearance.coverImageUrl")} value={url} onChange={(value) => { setUrl(value); setError(""); }} placeholder="https://..." isInvalid={!!error} hint={error || t("appearance.dragCover")} />

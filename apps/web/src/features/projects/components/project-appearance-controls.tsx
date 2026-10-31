@@ -6,6 +6,8 @@ import { GradientPicker } from "@/components/appearance/gradient-picker";
 import { parseProjectCover } from "@rinia/shared";
 import { useUpdateProject } from "../hooks/use-projects";
 import { DEFAULT_PROJECT_ICON, ProjectIcon } from "./project-icon";
+import { overlayChrome } from "@/components/overlay/overlay-chrome";
+import { cx } from "@/utils/cx";
 import { useTranslation } from "react-i18next";
 
 function asEntityIcon(icon: EntityIcon | string | null | undefined): EntityIcon {
@@ -47,7 +49,7 @@ export function ProjectIconControl({
             </Popover.Trigger>
             <Popover.Portal>
                 <Popover.Positioner side="bottom" align="start" sideOffset={8} collisionPadding={12} className="z-[60]">
-                    <Popover.Popup className="max-h-[calc(100dvh-1.5rem)] w-80 max-w-[calc(100vw-2rem)] overflow-hidden rounded-lg border border-subtle bg-layer-2 p-3 shadow-overlay-200 outline-none">
+                    <Popover.Popup className={cx("max-h-[calc(100dvh-1.5rem)] w-80 max-w-[calc(100vw-2rem)] overflow-hidden rounded-lg", overlayChrome.popupPadded)}>
                         <Popover.Title className="sr-only">{t("settings.projectIcon")}</Popover.Title>
                         <AppearancePicker
                             value={icon && typeof icon === "object" ? icon : undefined}
@@ -87,7 +89,7 @@ export function ProjectCoverControl({
             </Popover.Trigger>
             <Popover.Portal>
                 <Popover.Positioner sideOffset={8} collisionPadding={12} className="z-[60]">
-                    <Popover.Popup className="w-72 max-w-[calc(100vw-2rem)] rounded-lg border border-subtle bg-layer-2 p-3 shadow-overlay-200 outline-none">
+                    <Popover.Popup className={cx("w-72 max-w-[calc(100vw-2rem)] rounded-lg", overlayChrome.popupPadded)}>
                         <Popover.Title className="sr-only">{t("appearance.projectBanner")}</Popover.Title>
                         <GradientPicker cover={cover} onChange={(next) => update.mutate({ cover: next })} disabled={update.isPending} />
                     </Popover.Popup>
