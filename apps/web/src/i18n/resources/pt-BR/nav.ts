@@ -10,6 +10,7 @@ const nav = {
         backToApp: "Voltar ao app", preferences: "Preferências", personal: "Pessoal",
         favorite: "Favorito",
         searchSettings: "Buscar configurações", yourProjects: "Seus projetos", administration: "Administração", noSettingsFound: "Nenhuma configuração encontrada.",
+        resizeDrag: "Arraste", resizeDragHint: "para redimensionar", resizeClick: "Clique", resizeCollapseHint: "para recolher", resizeExpandHint: "para expandir",
     } as const;
 
 export default nav;
