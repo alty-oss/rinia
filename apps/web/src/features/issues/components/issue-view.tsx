@@ -52,7 +52,7 @@ interface IssueViewProps {
 }
 
 const issuePageBodyClass = "flex min-h-0 flex-1 overflow-hidden";
-const issuePageMainClass = "min-w-0 flex-1 space-y-6 overflow-y-auto px-9 py-5";
+const issuePageMainClass = "min-w-0 flex-1 space-y-6 overflow-y-auto px-9 pb-5";
 const issuePageRailClass = "hidden shrink-0 overflow-y-auto border-l border-subtle bg-surface-1 px-5 py-5 lg:block lg:min-w-80 xl:min-w-96";
 
 const activityLabelKeys: Record<string, TranslationKey> = {
@@ -93,6 +93,9 @@ export const IssueView = ({ identifier, projectId, mode = "page", onClose }: Iss
     const createRelation = useCreateIssueRelation(issue?.identifier ?? resolvedIdentifier);
     const deleteRelation = useDeleteIssueRelation(issue?.identifier ?? resolvedIdentifier);
     const [descriptionEditing, setDescriptionEditing] = useState(false);
+    const [descriptionExpanded, setDescriptionExpanded] = useState(false);
+    const [descriptionOverflows, setDescriptionOverflows] = useState(false);
+    const peekDescriptionRef = useRef<HTMLDivElement>(null);
     const [relationsOpen, setRelationsOpen] = useState(false);
     const [description, setDescription] = useState<TiptapDocument>(EMPTY_TIPTAP_DOCUMENT);
     const [title, setTitle] = useState("");
@@ -178,6 +181,8 @@ export const IssueView = ({ identifier, projectId, mode = "page", onClose }: Iss
             setIssueCopyError(false);
             setDescriptionStatus("saved");
             setDescriptionEditing(false);
+            setDescriptionExpanded(false);
+            setDescriptionOverflows(false);
             setRelationsOpen(false);
             try {
                 const storedTab = sessionStorage.getItem(`rinia-issue-discussion-tab:${issue.id}`);
@@ -273,6 +278,25 @@ export const IssueView = ({ identifier, projectId, mode = "page", onClose }: Iss
             if (saveTimer !== undefined) window.clearTimeout(saveTimer);
         };
     }, [description, issue?.id, user?.id]);
+
+    useEffect(() => {
+        if (mode !== "peek" || descriptionEditing || descriptionExpanded) {
+            setDescriptionOverflows(false);
+            return;
+        }
+        const root = peekDescriptionRef.current;
+        if (!root) return;
+        const measure = () => {
+            const editor = root.querySelector<HTMLElement>(".tiptap-editor-description");
+            setDescriptionOverflows(Boolean(editor && editor.scrollHeight > editor.clientHeight + 2));
+        };
+        measure();
+        const observer = new ResizeObserver(measure);
+        observer.observe(root);
+        const editor = root.querySelector(".tiptap-editor-description");
+        if (editor) observer.observe(editor);
+        return () => observer.disconnect();
+    }, [mode, description, descriptionEditing, descriptionExpanded]);
 
     useEffect(() => {
         if (!issue || !user?.id || commentDraftOwner.current !== issue.id) return;
@@ -479,7 +503,7 @@ export const IssueView = ({ identifier, projectId, mode = "page", onClose }: Iss
 
             <div className={mode === "page" ? issuePageBodyClass : "min-h-0 flex-1 overflow-y-auto"}>
                 <div className={mode === "peek" ? "issue-peek-body px-6 py-4" : issuePageMainClass}>
-                    <div className={mode === "peek" ? "min-w-0 flex-1" : "min-w-0 space-y-6"}>
+                    <div className={mode === "peek" ? "min-w-0 flex-1" : "min-w-0 space-y-6 pt-5"}>
                         {mode === "peek" && <div className="mb-2 text-caption-md-regular text-tertiary">{issue.identifier}</div>}
                         <textarea
                             ref={titleRef}
@@ -522,8 +546,11 @@ export const IssueView = ({ identifier, projectId, mode = "page", onClose }: Iss
                             <IssuePropertyList issue={issue} projectIssues={projectIssues} columns={columns} members={members} categories={categories} save={save} error={propertySaveError} isPending={updateIssue.isPending} />
                         </div>}
 
-                        <section className={mode === "peek" ? "peek-description mt-2" : undefined}>
-                            <div onFocus={() => setDescriptionEditing(true)}>
+                        <section
+                            ref={mode === "peek" ? peekDescriptionRef : undefined}
+                            className={mode === "peek" ? cx("peek-description mt-2", !descriptionEditing && !descriptionExpanded && "is-clamped") : undefined}
+                        >
+                            <div onFocus={() => { setDescriptionEditing(true); setDescriptionExpanded(true); }}>
                             <RichTextEditor
                                 toolbar={mode === "page" || descriptionEditing}
                                 variant="description"
@@ -542,6 +569,15 @@ export const IssueView = ({ identifier, projectId, mode = "page", onClose }: Iss
                                 placeholder={t("issue.describeIssue")}
                             />
                             </div>
+                            {mode === "peek" && !descriptionEditing && descriptionOverflows && !descriptionExpanded && (
+                                <button
+                                    type="button"
+                                    className="mt-1 text-sm font-medium text-accent-primary hover:underline"
+                                    onClick={() => setDescriptionExpanded(true)}
+                                >
+                                    {t("issue.readMore")}
+                                </button>
+                            )}
                             {(mode === "page" || descriptionEditing) && <div className="mt-2 flex items-center justify-end gap-3">
                                 <span className="text-xs text-tertiary" role="status" aria-live="polite">
                                     {descriptionStatus === "saving" ? t("issue.savingDescription")

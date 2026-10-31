@@ -188,6 +188,20 @@ input[type="number"] {
     color: var(--txt-primary);
 }
 .issue-peek-panel .peek-description .tiptap-toolbar { margin-bottom: 8px; }
+.issue-peek-panel .peek-description.is-clamped .tiptap-editor-description {
+    max-height: 7.5rem;
+    overflow: hidden;
+    position: relative;
+}
+.issue-peek-panel .peek-description.is-clamped .tiptap-editor-description::after {
+    content: "";
+    pointer-events: none;
+    position: absolute;
+    inset-inline: 0;
+    bottom: 0;
+    height: 2.5rem;
+    background: linear-gradient(to bottom, transparent, var(--bg-surface-1));
+}
 .peek-property-control > label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
 .peek-property-control { gap: 0; }
 .peek-property-control > button,
