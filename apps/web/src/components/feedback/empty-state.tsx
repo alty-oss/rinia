@@ -1,4 +1,4 @@
-import { Inbox } from "lucide-react";
+import { InboxOutline } from "@makeplane/propel/icons";
 import type { ReactNode } from "react";
 
 interface EmptyStateProps {
@@ -8,9 +8,9 @@ interface EmptyStateProps {
 }
 
 export const EmptyState = ({ title, description, action }: EmptyStateProps) => (
-    <div className="flex flex-col items-center justify-center rounded-md border border-dashed border-subtle px-5 py-10 text-center">
+    <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-subtle px-5 py-10 text-center">
         <span className="mb-3 flex size-9 items-center justify-center rounded-md bg-surface-2 text-placeholder">
-            <Inbox className="size-4" aria-hidden="true" />
+            <InboxOutline className="size-4" aria-hidden="true" />
         </span>
         <p className="text-sm font-semibold text-primary">{title}</p>
         {description && <p className="mt-1 max-w-sm text-sm text-tertiary">{description}</p>}

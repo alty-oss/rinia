@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import type { Issue } from "@/features/issues/api";
-import { ChevronDown, Plus } from "lucide-react";
+import { AddOutline, ChevronDownOutline } from "@makeplane/propel/icons";
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from "react-router";
 import type { Location } from "react-router";
 import { Avatar } from "@/components/base/avatar/avatar";
@@ -216,7 +216,7 @@ export const ProjectIssuesPage = () => {
                                                 })}
                                                 className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-[11px] font-medium text-secondary hover:bg-layer-1-hover"
                                             >
-                                                <ChevronDown className={`size-3.5 text-placeholder transition-transform ${collapsedGroups.has(group.key) ? "-rotate-90" : ""}`} aria-hidden="true" />
+                                                <ChevronDownOutline className={`size-3.5 text-placeholder transition-transform duration-200 ${collapsedGroups.has(group.key) ? "-rotate-90" : ""}`} aria-hidden="true" />
                                                 <span>{group.label === "Unknown status" ? t("issue.unknownStatus") : translateStatusName(group.label, t)}</span>
                                                 <span className="text-tertiary">{group.issues.length}</span>
                                             </button>
@@ -247,7 +247,7 @@ export const ProjectIssuesPage = () => {
                                                 {t("issue.clearFilters")}
                                             </Button>
                                         ) : (
-                                            <Button size="sm" iconLeading={Plus} onClick={() => setIsCreating(true)}>
+                                            <Button size="sm" iconLeading={AddOutline} onClick={() => setIsCreating(true)}>
                                                 {t("issue.newIssue")}
                                             </Button>
                                         )
@@ -314,14 +314,14 @@ function IssueRow({
                 state={{ backgroundLocation }}
                 tabIndex={0}
                 onFocus={onSelect}
-                className={`grid w-full grid-cols-[minmax(0,1fr)_8rem_8rem_10rem] items-center gap-3 border-b border-subtle px-3 py-1.5 text-left transition-colors duration-150 last:border-0 hover:bg-layer-1-hover focus-visible:z-10 focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-accent-strong max-sm:grid-cols-1 max-sm:gap-2 max-sm:pr-12 lg:grid-cols-[minmax(0,1fr)_7rem_7rem_9rem_7rem_4rem] ${
-                    selected ? "bg-layer-1" : ""
+                className={`grid h-9 w-full grid-cols-[minmax(0,1fr)_8rem_8rem_10rem] items-center gap-3 border-b border-subtle px-3 text-left transition-colors duration-200 last:border-0 hover:bg-layer-1-hover focus-visible:z-10 focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-accent-strong max-sm:h-auto max-sm:grid-cols-1 max-sm:gap-2 max-sm:py-2 max-sm:pr-12 lg:grid-cols-[minmax(0,1fr)_7rem_7rem_9rem_7rem_4rem] ${
+                    selected ? "bg-accent-subtle" : ""
                 }`}
             >
                 <span className="flex min-w-0 items-center gap-2">
                     <span aria-hidden="true" className="size-2 shrink-0 rounded-full" style={{ backgroundColor: column?.color ?? "#71717a" }} />
-                    <span className="w-16 shrink-0 text-[11px] text-tertiary">{issue.identifier}</span>
-                    <span className="min-w-0 truncate text-[13px] text-primary">{issue.title}</span>
+                    <span className="w-16 shrink-0 text-xs text-tertiary">{issue.identifier}</span>
+                    <span className="min-w-0 truncate text-body-sm-medium text-primary">{issue.title}</span>
                     <span className="ml-auto hidden shrink-0 text-[11px] text-tertiary max-sm:block">{column ? translateStatusName(column.name, t) : ""}</span>
                 </span>
                 <span className="truncate text-xs text-secondary max-sm:hidden">{column ? translateStatusName(column.name, t) : t("issue.unknown")}</span>

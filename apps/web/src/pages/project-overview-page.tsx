@@ -1,4 +1,4 @@
-import { ArrowRight, ListChecks } from "lucide-react";
+import { ArrowNarrowRightOutline } from "@makeplane/propel/icons";
 import { parseProjectCover } from "@rinia/shared";
 import { Link, useParams } from "react-router";
 import { Skeleton } from "@/components/base/feedback/skeleton";
@@ -92,7 +92,7 @@ export const ProjectOverviewPage = () => {
                         </div>
 
                         <div className="grid grid-cols-2 gap-4 lg:grid-cols-1">
-                            <Fact icon={ListChecks} label={t("projects.estimate")} value={t("projects.points", { count: totalEstimate })} />
+                            <Fact icon={AppIcons.Issues} label={t("projects.estimate")} value={t("projects.points", { count: totalEstimate })} />
                         </div>
                     </section>
 
@@ -140,7 +140,7 @@ function OverviewSkeleton() {
     );
 }
 
-function Fact({ icon: Icon, label, value }: { icon: typeof ListChecks; label: string; value: string }) {
+function Fact({ icon: Icon, label, value }: { icon: typeof AppIcons.Issues; label: string; value: string }) {
     return (
         <div className="rounded-lg border border-subtle p-4">
             <div className="flex items-center gap-2 text-xs text-tertiary">
@@ -154,7 +154,7 @@ function Fact({ icon: Icon, label, value }: { icon: typeof ListChecks; label: st
 
 function OverviewLink({ href, icon: Icon, title, description }: { href: string; icon: typeof AppIcons.Issues; title: string; description: string }) {
     return (
-        <Link to={href} className="group flex items-center gap-4 px-3 py-3 transition hover:bg-surface-2">
+        <Link to={href} className="group flex items-center gap-4 px-3 py-3 transition-colors duration-200 hover:bg-surface-2">
             <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-surface-2 text-placeholder group-hover:text-accent-primary">
                 <Icon className="size-4" aria-hidden="true" />
             </span>
@@ -162,7 +162,7 @@ function OverviewLink({ href, icon: Icon, title, description }: { href: string; 
                 <span className="block text-sm font-medium text-primary">{title}</span>
                 <span className="mt-0.5 block truncate text-sm text-tertiary">{description}</span>
             </span>
-            <ArrowRight className="size-4 shrink-0 text-placeholder transition group-hover:translate-x-0.5 group-hover:text-accent-primary" aria-hidden="true" />
+            <ArrowNarrowRightOutline className="size-4 shrink-0 text-placeholder transition duration-200 group-hover:translate-x-0.5 group-hover:text-accent-primary" aria-hidden="true" />
         </Link>
     );
 }
