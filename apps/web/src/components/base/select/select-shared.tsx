@@ -1,6 +1,7 @@
 import type { FC, ReactNode } from "react";
-import { createContext } from "react";
+import { createContext, isValidElement } from "react";
 import { controlScale } from "@/components/base/control-scale";
+import { isReactComponent } from "@/utils/is-react-component";
 
 export type SelectItemType = {
     /** Unique identifier for the item. */
@@ -48,3 +49,15 @@ export const sizes = {
 };
 
 export const SelectContext = createContext<{ size: "sm" | "md" | "lg" }>({ size: "md" });
+
+export function SelectItemGraphic({ icon }: { icon?: FC | ReactNode }) {
+    if (!icon) return null;
+    if (isReactComponent(icon)) {
+        const Icon = icon;
+        return <Icon data-icon aria-hidden="true" />;
+    }
+    if (isValidElement(icon)) {
+        return <span data-icon className="inline-flex size-4 shrink-0 items-center justify-center [&>svg]:size-full">{icon}</span>;
+    }
+    return null;
+}

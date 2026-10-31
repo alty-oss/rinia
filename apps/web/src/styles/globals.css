@@ -220,15 +220,12 @@ input[type="number"] {
 .peek-property-control input,
 .peek-property-control button span { font-size: 13px; font-weight: 450; color: var(--txt-secondary); }
 .peek-property-control input::placeholder { color: var(--txt-secondary); }
-.peek-property-control [data-icon] { display: none; }
 .peek-property-control > button > span:last-child,
 .peek-property-control > div > button { opacity: 0; }
 .peek-property-control:hover > button > span:last-child,
 .peek-property-control:focus-within > button > span:last-child,
 .peek-property-control:hover > div > button,
 .peek-property-control:focus-within > div > button { opacity: 1; }
-.has-decoration .peek-property-control > button,
-.has-decoration .peek-property-control > div { padding-left: 32px; }
 .peek-comments .tiptap-editor { min-height: 0; }
 .peek-comments .ProseMirror { min-height: 60px; padding: 8px; font-size: 13px; }
 @media (max-width: 767px) {

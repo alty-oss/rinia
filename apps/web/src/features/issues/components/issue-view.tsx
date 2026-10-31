@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { TiptapDocument, UpdateIssueInput } from "@rinia/shared";
-import { ArrowLeft, ArrowRight, CheckCircle, Copy, ExternalLink, Link2, Plus, Trash2 } from "lucide-react";
+import { ArrowLeft, ArrowRight, Ban, CheckCircle, Copy, ExternalLink, Link2, Plus, ShieldOff, Trash2 } from "lucide-react";
 import { Link, useBeforeUnload, useNavigate, useParams } from "react-router";
 import { AssigneeOutline, EstimateOutline, HistoryOutline, LabelsOutline, MoreHorizontalOutline, ParentOutline, PriorityOutline, StateOutline } from "@makeplane/propel/icons";
 import { Popover } from "@base-ui/react/popover";
@@ -42,7 +42,9 @@ import { fetchIssueClipboardContent } from "../lib/issue-clipboard";
 import { issueDescriptionDrafts, issueDraftKey } from "../lib/issue-description-drafts";
 import { EMPTY_TIPTAP_DOCUMENT, RichTextEditor } from "./rich-text-editor";
 import { useTranslation } from "react-i18next";
+import { translateStatusName } from "@/i18n/status-label";
 import type { TranslationKey } from "@/i18n/resources";
+import type { SelectItemType } from "@/components/base/select/select-shared";
 
 interface IssueViewProps {
     identifier?: string;
@@ -733,14 +735,14 @@ function PropertySelect({
 }: {
     label: string;
     value: string;
-    options: Array<{ value: string; label: string; avatarUrl?: string | null }>;
+    options: Array<{ value: string; label: string; avatarUrl?: string | null; icon?: SelectItemType["icon"] }>;
     onChange: (value: string) => void;
     className?: string;
     isDisabled?: boolean;
     searchable?: boolean;
 }) {
     const { t } = useTranslation();
-    const items = options.map((option) => ({ id: option.value, label: option.label, avatarUrl: option.avatarUrl ?? undefined }));
+    const items = options.map((option) => ({ id: option.value, label: option.label, avatarUrl: option.avatarUrl ?? undefined, icon: option.icon }));
     if (searchable) {
         return (
             <ComboBox
@@ -768,7 +770,7 @@ function PropertySelect({
             label={label}
             size="sm"
         >
-            {(item) => <Select.Item id={item.id}>{item.label}</Select.Item>}
+            {(item) => <Select.Item id={item.id} icon={item.icon} avatarUrl={item.avatarUrl}>{item.label}</Select.Item>}
         </Select>
     );
 }
@@ -793,24 +795,22 @@ function IssuePropertyList({
     isPending: boolean;
 }) {
     const { t } = useTranslation();
-    const assignee = members?.find((member) => member.id === issue.assigneeId);
     const rows = [
-        { label: t("issue.status"), displayLabel: t("issue.state"), Icon: StateOutline, value: issue.columnId, options: (columns ?? []).map((c) => ({ value: c.id, label: c.name })), change: (value: string) => save({ columnId: value }), decoration: <StateIcon name={columns?.find((c) => c.id === issue.columnId)?.name ?? ""} color={columns?.find((c) => c.id === issue.columnId)?.color} /> },
-        { label: t("issue.assignee"), Icon: AssigneeOutline, value: issue.assigneeId ?? "", options: [{ value: "", label: t("issue.unassigned") }, ...(members ?? []).map((member) => ({ value: member.id, label: member.name, avatarUrl: member.avatarUrl }))], change: (value: string) => save({ assigneeId: value || null }), searchable: true, decoration: issue.assigneeId ? <IssueAvatar name={assignee?.name ?? ""} avatarUrl={assignee?.avatarUrl} /> : null },
-        { label: t("issue.priority"), Icon: PriorityOutline, value: issue.priority, options: (["low", "medium", "high"] as const).map((value) => ({ value, label: t(`issue.${value}`) })), change: (value: string) => save({ priority: value as "low" | "medium" | "high" }), decoration: <PriorityIcon priority={issue.priority} /> },
+        { label: t("issue.status"), displayLabel: t("issue.state"), Icon: StateOutline, value: issue.columnId, options: (columns ?? []).map((c) => ({ value: c.id, label: translateStatusName(c.name, t), icon: <StateIcon name={c.name} color={c.color} /> })), change: (value: string) => save({ columnId: value }) },
+        { label: t("issue.assignee"), Icon: AssigneeOutline, value: issue.assigneeId ?? "", options: [{ value: "", label: t("issue.unassigned"), icon: AssigneeOutline }, ...(members ?? []).map((member) => ({ value: member.id, label: member.name, avatarUrl: member.avatarUrl }))], change: (value: string) => save({ assigneeId: value || null }), searchable: true },
+        { label: t("issue.priority"), Icon: PriorityOutline, value: issue.priority, options: (["low", "medium", "high"] as const).map((value) => ({ value, label: t(`issue.${value}`), icon: <PriorityIcon priority={value} /> })), change: (value: string) => save({ priority: value as "low" | "medium" | "high" }) },
         { label: t("issue.createdBy"), Icon: AssigneeOutline, readonly: issue.createdBy.name, decoration: <IssueAvatar name={issue.createdBy.name} avatarUrl={issue.createdBy.avatarUrl} /> },
-        { label: t("issue.estimate"), Icon: EstimateOutline, value: String(issue.estimate ?? ""), options: [{ value: "", label: t("issue.noEstimate") }, ...[1, 2, 3, 5, 8].map((n) => ({ value: String(n), label: t("projects.points", { count: n }) }))], change: (value: string) => save({ estimate: value ? Number(value) : null }) },
-        { label: t("issue.parent"), Icon: ParentOutline, value: issue.parent?.id ?? "", options: [{ value: "", label: t("issue.addParentIssue") }, ...(projectIssues ?? []).filter((i) => i.id !== issue.id).map((i) => ({ value: i.id, label: `${i.identifier} · ${i.title}` }))], change: (value: string) => save({ parentIssueId: value || null }), searchable: true },
-        { label: t("issue.label"), Icon: LabelsOutline, value: issue.categoryId ?? "", options: [{ value: "", label: t("issue.addLabel") }, ...(categories ?? []).map((c) => ({ value: c.id, label: c.name }))], change: (value: string) => save({ categoryId: value || null }), searchable: true, decoration: issue.categoryId ? <LabelsOutline className="size-3.5" style={{ color: categories?.find((c) => c.id === issue.categoryId)?.color ?? "#7a5af8" }} /> : null },
+        { label: t("issue.estimate"), Icon: EstimateOutline, value: String(issue.estimate ?? ""), options: [{ value: "", label: t("issue.noEstimate"), icon: EstimateOutline }, ...[1, 2, 3, 5, 8].map((n) => ({ value: String(n), label: t("projects.points", { count: n }), icon: EstimateOutline }))], change: (value: string) => save({ estimate: value ? Number(value) : null }) },
+        { label: t("issue.parent"), Icon: ParentOutline, value: issue.parent?.id ?? "", options: [{ value: "", label: t("issue.addParentIssue"), icon: ParentOutline }, ...(projectIssues ?? []).filter((i) => i.id !== issue.id).map((i) => ({ value: i.id, label: `${i.identifier} · ${i.title}`, icon: ParentOutline }))], change: (value: string) => save({ parentIssueId: value || null }), searchable: true },
+        { label: t("issue.label"), Icon: LabelsOutline, value: issue.categoryId ?? "", options: [{ value: "", label: t("issue.addLabel"), icon: LabelsOutline }, ...(categories ?? []).map((c) => ({ value: c.id, label: c.name, icon: <LabelsOutline className="size-3.5" style={{ color: c.color ?? "#7a5af8" }} /> }))], change: (value: string) => save({ categoryId: value || null }), searchable: true },
     ];
     return <section aria-label={t("issue.properties")}>
         <h2 className="mb-3 text-body-xs-medium text-primary">{t("issue.properties")}</h2>
         <div className="space-y-3">
             {rows.map((row) => <div key={row.label} className="peek-property-row flex min-h-[30px] items-center gap-3">
                 <span className="flex w-[122px] shrink-0 items-center gap-1.5 text-body-xs-regular text-tertiary"><row.Icon className="size-4" />{row.displayLabel ?? row.label}</span>
-                <div className={cx("peek-property-value relative min-w-0 flex-1", !!row.decoration && "has-decoration")}>
-                    {row.decoration && <span className="pointer-events-none absolute top-1.5 left-2 z-10 flex size-[18px] items-center justify-center">{row.decoration}</span>}
-                    {row.readonly ? <span className="block py-1.5 pr-2 pl-8 text-body-xs-medium text-secondary">{row.readonly}</span> : <PropertySelect label={row.label} value={row.value!} options={row.options!} onChange={row.change!} searchable={row.searchable} isDisabled={isPending} className="peek-property-control" />}
+                <div className="peek-property-value relative min-w-0 flex-1">
+                    {row.readonly ? <span className="flex items-center gap-2 py-1.5 text-body-xs-medium text-secondary">{row.decoration}{row.readonly}</span> : <PropertySelect label={row.label} value={row.value!} options={row.options!} onChange={row.change!} searchable={row.searchable} isDisabled={isPending} className="peek-property-control" />}
                 </div>
             </div>)}
         </div>
@@ -943,7 +943,7 @@ function IssueRelations({
                 <form className="flex flex-col gap-2 p-2 sm:flex-row" onSubmit={addRelation}>
                     <ComboBox
                         className="min-w-0 flex-1 sm:min-w-48"
-                        items={projectIssues.filter((projectIssue) => projectIssue.id !== issueId).map((projectIssue) => ({ id: projectIssue.identifier, label: `${projectIssue.identifier} · ${projectIssue.title}` }))}
+                        items={projectIssues.filter((projectIssue) => projectIssue.id !== issueId).map((projectIssue) => ({ id: projectIssue.identifier, label: `${projectIssue.identifier} · ${projectIssue.title}`, icon: ParentOutline }))}
                         selectedKey={targetIssueIdentifier || null}
                         onSelectionChange={(next) => setTargetIssueIdentifier(String(next ?? ""))}
                         placeholder={t("issue.issueIdentifier")}
@@ -952,19 +952,19 @@ function IssueRelations({
                         {(item) => <ComboBoxItem item={item}>{item.label}</ComboBoxItem>}
                     </ComboBox>
                     <Select
-                        className="sm:w-36"
+                        className="sm:w-44"
                         aria-label={t("issue.relationType")}
                         items={[
-                            { id: "related", label: t("issue.relatedTo") },
-                            { id: "blocks", label: t("issue.blocks") },
-                            { id: "blocked_by", label: t("issue.blockedBy") },
-                            { id: "duplicate", label: t("issue.duplicateOf") },
+                            { id: "related", label: t("issue.relatedTo"), icon: Link2 },
+                            { id: "blocks", label: t("issue.blocks"), icon: Ban },
+                            { id: "blocked_by", label: t("issue.blockedBy"), icon: ShieldOff },
+                            { id: "duplicate", label: t("issue.duplicateOf"), icon: Copy },
                         ]}
                         selectedKey={type}
                         onSelectionChange={(next) => setType((next ?? "related") as typeof type)}
                         size="sm"
                     >
-                        {(item) => <Select.Item id={item.id}>{item.label}</Select.Item>}
+                        {(item) => <Select.Item id={item.id} icon={item.icon}>{item.label}</Select.Item>}
                     </Select>
                     <Button type="submit" size="xs" iconLeading={Plus} isLoading={isPending}>
                         {t("common.add")}

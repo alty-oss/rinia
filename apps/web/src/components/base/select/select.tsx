@@ -6,10 +6,9 @@ import { Avatar } from "@/components/base/avatar/avatar";
 import { HintText } from "@/components/base/input/hint-text";
 import { Label } from "@/components/base/input/label";
 import { cx } from "@/utils/cx";
-import { isReactComponent } from "@/utils/is-react-component";
 import { ComboBox } from "./combobox";
 import { SelectItem } from "./select-item";
-import { type CommonProps, SelectContext, type SelectItemType, sizes } from "./select-shared";
+import { type CommonProps, SelectContext, SelectItemGraphic, type SelectItemType, sizes } from "./select-shared";
 import { useTranslation } from "react-i18next";
 
 export { SelectContext, sizes, type CommonProps, type SelectItemType } from "./select-shared";
@@ -50,12 +49,11 @@ const SelectValue = ({
         {(value) => {
             const selected = value as SelectItemType | string | number | null;
             const selectedItem = (typeof selected === "object" && selected ? selected : items.find((item) => item.id === selected)) ?? null;
-            const Icon = selectedItem?.icon ?? icon;
 
             return (
                 <>
                     {selectedItem?.avatarUrl && <Avatar size="xs" src={selectedItem.avatarUrl} alt={selectedItem.label} />}
-                    {isReactComponent(Icon) && <Icon data-icon aria-hidden="true" />}
+                    <SelectItemGraphic icon={selectedItem?.icon ?? icon} />
                     <span className={cx("min-w-0 truncate font-medium text-primary", sizes[size].text)}>
                         {selectedItem?.label ?? (typeof selected === "string" || typeof selected === "number" ? String(selected) : placeholder)}
                     </span>

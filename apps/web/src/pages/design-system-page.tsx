@@ -6,6 +6,7 @@ import { ButtonUtility } from "@/components/base/buttons/button-utility";
 import { Checkbox } from "@/components/base/checkbox/checkbox";
 import { Input } from "@/components/base/input/input";
 import { Select } from "@/components/base/select/select";
+import { StateIcon } from "@/features/board/components/issue-property-icons";
 import { AppIcons } from "@/components/foundations/icons";
 import { useTranslation } from "react-i18next";
 
@@ -48,12 +49,12 @@ export default function DesignSystemPage() {
                             label={t("designSystem.status")}
                             selectedKey="in-progress"
                             items={[
-                                { id: "backlog", label: t("designSystem.backlog") },
-                                { id: "in-progress", label: t("designSystem.inProgress") },
-                                { id: "done", label: t("designSystem.done") },
+                                { id: "backlog", label: t("designSystem.backlog"), icon: <StateIcon name="backlog" /> },
+                                { id: "in-progress", label: t("designSystem.inProgress"), icon: <StateIcon name="in progress" /> },
+                                { id: "done", label: t("designSystem.done"), icon: <StateIcon name="done" /> },
                             ]}
                         >
-                            {(item) => <Select.Item id={item.id}>{item.label}</Select.Item>}
+                            {(item) => <Select.Item id={item.id} icon={item.icon}>{item.label}</Select.Item>}
                         </Select>
                         <Checkbox label={t("designSystem.includeCompleted")} defaultSelected />
                     </div>

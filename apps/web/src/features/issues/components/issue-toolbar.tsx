@@ -1,5 +1,8 @@
 import { Popover } from "@base-ui/react/popover";
-import { AddOutline, CloseOutline, DisplayOutline, FilterOutline, SearchOutline } from "@makeplane/propel/icons";
+import type { ReactNode } from "react";
+import { AddOutline, AssigneeOutline, CloseOutline, DisplayOutline, FilterOutline, HistoryOutline, LabelsOutline, ListOutline, PriorityOutline, SearchOutline, StateOutline } from "@makeplane/propel/icons";
+import { Hash, Minus } from "lucide-react";
+import { IssueAvatar, PriorityIcon, StateIcon } from "@/features/board/components/issue-property-icons";
 import { useSearchParams } from "react-router";
 import { Button } from "@/components/base/buttons/button";
 import { overlayChrome } from "@/components/overlay/overlay-chrome";
@@ -30,11 +33,11 @@ export function IssueToolbar({ projectId, onCreate, layout = "list", compact = f
             { replace: true },
         );
     }
-    const filters = [
-        { key: "status", label: t("issue.status"), items: (columns ?? []).map((item) => ({ ...item, name: translateStatusName(item.name, t) })) },
-        { key: "priority", label: t("issue.priority"), items: (["high", "medium", "low"] as const).map((id) => ({ id, name: t(`issue.${id}`) })) },
-        { key: "assignee", label: t("issue.assignee"), items: members ?? [] },
-        { key: "label", label: t("issue.label"), items: categories ?? [] },
+    const filters: Array<{ key: string; label: string; items: Array<{ id: string; name: string; icon?: ReactNode; avatarUrl?: string | null }> }> = [
+        { key: "status", label: t("issue.status"), items: (columns ?? []).map((item) => ({ id: item.id, name: translateStatusName(item.name, t), icon: <StateIcon name={item.name} color={item.color} /> })) },
+        { key: "priority", label: t("issue.priority"), items: (["high", "medium", "low"] as const).map((id) => ({ id, name: t(`issue.${id}`), icon: <PriorityIcon priority={id} /> })) },
+        { key: "assignee", label: t("issue.assignee"), items: (members ?? []).map((member) => ({ id: member.id, name: member.name, avatarUrl: member.avatarUrl, icon: member.avatarUrl ? undefined : <IssueAvatar name={member.name} avatarUrl={member.avatarUrl} /> })) },
+        { key: "label", label: t("issue.label"), items: (categories ?? []).map((item) => ({ id: item.id, name: item.name, icon: <LabelsOutline className="size-3.5" style={{ color: item.color ?? "#7a5af8" }} /> })) },
     ];
     const count = filters.filter((filter) => query.get(filter.key)).length;
     const popup = cx("grid w-[min(320px,calc(100vw-32px))] gap-3", overlayChrome.popupPadded);
@@ -60,9 +63,9 @@ export function IssueToolbar({ projectId, onCreate, layout = "list", compact = f
                                         size="sm"
                                         selectedKey={query.get(filter.key) ?? ""}
                                         onSelectionChange={(value) => update(filter.key, String(value ?? ""))}
-                                        items={[{ id: "", label: t("issue.all") }, ...filter.items.map((item) => ({ id: item.id, label: item.name }))]}
+                                        items={[{ id: "", label: t("issue.all") }, ...filter.items.map((item) => ({ id: item.id, label: item.name, icon: item.icon, avatarUrl: item.avatarUrl ?? undefined }))]}
                                     >
-                                        {(item) => <Select.Item id={item.id}>{item.label}</Select.Item>}
+                                        {(item) => <Select.Item id={item.id} icon={item.icon} avatarUrl={item.avatarUrl}>{item.label}</Select.Item>}
                                     </Select>
                                 ))}
                             </Popover.Popup>
@@ -98,13 +101,13 @@ export function IssueToolbar({ projectId, onCreate, layout = "list", compact = f
                                         selectedKey={readIssueOrder(query.get("order"))}
                                         onSelectionChange={(value) => update("order", String(value ?? "position"))}
                                         items={[
-                                            { id: "position", label: t("issue.manualOrder") },
-                                            { id: "priority", label: t("issue.priority") },
-                                            { id: "updated", label: t("issue.recentlyUpdated") },
-                                            { id: "number", label: t("issue.issueNumber") },
+                                            { id: "position", label: t("issue.manualOrder"), icon: ListOutline },
+                                            { id: "priority", label: t("issue.priority"), icon: PriorityOutline },
+                                            { id: "updated", label: t("issue.recentlyUpdated"), icon: HistoryOutline },
+                                            { id: "number", label: t("issue.issueNumber"), icon: Hash },
                                         ]}
                                     >
-                                        {(item) => <Select.Item id={item.id}>{item.label}</Select.Item>}
+                                        {(item) => <Select.Item id={item.id} icon={item.icon}>{item.label}</Select.Item>}
                                     </Select>
                                     {layout === "list" && (
                                         <Select
@@ -113,12 +116,12 @@ export function IssueToolbar({ projectId, onCreate, layout = "list", compact = f
                                             selectedKey={query.get("group") ?? "none"}
                                             onSelectionChange={(value) => update("group", value === "none" ? "" : String(value))}
                                             items={[
-                                                { id: "none", label: t("issue.noGrouping") },
-                                                { id: "status", label: t("issue.status") },
-                                                { id: "assignee", label: t("issue.assignee") },
+                                                { id: "none", label: t("issue.noGrouping"), icon: Minus },
+                                                { id: "status", label: t("issue.status"), icon: StateOutline },
+                                                { id: "assignee", label: t("issue.assignee"), icon: AssigneeOutline },
                                             ]}
                                         >
-                                            {(item) => <Select.Item id={item.id}>{item.label}</Select.Item>}
+                                            {(item) => <Select.Item id={item.id} icon={item.icon}>{item.label}</Select.Item>}
                                         </Select>
                                     )}
                                 </Popover.Popup>
@@ -134,17 +137,21 @@ export function IssueToolbar({ projectId, onCreate, layout = "list", compact = f
                 <div className={compact ? "absolute top-full right-0 z-10 flex flex-wrap gap-2 border border-subtle bg-surface-1 p-2" : "flex flex-wrap gap-2 border-t border-subtle px-4 py-2"}>
                     {filters
                         .filter((filter) => query.get(filter.key))
-                        .map((filter) => (
+                        .map((filter) => {
+                            const selected = filter.items.find((item) => item.id === query.get(filter.key));
+                            return (
                             <button
                                 key={filter.key}
                                 onClick={() => update(filter.key, "")}
                                 className="flex items-center gap-1 rounded border border-subtle bg-layer-1 px-2 py-0.5 text-xs text-secondary"
                                 aria-label={t("issue.clearFilter", { filter: filter.label })}
                             >
-                                {filter.label}: {filter.items.find((item) => item.id === query.get(filter.key))?.name ?? t("issue.selected")}
+                                {selected?.icon}
+                                {filter.label}: {selected?.name ?? t("issue.selected")}
                                 <CloseOutline className="size-3" />
                             </button>
-                        ))}
+                            );
+                        })}
                 </div>
             )}
         </div>
