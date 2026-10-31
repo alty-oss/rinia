@@ -28,6 +28,8 @@ test("project appearance validates custom icons and remote covers while keeping 
     assert.deepEqual(createProjectSchema.parse({ name: "My project", icon: "rocket" }).icon, "rocket");
     assert.equal(createProjectSchema.safeParse({ name: "My project", iconAppearance: { type: "emoji", value: "🧠" } }).success, true);
     assert.equal(createProjectSchema.safeParse({ name: "My project", iconAppearance: { type: "image", url: "https://images.example.test/logo.svg" }, cover: { type: "gradient", key: "aurora" } }).success, true);
+    assert.equal(createProjectSchema.safeParse({ name: "My project", iconAppearance: { type: "icon", key: "rocket", color: "#0097ff" } }).success, true);
+    assert.equal(createProjectSchema.safeParse({ name: "My project", iconAppearance: { type: "icon", key: "rocket", color: "blue" } }).success, false);
     assert.equal(createProjectSchema.safeParse({ name: "My project", iconAppearance: { type: "icon", key: "unknown" } }).success, false);
     assert.equal(createProjectSchema.safeParse({ name: "My project", cover: { url: "https://images.example.test/banner.jpg", position: { x: 50, y: 50 } } }).success, false);
     assert.equal(createProjectSchema.safeParse({ name: "My project", cover: { type: "gradient", key: "unknown" } }).success, false);

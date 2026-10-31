@@ -4,7 +4,7 @@ import { Avatar } from "@/components/base/avatar/avatar";
 import { GradientCover } from "@/components/appearance/gradient-cover";
 import { ContextMenuButton } from "@/components/overlay/context-menu-provider";
 import type { ProjectCardSummary } from "../api";
-import { ProjectIcon } from "./project-icon";
+import { ProjectIcon, projectIconColor } from "./project-icon";
 import { useTranslation } from "react-i18next";
 
 export const ProjectCard = ({ project }: { project: ProjectCardSummary }) => {
@@ -26,8 +26,8 @@ export const ProjectCard = ({ project }: { project: ProjectCardSummary }) => {
                     <GradientCover cover={project.cover} className="absolute inset-0" />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/55 to-transparent" />
                     <div className="absolute inset-x-0 bottom-2.5 flex h-8 items-center gap-2 px-3">
-                        <span className="grid size-7 shrink-0 place-items-center rounded-sm bg-white/10 text-white">
-                            <ProjectIcon icon={project.iconAppearance ?? project.icon} className="size-4" />
+                        <span className={projectIconColor(project.iconAppearance ?? project.icon) ? "grid size-7 shrink-0 place-items-center" : "grid size-7 shrink-0 place-items-center rounded-sm bg-white/10 text-white"}>
+                            <ProjectIcon icon={project.iconAppearance ?? project.icon} className={projectIconColor(project.iconAppearance ?? project.icon) ? "size-7" : "size-4"} tile />
                         </span>
                         <span className="min-w-0 flex-1">
                             <span className="block truncate text-[13px] font-semibold text-white">{project.name}</span>

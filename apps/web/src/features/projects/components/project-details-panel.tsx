@@ -12,6 +12,7 @@ import { useProject } from "../hooks/use-project";
 import { useUpdateProject } from "../hooks/use-projects";
 import { DeleteProjectDialog } from "./delete-project-dialog";
 import { ProjectCoverControl, ProjectIconControl } from "./project-appearance-controls";
+import { projectIconColor } from "./project-icon";
 import { useTranslation } from "react-i18next";
 
 export const ProjectDetailsPanel = ({ projectId, isProjectOwner }: { projectId: string; isProjectOwner: boolean }) => {
@@ -41,8 +42,8 @@ export const ProjectDetailsPanel = ({ projectId, isProjectOwner }: { projectId: 
                     projectId={projectId}
                     icon={project.iconAppearance ?? project.icon}
                     isProjectOwner={isProjectOwner}
-                    className="flex size-8 shrink-0 items-center justify-center rounded-md bg-accent-primary text-white outline-accent-strong"
-                    iconClassName="size-4"
+                    className={`flex size-8 shrink-0 items-center justify-center rounded-md outline-accent-strong ${projectIconColor(project.iconAppearance ?? project.icon) ? "" : "bg-accent-primary text-white"}`}
+                    iconClassName={projectIconColor(project.iconAppearance ?? project.icon) ? "size-8" : "size-4"}
                 />
                 <ProjectCoverControl projectId={projectId} cover={project.cover} isProjectOwner={isProjectOwner} />
             </div>

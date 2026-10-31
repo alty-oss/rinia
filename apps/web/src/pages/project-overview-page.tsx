@@ -3,7 +3,7 @@ import { Skeleton } from "@/components/base/feedback/skeleton";
 import { ErrorMessage } from "@/components/feedback/error-message";
 import { AppIcons } from "@/components/foundations/icons";
 import { useDocuments } from "@/features/documents/hooks/use-documents";
-import { ProjectIcon } from "@/features/projects/components/project-icon";
+import { ProjectIcon, projectIconColor } from "@/features/projects/components/project-icon";
 import { ProjectWorkspaceHeader } from "@/features/projects/components/project-workspace-header";
 import { useProject } from "@/features/projects/hooks/use-project";
 import { useProjectMembers } from "@/features/projects/hooks/use-project-members";
@@ -35,8 +35,8 @@ export const ProjectOverviewPage = () => {
                 <div className="grid min-h-full lg:grid-cols-[minmax(0,1fr)_240px]">
                     <div className="px-8 py-8">
                         <div className="flex items-center gap-3">
-                            <span className="grid size-8 place-items-center rounded-md bg-accent-primary text-white">
-                                <ProjectIcon icon={project.iconAppearance ?? project.icon} className="size-4" />
+                            <span className={projectIconColor(project.iconAppearance ?? project.icon) ? "grid size-8 place-items-center" : "grid size-8 place-items-center rounded-md bg-accent-primary text-white"}>
+                                <ProjectIcon icon={project.iconAppearance ?? project.icon} className={projectIconColor(project.iconAppearance ?? project.icon) ? "size-8" : "size-4"} tile />
                             </span>
                             <h1 className="text-xl font-semibold tracking-tight text-primary">{project.name}</h1>
                         </div>
