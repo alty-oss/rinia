@@ -32,7 +32,7 @@ export const CategoriesPanel = ({ projectId, isProjectOwner }: { projectId: stri
                 title={t("settings.labels")}
                 description={t("settings.createLabelsDescription")}
                 control={
-                    <Button size="lg" iconLeading={Plus} isDisabled={pending || !!editor} onClick={() => setEditor("new")}>
+                    <Button size="sm" iconLeading={Plus} isDisabled={pending || !!editor} onClick={() => setEditor("new")}>
                         {t("settings.addLabel")}
                     </Button>
                 }

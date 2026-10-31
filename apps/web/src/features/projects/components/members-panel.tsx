@@ -42,7 +42,7 @@ export const MembersPanel = ({ projectId, isProjectOwner }: { projectId: string;
                     {isProjectOwner && (
                         <ModalDialog
                             trigger={
-                                <Button size="lg" iconLeading={Plus}>
+                                <Button size="sm" iconLeading={Plus}>
                                     {t("settings.addMember")}
                                 </Button>
                             }

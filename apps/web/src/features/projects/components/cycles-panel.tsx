@@ -54,9 +54,9 @@ export const CyclesPanel = ({ projectId, isProjectOwner }: CyclesPanelProps) => 
     }
 
     return (
-        <div className="flex flex-col gap-6">
+        <div className="flex flex-col gap-4">
             {isProjectOwner && (
-                <form className="flex flex-col gap-4 rounded-lg border border-subtle p-4" onSubmit={submit}>
+                <form className="flex flex-col gap-3 rounded-md border border-subtle p-3" onSubmit={submit}>
                     <div>
                         <h3 className="text-sm font-semibold text-primary">{t("settings.newCycle")}</h3>
                         <p className="mt-1 text-sm text-tertiary">{t("settings.planCycleDescription")}</p>
