@@ -14,13 +14,13 @@ export interface SettingsBackLink {
 
 /** Linear-style settings page: an optional back link, then a narrow centered column. */
 export function SettingsPage({ title, description, aside, back, children }: { title?: string; description?: ReactNode; aside?: ReactNode; back?: SettingsBackLink; children: ReactNode }) {
-    const { toggleSidebar } = useAppNavigation();
+    const { openNavigation } = useAppNavigation();
     const { t } = useTranslation();
     return (
         <div className="flex h-full min-h-0 flex-col">
             <div className="flex h-11 shrink-0 items-center gap-1 px-3">
                 <span className="md:hidden">
-                    <ButtonUtility icon={AppIcons.Menu} color="tertiary" tooltip={t("nav.expand")} onClick={toggleSidebar} />
+                    <ButtonUtility icon={AppIcons.Menu} color="tertiary" tooltip={t("nav.expand")} onClick={openNavigation} />
                 </span>
                 {back && (
                     <Link to={back.to} className="flex h-7 min-w-0 items-center gap-1.5 rounded-md px-1.5 text-[13px] text-secondary hover:bg-layer-transparent-hover hover:text-primary">

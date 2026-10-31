@@ -34,7 +34,7 @@ export function ProjectWorkspaceHeader({
     const { isProjectOwner } = useProjectPermissions(projectId);
     const project = projectData ?? projects?.find((candidate) => candidate.id === projectId);
     const { t } = useTranslation();
-    const { toggleSidebar } = useAppNavigation();
+    const { openNavigation } = useAppNavigation();
     const favoriteTarget: FavoriteTarget | null =
         favorite !== undefined
             ? favorite
@@ -49,7 +49,7 @@ export function ProjectWorkspaceHeader({
         <header className="flex h-11 shrink-0 items-center justify-between gap-3 border-b border-subtle px-3">
             <div className="flex min-w-0 items-center gap-1 text-[13px]">
                 <span className="md:hidden">
-                    <ButtonUtility icon={AppIcons.Menu} color="tertiary" tooltip={t("nav.expand")} onClick={toggleSidebar} />
+                    <ButtonUtility icon={AppIcons.Menu} color="tertiary" tooltip={t("nav.expand")} onClick={openNavigation} />
                 </span>
                 <span className="flex min-w-0 items-center gap-2" data-project-context="true" data-project-id={projectId} data-project-name={project?.name ?? t("projects.project")} data-project-issue-key={project?.issueKey ?? ""}>
                     <ProjectIcon icon={project?.iconAppearance ?? project?.icon} className="size-4 shrink-0" />

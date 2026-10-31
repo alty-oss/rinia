@@ -90,7 +90,7 @@ export const IssueView = () => {
     const { copy } = useClipboard();
     const showToast = useToast();
     const queryClient = useQueryClient();
-    const { toggleSidebar } = useAppNavigation();
+    const { openNavigation } = useAppNavigation();
     const wide = useBreakpoint("lg");
     const [openMenu, setOpenMenu] = useState<PropertyMenuId | null>(null);
     const [deleteOpen, setDeleteOpen] = useState(false);
@@ -490,7 +490,7 @@ export const IssueView = () => {
             <header className="flex h-11 shrink-0 items-center justify-between gap-3 border-b border-subtle px-3">
                 <div className="flex min-w-0 items-center gap-1.5 text-[13px]">
                     <span className="md:hidden">
-                        <ButtonUtility icon={AppIcons.Menu} color="tertiary" tooltip={t("nav.expand")} onClick={toggleSidebar} />
+                        <ButtonUtility icon={AppIcons.Menu} color="tertiary" tooltip={t("nav.expand")} onClick={openNavigation} />
                     </span>
                     <Link to={urls.project(issue.project.issueKey)} className="flex min-w-0 shrink items-center gap-2 text-secondary hover:text-primary">
                         <ProjectIcon icon={project?.iconAppearance ?? project?.icon} className="size-4 shrink-0" />
