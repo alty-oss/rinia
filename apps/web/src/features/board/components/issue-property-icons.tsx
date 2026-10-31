@@ -1,4 +1,3 @@
-import { SignalHigh, SignalMedium, SignalLow } from "lucide-react";
 import { cx } from "@/utils/cx";
 
 /** State groups are presentation only; Rinia continues to store project columns. */
@@ -11,10 +10,18 @@ export function StateIcon({ name, color, className = "size-3.5" }: { name: strin
     </svg>;
 }
 
-export function PriorityIcon({ priority, withContainer = false }: { priority: string; withContainer?: boolean }) {
+/** Bars filled for each level. They share the 3px rhythm of the "no priority" dashes, so every priority reads at the same weight. */
+const PRIORITY_LEVELS: Record<string, number> = { low: 1, medium: 2, high: 3 };
+const PRIORITY_BARS = [
+    { x: 1.5, y: 9, height: 5.5 },
+    { x: 6.5, y: 5.5, height: 9 },
+    { x: 11.5, y: 2, height: 12.5 },
+];
+
+export function PriorityIcon({ priority, className = "size-3.5" }: { priority: string; className?: string }) {
     if (priority === "none") {
         return (
-            <svg viewBox="0 0 16 16" className="size-3.5 shrink-0 text-tertiary" aria-hidden="true">
+            <svg viewBox="0 0 16 16" className={cx(className, "shrink-0 text-tertiary")} aria-hidden="true">
                 <rect x="1.5" y="7.25" width="3" height="1.5" rx="0.5" fill="currentColor" />
                 <rect x="6.5" y="7.25" width="3" height="1.5" rx="0.5" fill="currentColor" />
                 <rect x="11.5" y="7.25" width="3" height="1.5" rx="0.5" fill="currentColor" />
@@ -23,16 +30,21 @@ export function PriorityIcon({ priority, withContainer = false }: { priority: st
     }
     if (priority === "urgent") {
         return (
-            <svg viewBox="0 0 16 16" className="size-3.5 shrink-0" aria-hidden="true">
+            <svg viewBox="0 0 16 16" className={cx(className, "shrink-0")} aria-hidden="true">
                 <rect x="1" y="1" width="14" height="14" rx="3" fill="#f2994a" />
                 <rect x="7.1" y="3.75" width="1.8" height="5.5" rx="0.9" fill="#fff" />
                 <circle cx="8" cy="11.6" r="1.05" fill="#fff" />
             </svg>
         );
     }
-    const Icon = priority === "high" ? SignalHigh : priority === "medium" ? SignalMedium : SignalLow;
-    const icon = <Icon size={14} aria-hidden="true" style={{ color: `var(--priority-${priority})`, transform: withContainer ? `translateX(${priority === "high" ? 1 : priority === "medium" ? 2 : 4}px)` : undefined }} />;
-    return withContainer ? <span title={`${priority} priority`} className="flex size-5 shrink-0 items-center justify-center rounded-sm border bg-layer-2 p-0.5" style={{ borderColor: `var(--priority-${priority})` }}>{icon}</span> : icon;
+    const level = PRIORITY_LEVELS[priority] ?? 1;
+    return (
+        <svg viewBox="0 0 16 16" className={cx(className, "shrink-0")} style={{ color: `var(--priority-${priority})` }} aria-hidden="true">
+            {PRIORITY_BARS.map((bar, index) => (
+                <rect key={bar.x} x={bar.x} y={bar.y} width="3" height={bar.height} rx="1" fill="currentColor" fillOpacity={index < level ? 1 : 0.25} />
+            ))}
+        </svg>
+    );
 }
 
 export function IssueAvatar({ name, avatarUrl, className }: { name: string; avatarUrl?: string | null; className?: string }) {

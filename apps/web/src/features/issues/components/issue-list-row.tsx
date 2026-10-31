@@ -4,7 +4,6 @@ import { GripVertical } from "lucide-react";
 import { Link } from "react-router";
 import { urls } from "@/lib/urls";
 import type { UpdateIssueInput } from "@rinia/shared";
-import { Avatar } from "@/components/base/avatar/avatar";
 import { overlayChrome } from "@/components/overlay/overlay-chrome";
 import { IssueAvatar, PriorityIcon, StateIcon } from "@/features/board/components/issue-property-icons";
 import type { Issue } from "@/features/issues/api";
@@ -14,6 +13,8 @@ import { useTranslation } from "react-i18next";
 import { PRIORITY_OPTIONS, priorityLabelKey } from "@/features/issues/lib/priority";
 
 const menuItem = "flex h-8 cursor-pointer items-center gap-2 rounded px-2 text-[13px] text-secondary outline-none data-highlighted:bg-layer-2-hover";
+// Every icon in the row and its menus (grip, status, priority, assignee) uses the same 16px square.
+const icon = "size-4";
 
 export function IssueListRow({
     issue,
@@ -47,8 +48,8 @@ export function IssueListRow({
             data-issue-identifier={issue.identifier}
             data-issue-title={issue.title}
         >
-            <button type="button" aria-pressed={selected} aria-label={t("issue.selected")} onClick={onSelect} className="flex size-4 shrink-0 items-center justify-center text-placeholder opacity-0 group-hover/issue:opacity-100">
-                <GripVertical className="size-3.5" />
+            <button type="button" aria-pressed={selected} aria-label={t("issue.selected")} onClick={onSelect} className="flex size-5 shrink-0 items-center justify-center text-placeholder opacity-0 group-hover/issue:opacity-100">
+                <GripVertical className={icon} />
             </button>
             <Link
                 to={urls.issue(issue.identifier, issue.title)}
@@ -59,11 +60,11 @@ export function IssueListRow({
             </Link>
             <RowMenu label={t("issue.status")}>
                 <button type="button" className="flex size-5 items-center justify-center rounded text-tertiary hover:bg-layer-1-hover" aria-label={t("issue.status")}>
-                    <StateIcon name={column?.name ?? ""} color={column?.color} />
+                    <StateIcon name={column?.name ?? ""} color={column?.color} className={icon} />
                 </button>
                 {columns.map((item, index) => (
                     <Menu.Item key={item.id} className={menuItem} onClick={() => onUpdate({ columnId: item.id })}>
-                        <StateIcon name={item.name} color={item.color} />
+                        <StateIcon name={item.name} color={item.color} className={icon} />
                         <span className="flex-1 truncate">{translateStatusName(item.name, t)}</span>
                         <span className="text-[11px] text-placeholder">{index + 1}</span>
                     </Menu.Item>
@@ -77,27 +78,27 @@ export function IssueListRow({
             </Link>
             <RowMenu label={t("issue.priority")} className="opacity-0 group-hover/issue:opacity-100">
                 <button type="button" className="flex size-5 items-center justify-center rounded hover:bg-layer-1-hover" aria-label={t("issue.priority")}>
-                    <PriorityIcon priority={issue.priority} />
+                    <PriorityIcon priority={issue.priority} className={icon} />
                 </button>
                 {PRIORITY_OPTIONS.map((priority, index) => (
                     <Menu.Item key={priority} className={menuItem} onClick={() => onUpdate({ priority })}>
-                        <PriorityIcon priority={priority} />
+                        <PriorityIcon priority={priority} className={icon} />
                         <span className="flex-1">{t(priorityLabelKey(priority))}</span>
                         <span className="text-[11px] text-placeholder">{index + 1}</span>
                     </Menu.Item>
                 ))}
             </RowMenu>
             <RowMenu label={t("issue.assignee")}>
-                <button type="button" className="flex size-5 items-center justify-center" aria-label={member?.name ?? t("issue.unassigned")}>
-                    {member ? <Avatar size="xs" src={member.avatarUrl ?? undefined} initials={initialsOf(member.name)} /> : <span className="size-4 rounded-full border border-dashed border-strong" />}
+                <button type="button" className="flex size-5 items-center justify-center rounded hover:bg-layer-1-hover" aria-label={member?.name ?? t("issue.unassigned")}>
+                    {member ? <AssigneeAvatar person={member} /> : <UnassignedIcon />}
                 </button>
                 <Menu.Item className={menuItem} onClick={() => onUpdate({ assigneeId: null })}>
-                    <span className="size-4 rounded-full border border-dashed border-strong" />
+                    <UnassignedIcon />
                     <span className="flex-1">{t("issue.unassigned")}</span>
                 </Menu.Item>
                 {members.map((person, index) => (
                     <Menu.Item key={person.id} className={menuItem} onClick={() => onUpdate({ assigneeId: person.id })}>
-                        {person.avatarUrl ? <Avatar size="xs" src={person.avatarUrl} initials={initialsOf(person.name)} /> : <IssueAvatar name={person.name} />}
+                        <AssigneeAvatar person={person} />
                         <span className="flex-1 truncate">{person.name}</span>
                         <span className="text-[11px] text-placeholder">{index + 1}</span>
                     </Menu.Item>
@@ -125,6 +126,10 @@ function RowMenu({ label, className, children }: { label: string; className?: st
     );
 }
 
-function initialsOf(name: string) {
-    return name.split(" ").filter(Boolean).slice(0, 2).map((part) => part[0]!.toUpperCase()).join("");
+function AssigneeAvatar({ person }: { person: { name: string; avatarUrl: string | null } }) {
+    return <IssueAvatar name={person.name} avatarUrl={person.avatarUrl} className={cx(icon, "text-[9px]")} />;
+}
+
+function UnassignedIcon() {
+    return <span className={cx(icon, "shrink-0 rounded-full border border-dashed border-strong")} />;
 }

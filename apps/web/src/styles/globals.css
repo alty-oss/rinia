@@ -8,37 +8,38 @@
 @plugin "@tailwindcss/typography";
 @plugin "tailwindcss-animate";
 
-/* Brand blue shifted toward the product accent, in both themes. */
+/* A true link blue (#2563eb at its center) in both themes. Each step keeps the hue near 262 so tints never
+   drift toward violet or cyan. Light: hover and active step darker (900, 1000). Dark: they step darker too (500, 400). */
 :root {
-    --brand-100: oklch(0.97 0.012 263.38);
-    --brand-200: oklch(0.945 0.028 263.38);
-    --brand-300: oklch(0.91 0.05 263.38);
-    --brand-400: oklch(0.85 0.085 263.38);
-    --brand-500: oklch(0.78 0.12 263.38);
-    --brand-600: oklch(0.7 0.15 263.38);
-    --brand-700: oklch(0.64 0.19 263.38);
-    --brand-800: oklch(0.56 0.19 263.38);
-    --brand-900: oklch(0.5 0.17 263.38);
-    --brand-1000: oklch(0.42 0.15 263.38);
-    --brand-1100: oklch(0.34 0.12 263.38);
-    --brand-1200: oklch(0.26 0.08 263.38);
-    --brand-default: oklch(0.6103 0.1982 263.38);
+    --brand-100: oklch(0.97 0.014 258);
+    --brand-200: oklch(0.932 0.032 258);
+    --brand-300: oklch(0.882 0.059 258);
+    --brand-400: oklch(0.809 0.105 258);
+    --brand-500: oklch(0.707 0.165 259);
+    --brand-600: oklch(0.623 0.214 260);
+    --brand-700: oklch(0.546 0.245 262.9);
+    --brand-800: oklch(0.515 0.245 263.6);
+    --brand-900: oklch(0.488 0.243 264.4);
+    --brand-1000: oklch(0.424 0.199 265.6);
+    --brand-1100: oklch(0.379 0.146 265.5);
+    --brand-1200: oklch(0.282 0.091 267.9);
+    --brand-default: oklch(0.546 0.245 262.9);
 }
 
 :root[data-theme*="dark"] {
-    --brand-100: oklch(0.28 0.06 263.38);
-    --brand-200: oklch(0.34 0.08 263.38);
-    --brand-300: oklch(0.4 0.11 263.38);
-    --brand-400: oklch(0.48 0.15 263.38);
-    --brand-500: oklch(0.54 0.17 263.38);
-    --brand-600: oklch(0.66 0.15 263.38);
-    --brand-700: oklch(0.74 0.11 263.38);
-    --brand-800: oklch(0.82 0.07 263.38);
-    --brand-900: oklch(0.88 0.045 263.38);
-    --brand-1000: oklch(0.92 0.03 263.38);
-    --brand-1100: oklch(0.95 0.018 263.38);
-    --brand-1200: oklch(0.98 0.008 263.38);
-    --brand-default: oklch(0.6103 0.1982 263.38);
+    --brand-100: oklch(0.27 0.07 264);
+    --brand-200: oklch(0.32 0.09 264);
+    --brand-300: oklch(0.38 0.12 264);
+    --brand-400: oklch(0.45 0.18 264);
+    --brand-500: oklch(0.5 0.21 264);
+    --brand-600: oklch(0.62 0.19 260);
+    --brand-700: oklch(0.71 0.15 258);
+    --brand-800: oklch(0.8 0.1 258);
+    --brand-900: oklch(0.88 0.06 258);
+    --brand-1000: oklch(0.92 0.04 258);
+    --brand-1100: oklch(0.95 0.02 258);
+    --brand-1200: oklch(0.98 0.01 258);
+    --brand-default: oklch(0.546 0.245 262.9);
 }
 
 
@@ -351,11 +352,11 @@ html:not([data-theme*="dark"]) {
     --txt-secondary: #303030;
     --txt-tertiary: #5b5b5b;
     --txt-placeholder: #9c9c9c;
-    --txt-accent-primary: #4f5bc4;
-    --txt-link-primary: #4f5bc4;
-    --brand-default: #5e6ad2;
-    --bg-accent-primary: #5e6ad2;
-    --border-accent-strong: #5e6ad2;
+    --txt-accent-primary: #1d4ed8;
+    --txt-link-primary: #1d4ed8;
+    --brand-default: #2563eb;
+    --bg-accent-primary: #2563eb;
+    --border-accent-strong: #2563eb;
 }
 
 html[data-theme*="dark"] {
@@ -383,11 +384,11 @@ html[data-theme*="dark"] {
     --txt-secondary: #d2d2d2;
     --txt-tertiary: #8f8f8f;
     --txt-placeholder: #6b6b6b;
-    --txt-accent-primary: #8b8cff;
-    --txt-link-primary: #8b8cff;
-    --brand-default: #5e6ad2;
-    --bg-accent-primary: #5e6ad2;
-    --border-accent-strong: #5e6ad2;
+    --txt-accent-primary: #4493f8;
+    --txt-link-primary: #4493f8;
+    --brand-default: #2563eb;
+    --bg-accent-primary: #2563eb;
+    --border-accent-strong: #2563eb;
 }
 
 @layer base {
