@@ -1,7 +1,7 @@
 import { Popover } from "@base-ui/react/popover";
 import type { EntityIcon, ProjectCover, UpdateProjectInput } from "@rinia/shared";
 import { useState } from "react";
-import { AppearancePicker } from "@/components/appearance/appearance-picker";
+import { AppearancePicker, appearancePopupClass } from "@/components/appearance/appearance-picker";
 import { GradientPicker } from "@/components/appearance/gradient-picker";
 import { parseProjectCover } from "@rinia/shared";
 import { useUpdateProject } from "../hooks/use-projects";
@@ -49,7 +49,7 @@ export function ProjectIconControl({
             </Popover.Trigger>
             <Popover.Portal>
                 <Popover.Positioner side="bottom" align="start" sideOffset={8} collisionPadding={12} className="z-[60]">
-                    <Popover.Popup className={cx("max-h-[calc(100dvh-1.5rem)] w-80 max-w-[calc(100vw-2rem)] overflow-hidden rounded-lg", overlayChrome.popupPadded)}>
+                    <Popover.Popup className={appearancePopupClass}>
                         <Popover.Title className="sr-only">{t("settings.projectIcon")}</Popover.Title>
                         <AppearancePicker
                             value={icon && typeof icon === "object" ? icon : undefined}

@@ -1,6 +1,5 @@
 import { useMemo, useState } from "react";
 import type { ProjectIconKey } from "@rinia/shared";
-import { projectIconKeys } from "@rinia/shared";
 import { Search } from "lucide-react";
 import { Input } from "@/components/base/input/input";
 import { cx } from "@/utils/cx";
@@ -11,7 +10,6 @@ import { useLanguage } from "@/i18n/language-provider";
 interface ProjectIconPickerProps {
     value: string | null | undefined;
     onChange: (icon: string) => void;
-    label?: string;
 }
 
 const iconLabels: Record<ProjectIconKey, { en: string; pt: string }> = {
@@ -53,7 +51,7 @@ const iconGroups: Array<{ id: string; keys: ProjectIconKey[] }> = [
 ];
 
 /** Searchable icon catalog that keeps persisted semantic keys independent from Lucide names. */
-export const ProjectIconPicker = ({ value, onChange, label }: ProjectIconPickerProps) => {
+export const ProjectIconPicker = ({ value, onChange }: ProjectIconPickerProps) => {
     const { t } = useTranslation();
     const { locale } = useLanguage();
     const localizedIconLabel = (key: ProjectIconKey) => iconLabels[key][locale === "pt-BR" ? "pt" : "en"];
@@ -85,12 +83,8 @@ export const ProjectIconPicker = ({ value, onChange, label }: ProjectIconPickerP
 
     return (
         <div data-project-icon-picker className="flex min-h-0 min-w-0 flex-col gap-3">
-            <div className="flex items-center justify-between gap-3">
-                <p className="text-sm font-medium text-secondary">{label ?? t("projects.icon")}</p>
-                <span className="text-xs text-tertiary">{t("projectIcons.iconCount", { count: projectIconKeys.length })}</span>
-            </div>
-
             <Input
+                className="min-w-0 !items-stretch"
                 aria-label={t("projectIcons.search")}
                 placeholder={t("projectIcons.search")}
                 value={query}

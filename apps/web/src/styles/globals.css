@@ -8,6 +8,39 @@
 @plugin "@tailwindcss/typography";
 @plugin "tailwindcss-animate";
 
+/* Brand blue shifted toward the product accent, in both themes. */
+:root {
+    --brand-100: oklch(0.97 0.012 263.38);
+    --brand-200: oklch(0.945 0.028 263.38);
+    --brand-300: oklch(0.91 0.05 263.38);
+    --brand-400: oklch(0.85 0.085 263.38);
+    --brand-500: oklch(0.78 0.12 263.38);
+    --brand-600: oklch(0.7 0.15 263.38);
+    --brand-700: oklch(0.64 0.19 263.38);
+    --brand-800: oklch(0.56 0.19 263.38);
+    --brand-900: oklch(0.5 0.17 263.38);
+    --brand-1000: oklch(0.42 0.15 263.38);
+    --brand-1100: oklch(0.34 0.12 263.38);
+    --brand-1200: oklch(0.26 0.08 263.38);
+    --brand-default: oklch(0.6103 0.1982 263.38);
+}
+
+:root[data-theme*="dark"] {
+    --brand-100: oklch(0.28 0.06 263.38);
+    --brand-200: oklch(0.34 0.08 263.38);
+    --brand-300: oklch(0.4 0.11 263.38);
+    --brand-400: oklch(0.48 0.15 263.38);
+    --brand-500: oklch(0.54 0.17 263.38);
+    --brand-600: oklch(0.66 0.15 263.38);
+    --brand-700: oklch(0.74 0.11 263.38);
+    --brand-800: oklch(0.82 0.07 263.38);
+    --brand-900: oklch(0.88 0.045 263.38);
+    --brand-1000: oklch(0.92 0.03 263.38);
+    --brand-1100: oklch(0.95 0.018 263.38);
+    --brand-1200: oklch(0.98 0.008 263.38);
+    --brand-default: oklch(0.6103 0.1982 263.38);
+}
+
 
 @custom-variant label (& [data-label]);
 @custom-variant focus-input-within (&:has(input:focus));

@@ -21,14 +21,6 @@ export const emojiIconSchema = z.object({ type: z.literal("emoji"), value: emoji
 export const imageIconSchema = z.object({ type: z.literal("image"), url: remoteImageUrlSchema });
 export const entityIconSchema = z.discriminatedUnion("type", [catalogIconSchema, emojiIconSchema, imageIconSchema]);
 
-export const coverSchema = z.object({
-    url: remoteImageUrlSchema,
-    position: z.object({
-        x: z.number().finite().min(0).max(100),
-        y: z.number().finite().min(0).max(100),
-    }),
-});
-
 export const projectGradientKeys = ["aurora", "dusk", "ember", "lagoon", "midnight", "orchid", "pine", "slate"] as const;
 export const projectCoverSchema = z.object({
     type: z.literal("gradient"),
@@ -36,7 +28,6 @@ export const projectCoverSchema = z.object({
 });
 
 export type EntityIcon = z.infer<typeof entityIconSchema>;
-export type EntityCover = z.infer<typeof coverSchema>;
 export type ProjectGradientKey = (typeof projectGradientKeys)[number];
 export type ProjectCover = z.infer<typeof projectCoverSchema>;
 

@@ -17,7 +17,6 @@ const page: DocumentPage = {
   title: "Notes",
   contentJson,
   iconAppearance: null,
-  cover: null,
   createdBy: "33333333-3333-4333-8333-333333333333",
   createdAt: "2026-01-01T00:00:00.000Z",
   updatedAt: "2026-01-01T00:00:00.000Z",
@@ -41,7 +40,6 @@ function setup(
     title: string;
     contentJson: DocumentPage["contentJson"];
     iconAppearance?: DocumentPage["iconAppearance"];
-    cover?: DocumentPage["cover"];
     revision: number;
   }> = [];
   let removed = 0;
@@ -59,7 +57,6 @@ function setup(
             title: input.title,
             contentJson: input.contentJson,
             iconAppearance: input.iconAppearance ?? null,
-            cover: input.cover ?? null,
             revision: input.expectedRevision + 1,
           };
     },
@@ -172,16 +169,13 @@ test("appearance is persisted with the same revisioned save as document content"
   const { session, writes } = setup({
     save: async (input) => {
       inputs.push(input);
-      return { ...page, title: input.title, contentJson: input.contentJson, iconAppearance: input.iconAppearance ?? null, cover: input.cover ?? null, revision: input.expectedRevision + 1 };
+      return { ...page, title: input.title, contentJson: input.contentJson, iconAppearance: input.iconAppearance ?? null, revision: input.expectedRevision + 1 };
     },
   });
   await session.ready;
-  const cover = { url: "https://images.example.test/cover.jpg", position: { x: 25, y: 75 } };
-  session.edit({ iconAppearance: { type: "emoji", value: "🚀" }, cover });
+  session.edit({ iconAppearance: { type: "emoji", value: "🚀" } });
   await session.flush();
   assert.deepEqual(inputs[0].iconAppearance, { type: "emoji", value: "🚀" });
-  assert.deepEqual(inputs[0].cover, cover);
-  assert.deepEqual(writes.at(-1)?.cover, cover);
   assert.equal(session.getSnapshot().status, "saved");
-  assert.deepEqual(session.getSnapshot().cover, cover);
+  assert.deepEqual(session.getSnapshot().iconAppearance, { type: "emoji", value: "🚀" });
 });

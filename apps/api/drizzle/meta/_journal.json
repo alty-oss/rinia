@@ -99,6 +99,13 @@
       "when": 1790005000000,
       "tag": "0013_remove_cycles",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1790006000000,
+      "tag": "0014_remove_document_cover",
+      "breakpoints": true
     }
   ]
 }

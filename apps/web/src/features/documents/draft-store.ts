@@ -1,4 +1,4 @@
-import type { EntityCover, EntityIcon, TiptapDocument } from "@rinia/shared";
+import type { EntityIcon, TiptapDocument } from "@rinia/shared";
 
 export interface DocumentDraft {
     key: string;
@@ -8,7 +8,6 @@ export interface DocumentDraft {
     title: string;
     contentJson: TiptapDocument;
     iconAppearance?: EntityIcon | null;
-    cover?: EntityCover | null;
     revision: number;
 }
 
