@@ -19,7 +19,7 @@ export default function DesignSystemPage() {
                     <div>
                         <p className="text-xs font-medium text-tertiary">{t("designSystem.internal")}</p>
                         <h1 className="mt-1 text-xl font-medium">{t("designSystem.title")}</h1>
-                        <p className="mt-1 text-sm text-tertiary">{t("designSystem.reference", { commit: "01064a756221921a1ce3e7941ae4d439f298029a" })}</p>
+                        <p className="mt-1 text-sm text-tertiary">{t("designSystem.reference")}</p>
                     </div>
                     <Link to="/" aria-label={t("designSystem.closeCatalog")}>
                         <ButtonUtility icon={AppIcons.Close} tooltip={t("designSystem.closeCatalog")} />
