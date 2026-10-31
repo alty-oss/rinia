@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { TiptapDocument, UpdateIssueInput } from "@rinia/shared";
-import { ArrowLeft, ArrowRight, CheckCircle, Copy, ExternalLink, Link2, Plus, Trash2 } from "lucide-react";
+import { ArrowLeft, ArrowRight, Ban, CheckCircle, Copy, ExternalLink, Link2, Plus, ShieldOff, Trash2 } from "lucide-react";
 import { Link, useBeforeUnload, useNavigate, useParams } from "react-router";
 import { AssigneeOutline, EstimateOutline, HistoryOutline, LabelsOutline, MoreHorizontalOutline, ParentOutline, PriorityOutline, StateOutline } from "@makeplane/propel/icons";
 import { Popover } from "@base-ui/react/popover";
@@ -42,7 +42,9 @@ import { fetchIssueClipboardContent } from "../lib/issue-clipboard";
 import { issueDescriptionDrafts, issueDraftKey } from "../lib/issue-description-drafts";
 import { EMPTY_TIPTAP_DOCUMENT, RichTextEditor } from "./rich-text-editor";
 import { useTranslation } from "react-i18next";
+import { translateStatusName } from "@/i18n/status-label";
 import type { TranslationKey } from "@/i18n/resources";
+import type { SelectItemType } from "@/components/base/select/select-shared";
 
 interface IssueViewProps {
     identifier?: string;
@@ -52,7 +54,7 @@ interface IssueViewProps {
 }
 
 const issuePageBodyClass = "flex min-h-0 flex-1 overflow-hidden";
-const issuePageMainClass = "min-w-0 flex-1 space-y-6 overflow-y-auto px-9 py-5";
+const issuePageMainClass = "min-w-0 flex-1 space-y-6 overflow-y-auto px-9 pb-5";
 const issuePageRailClass = "hidden shrink-0 overflow-y-auto border-l border-subtle bg-surface-1 px-5 py-5 lg:block lg:min-w-80 xl:min-w-96";
 
 const activityLabelKeys: Record<string, TranslationKey> = {
@@ -93,6 +95,9 @@ export const IssueView = ({ identifier, projectId, mode = "page", onClose }: Iss
     const createRelation = useCreateIssueRelation(issue?.identifier ?? resolvedIdentifier);
     const deleteRelation = useDeleteIssueRelation(issue?.identifier ?? resolvedIdentifier);
     const [descriptionEditing, setDescriptionEditing] = useState(false);
+    const [descriptionExpanded, setDescriptionExpanded] = useState(false);
+    const [descriptionOverflows, setDescriptionOverflows] = useState(false);
+    const peekDescriptionRef = useRef<HTMLDivElement>(null);
     const [relationsOpen, setRelationsOpen] = useState(false);
     const [description, setDescription] = useState<TiptapDocument>(EMPTY_TIPTAP_DOCUMENT);
     const [title, setTitle] = useState("");
@@ -178,6 +183,8 @@ export const IssueView = ({ identifier, projectId, mode = "page", onClose }: Iss
             setIssueCopyError(false);
             setDescriptionStatus("saved");
             setDescriptionEditing(false);
+            setDescriptionExpanded(false);
+            setDescriptionOverflows(false);
             setRelationsOpen(false);
             try {
                 const storedTab = sessionStorage.getItem(`rinia-issue-discussion-tab:${issue.id}`);
@@ -273,6 +280,25 @@ export const IssueView = ({ identifier, projectId, mode = "page", onClose }: Iss
             if (saveTimer !== undefined) window.clearTimeout(saveTimer);
         };
     }, [description, issue?.id, user?.id]);
+
+    useEffect(() => {
+        if (mode !== "peek" || descriptionEditing || descriptionExpanded) {
+            setDescriptionOverflows(false);
+            return;
+        }
+        const root = peekDescriptionRef.current;
+        if (!root) return;
+        const measure = () => {
+            const editor = root.querySelector<HTMLElement>(".tiptap-editor-description");
+            setDescriptionOverflows(Boolean(editor && editor.scrollHeight > editor.clientHeight + 2));
+        };
+        measure();
+        const observer = new ResizeObserver(measure);
+        observer.observe(root);
+        const editor = root.querySelector(".tiptap-editor-description");
+        if (editor) observer.observe(editor);
+        return () => observer.disconnect();
+    }, [mode, description, descriptionEditing, descriptionExpanded]);
 
     useEffect(() => {
         if (!issue || !user?.id || commentDraftOwner.current !== issue.id) return;
@@ -479,7 +505,7 @@ export const IssueView = ({ identifier, projectId, mode = "page", onClose }: Iss
 
             <div className={mode === "page" ? issuePageBodyClass : "min-h-0 flex-1 overflow-y-auto"}>
                 <div className={mode === "peek" ? "issue-peek-body px-6 py-4" : issuePageMainClass}>
-                    <div className={mode === "peek" ? "min-w-0 flex-1" : "min-w-0 space-y-6"}>
+                    <div className={mode === "peek" ? "min-w-0 flex-1" : "min-w-0 space-y-6 pt-5"}>
                         {mode === "peek" && <div className="mb-2 text-caption-md-regular text-tertiary">{issue.identifier}</div>}
                         <textarea
                             ref={titleRef}
@@ -513,7 +539,7 @@ export const IssueView = ({ identifier, projectId, mode = "page", onClose }: Iss
                                     titleDirty.current = false;
                                 }
                             }}
-                            className={cx("min-h-7 w-full resize-none overflow-hidden border-0 bg-transparent font-semibold text-primary outline-none placeholder:text-tertiary focus-visible:ring-1 focus-visible:ring-accent-strong", mode === "page" ? "text-2xl leading-8" : "text-xl leading-7")}
+                            className={cx("w-full resize-none overflow-hidden border-0 bg-transparent font-semibold text-primary outline-none placeholder:text-tertiary focus-visible:ring-1 focus-visible:ring-accent-strong", mode === "page" ? "min-h-11 text-display-md leading-tight tracking-tight" : "min-h-7 text-xl leading-7")}
                             aria-label={t("issue.title")}
                         />
                         {titleSaveError && <p role="alert" className="mt-1 text-xs text-danger-primary">{titleSaveError}</p>}
@@ -522,8 +548,11 @@ export const IssueView = ({ identifier, projectId, mode = "page", onClose }: Iss
                             <IssuePropertyList issue={issue} projectIssues={projectIssues} columns={columns} members={members} categories={categories} save={save} error={propertySaveError} isPending={updateIssue.isPending} />
                         </div>}
 
-                        <section className={mode === "peek" ? "peek-description mt-2" : undefined}>
-                            <div onFocus={() => setDescriptionEditing(true)}>
+                        <section
+                            ref={mode === "peek" ? peekDescriptionRef : undefined}
+                            className={mode === "peek" ? cx("peek-description mt-2", !descriptionEditing && !descriptionExpanded && "is-clamped") : undefined}
+                        >
+                            <div onFocus={() => { setDescriptionEditing(true); setDescriptionExpanded(true); }}>
                             <RichTextEditor
                                 toolbar={mode === "page" || descriptionEditing}
                                 variant="description"
@@ -542,6 +571,15 @@ export const IssueView = ({ identifier, projectId, mode = "page", onClose }: Iss
                                 placeholder={t("issue.describeIssue")}
                             />
                             </div>
+                            {mode === "peek" && !descriptionEditing && descriptionOverflows && !descriptionExpanded && (
+                                <button
+                                    type="button"
+                                    className="mt-1 text-sm font-medium text-accent-primary hover:underline"
+                                    onClick={() => setDescriptionExpanded(true)}
+                                >
+                                    {t("issue.readMore")}
+                                </button>
+                            )}
                             {(mode === "page" || descriptionEditing) && <div className="mt-2 flex items-center justify-end gap-3">
                                 <span className="text-xs text-tertiary" role="status" aria-live="polite">
                                     {descriptionStatus === "saving" ? t("issue.savingDescription")
@@ -697,14 +735,14 @@ function PropertySelect({
 }: {
     label: string;
     value: string;
-    options: Array<{ value: string; label: string; avatarUrl?: string | null }>;
+    options: Array<{ value: string; label: string; avatarUrl?: string | null; icon?: SelectItemType["icon"] }>;
     onChange: (value: string) => void;
     className?: string;
     isDisabled?: boolean;
     searchable?: boolean;
 }) {
     const { t } = useTranslation();
-    const items = options.map((option) => ({ id: option.value, label: option.label, avatarUrl: option.avatarUrl ?? undefined }));
+    const items = options.map((option) => ({ id: option.value, label: option.label, avatarUrl: option.avatarUrl ?? undefined, icon: option.icon }));
     if (searchable) {
         return (
             <ComboBox
@@ -732,7 +770,7 @@ function PropertySelect({
             label={label}
             size="sm"
         >
-            {(item) => <Select.Item id={item.id}>{item.label}</Select.Item>}
+            {(item) => <Select.Item id={item.id} icon={item.icon} avatarUrl={item.avatarUrl}>{item.label}</Select.Item>}
         </Select>
     );
 }
@@ -757,24 +795,22 @@ function IssuePropertyList({
     isPending: boolean;
 }) {
     const { t } = useTranslation();
-    const assignee = members?.find((member) => member.id === issue.assigneeId);
     const rows = [
-        { label: t("issue.status"), displayLabel: t("issue.state"), Icon: StateOutline, value: issue.columnId, options: (columns ?? []).map((c) => ({ value: c.id, label: c.name })), change: (value: string) => save({ columnId: value }), decoration: <StateIcon name={columns?.find((c) => c.id === issue.columnId)?.name ?? ""} color={columns?.find((c) => c.id === issue.columnId)?.color} /> },
-        { label: t("issue.assignee"), Icon: AssigneeOutline, value: issue.assigneeId ?? "", options: [{ value: "", label: t("issue.unassigned") }, ...(members ?? []).map((member) => ({ value: member.id, label: member.name, avatarUrl: member.avatarUrl }))], change: (value: string) => save({ assigneeId: value || null }), searchable: true, decoration: issue.assigneeId ? <IssueAvatar name={assignee?.name ?? ""} avatarUrl={assignee?.avatarUrl} /> : null },
-        { label: t("issue.priority"), Icon: PriorityOutline, value: issue.priority, options: (["low", "medium", "high"] as const).map((value) => ({ value, label: t(`issue.${value}`) })), change: (value: string) => save({ priority: value as "low" | "medium" | "high" }), decoration: <PriorityIcon priority={issue.priority} /> },
+        { label: t("issue.status"), displayLabel: t("issue.state"), Icon: StateOutline, value: issue.columnId, options: (columns ?? []).map((c) => ({ value: c.id, label: translateStatusName(c.name, t), icon: <StateIcon name={c.name} color={c.color} /> })), change: (value: string) => save({ columnId: value }) },
+        { label: t("issue.assignee"), Icon: AssigneeOutline, value: issue.assigneeId ?? "", options: [{ value: "", label: t("issue.unassigned"), icon: AssigneeOutline }, ...(members ?? []).map((member) => ({ value: member.id, label: member.name, avatarUrl: member.avatarUrl }))], change: (value: string) => save({ assigneeId: value || null }), searchable: true },
+        { label: t("issue.priority"), Icon: PriorityOutline, value: issue.priority, options: (["low", "medium", "high"] as const).map((value) => ({ value, label: t(`issue.${value}`), icon: <PriorityIcon priority={value} /> })), change: (value: string) => save({ priority: value as "low" | "medium" | "high" }) },
         { label: t("issue.createdBy"), Icon: AssigneeOutline, readonly: issue.createdBy.name, decoration: <IssueAvatar name={issue.createdBy.name} avatarUrl={issue.createdBy.avatarUrl} /> },
-        { label: t("issue.estimate"), Icon: EstimateOutline, value: String(issue.estimate ?? ""), options: [{ value: "", label: t("issue.noEstimate") }, ...[1, 2, 3, 5, 8].map((n) => ({ value: String(n), label: t("projects.points", { count: n }) }))], change: (value: string) => save({ estimate: value ? Number(value) : null }) },
-        { label: t("issue.parent"), Icon: ParentOutline, value: issue.parent?.id ?? "", options: [{ value: "", label: t("issue.addParentIssue") }, ...(projectIssues ?? []).filter((i) => i.id !== issue.id).map((i) => ({ value: i.id, label: `${i.identifier} · ${i.title}` }))], change: (value: string) => save({ parentIssueId: value || null }), searchable: true },
-        { label: t("issue.label"), Icon: LabelsOutline, value: issue.categoryId ?? "", options: [{ value: "", label: t("issue.addLabel") }, ...(categories ?? []).map((c) => ({ value: c.id, label: c.name }))], change: (value: string) => save({ categoryId: value || null }), searchable: true, decoration: issue.categoryId ? <LabelsOutline className="size-3.5" style={{ color: categories?.find((c) => c.id === issue.categoryId)?.color ?? "#7a5af8" }} /> : null },
+        { label: t("issue.estimate"), Icon: EstimateOutline, value: String(issue.estimate ?? ""), options: [{ value: "", label: t("issue.noEstimate"), icon: EstimateOutline }, ...[1, 2, 3, 5, 8].map((n) => ({ value: String(n), label: t("projects.points", { count: n }), icon: EstimateOutline }))], change: (value: string) => save({ estimate: value ? Number(value) : null }) },
+        { label: t("issue.parent"), Icon: ParentOutline, value: issue.parent?.id ?? "", options: [{ value: "", label: t("issue.addParentIssue"), icon: ParentOutline }, ...(projectIssues ?? []).filter((i) => i.id !== issue.id).map((i) => ({ value: i.id, label: `${i.identifier} · ${i.title}`, icon: ParentOutline }))], change: (value: string) => save({ parentIssueId: value || null }), searchable: true },
+        { label: t("issue.label"), Icon: LabelsOutline, value: issue.categoryId ?? "", options: [{ value: "", label: t("issue.addLabel"), icon: LabelsOutline }, ...(categories ?? []).map((c) => ({ value: c.id, label: c.name, icon: <LabelsOutline className="size-3.5" style={{ color: c.color ?? "#7a5af8" }} /> }))], change: (value: string) => save({ categoryId: value || null }), searchable: true },
     ];
     return <section aria-label={t("issue.properties")}>
         <h2 className="mb-3 text-body-xs-medium text-primary">{t("issue.properties")}</h2>
         <div className="space-y-3">
             {rows.map((row) => <div key={row.label} className="peek-property-row flex min-h-[30px] items-center gap-3">
                 <span className="flex w-[122px] shrink-0 items-center gap-1.5 text-body-xs-regular text-tertiary"><row.Icon className="size-4" />{row.displayLabel ?? row.label}</span>
-                <div className={cx("peek-property-value relative min-w-0 flex-1", !!row.decoration && "has-decoration")}>
-                    {row.decoration && <span className="pointer-events-none absolute top-1.5 left-2 z-10 flex size-[18px] items-center justify-center">{row.decoration}</span>}
-                    {row.readonly ? <span className="block py-1.5 pr-2 pl-8 text-body-xs-medium text-secondary">{row.readonly}</span> : <PropertySelect label={row.label} value={row.value!} options={row.options!} onChange={row.change!} searchable={row.searchable} isDisabled={isPending} className="peek-property-control" />}
+                <div className="peek-property-value relative min-w-0 flex-1">
+                    {row.readonly ? <span className="flex items-center gap-2 py-1.5 text-body-xs-medium text-secondary">{row.decoration}{row.readonly}</span> : <PropertySelect label={row.label} value={row.value!} options={row.options!} onChange={row.change!} searchable={row.searchable} isDisabled={isPending} className="peek-property-control" />}
                 </div>
             </div>)}
         </div>
@@ -907,7 +943,7 @@ function IssueRelations({
                 <form className="flex flex-col gap-2 p-2 sm:flex-row" onSubmit={addRelation}>
                     <ComboBox
                         className="min-w-0 flex-1 sm:min-w-48"
-                        items={projectIssues.filter((projectIssue) => projectIssue.id !== issueId).map((projectIssue) => ({ id: projectIssue.identifier, label: `${projectIssue.identifier} · ${projectIssue.title}` }))}
+                        items={projectIssues.filter((projectIssue) => projectIssue.id !== issueId).map((projectIssue) => ({ id: projectIssue.identifier, label: `${projectIssue.identifier} · ${projectIssue.title}`, icon: ParentOutline }))}
                         selectedKey={targetIssueIdentifier || null}
                         onSelectionChange={(next) => setTargetIssueIdentifier(String(next ?? ""))}
                         placeholder={t("issue.issueIdentifier")}
@@ -916,19 +952,19 @@ function IssueRelations({
                         {(item) => <ComboBoxItem item={item}>{item.label}</ComboBoxItem>}
                     </ComboBox>
                     <Select
-                        className="sm:w-36"
+                        className="sm:w-44"
                         aria-label={t("issue.relationType")}
                         items={[
-                            { id: "related", label: t("issue.relatedTo") },
-                            { id: "blocks", label: t("issue.blocks") },
-                            { id: "blocked_by", label: t("issue.blockedBy") },
-                            { id: "duplicate", label: t("issue.duplicateOf") },
+                            { id: "related", label: t("issue.relatedTo"), icon: Link2 },
+                            { id: "blocks", label: t("issue.blocks"), icon: Ban },
+                            { id: "blocked_by", label: t("issue.blockedBy"), icon: ShieldOff },
+                            { id: "duplicate", label: t("issue.duplicateOf"), icon: Copy },
                         ]}
                         selectedKey={type}
                         onSelectionChange={(next) => setType((next ?? "related") as typeof type)}
                         size="sm"
                     >
-                        {(item) => <Select.Item id={item.id}>{item.label}</Select.Item>}
+                        {(item) => <Select.Item id={item.id} icon={item.icon}>{item.label}</Select.Item>}
                     </Select>
                     <Button type="submit" size="xs" iconLeading={Plus} isLoading={isPending}>
                         {t("common.add")}

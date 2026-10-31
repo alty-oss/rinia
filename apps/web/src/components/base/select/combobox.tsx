@@ -6,9 +6,8 @@ import { Avatar } from "@/components/base/avatar/avatar";
 import { HintText } from "@/components/base/input/hint-text";
 import { Label } from "@/components/base/input/label";
 import { cx } from "@/utils/cx";
-import { isReactComponent } from "@/utils/is-react-component";
 import type { SelectItemType } from "./select-shared";
-import { SelectContext, sizes } from "./select-shared";
+import { SelectContext, SelectItemGraphic, sizes } from "./select-shared";
 import { useTranslation } from "react-i18next";
 
 interface ComboBoxProps extends RefAttributes<HTMLDivElement> {
@@ -61,8 +60,7 @@ export const ComboBox = ({
     const selectedValue = selectedKey !== undefined ? selectedKey : value;
     const inputId = useId();
     const renderedItems = typeof children === "function" ? items.map((item) => children(item)) : children;
-    const IconComponent = isReactComponent(icon) ? (icon as FC) : null;
-    const iconNode = IconComponent ? null : (icon as ReactNode | undefined);
+    const selectedItem = items.find((item) => item.id === selectedValue) ?? null;
 
     return (
         <SelectContext.Provider value={{ size }}>
@@ -93,7 +91,13 @@ export const ComboBox = ({
                         )}
                         aria-invalid={isInvalid || undefined}
                     >
-                        {IconComponent ? <IconComponent data-icon aria-hidden="true" /> : (iconNode ?? <Search data-icon aria-hidden="true" />)}
+                        {selectedItem?.avatarUrl ? (
+                            <Avatar size="xs" src={selectedItem.avatarUrl} alt={selectedItem.label} />
+                        ) : selectedItem?.icon || icon ? (
+                            <SelectItemGraphic icon={selectedItem?.icon ?? icon} />
+                        ) : (
+                            <Search data-icon aria-hidden="true" />
+                        )}
                         <BaseCombobox.Input
                             id={inputId}
                             aria-label={label}
@@ -131,7 +135,6 @@ export const ComboBox = ({
 
 export const ComboBoxItem = ({ item, children }: { item: SelectItemType; children?: ReactNode }) => {
     const { size } = useContext(SelectContext);
-    const Icon = item.icon;
     return (
         <BaseCombobox.Item
             value={item.id}
@@ -140,11 +143,7 @@ export const ComboBoxItem = ({ item, children }: { item: SelectItemType; childre
         >
             <div className={cx("flex cursor-pointer items-center", sizes[size].root)}>
                 {item.avatarUrl && <Avatar size="xs" src={item.avatarUrl} alt={item.label} />}
-                {isReactComponent(Icon) &&
-                    (() => {
-                        const IconComponent = Icon as FC;
-                        return <IconComponent data-icon aria-hidden="true" />;
-                    })()}
+                <SelectItemGraphic icon={item.icon} />
                 <span className={cx("min-w-0 flex-1 truncate font-medium text-primary", sizes[size].text)}>{children ?? item.label}</span>
             </div>
         </BaseCombobox.Item>

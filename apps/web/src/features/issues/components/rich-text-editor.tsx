@@ -301,7 +301,7 @@ function RichTextToolbar({ editor, showImages }: { editor: NonNullable<ReturnTyp
         else editor.chain().focus().setLink({ href }).run();
         setIsLinkEditorOpen(false);
     };
-    return <div className="tiptap-toolbar sticky top-0 z-10 flex flex-wrap items-center gap-1 border-b border-subtle bg-surface-1/95 px-2 py-1.5 backdrop-blur">
+    return <div className="tiptap-toolbar sticky top-0 z-10 flex flex-wrap items-center gap-1 border-b border-subtle bg-surface-1 px-2 py-1.5">
         <ToggleGroupRoot aria-label={t("editor.textFormatting")}>
             <ToggleGroupItem value="bold" aria-label={t("editor.bold")} pressed={editor.isActive("bold")} onPressedChange={() => editor.chain().focus().toggleBold().run()}><Bold className="size-4" /></ToggleGroupItem>
             <ToggleGroupItem value="italic" aria-label={t("editor.italic")} pressed={editor.isActive("italic")} onPressedChange={() => editor.chain().focus().toggleItalic().run()}><Italic className="size-4" /></ToggleGroupItem>
