@@ -218,7 +218,8 @@ input[type="number"] {
 .peek-property-control > button:focus-visible,
 .peek-property-control > div:focus-within { outline: 1px solid var(--border-accent-strong); }
 .peek-property-control input,
-.peek-property-control button span { font-size: 13px; font-weight: 450; color: var(--txt-secondary); }
+.peek-property-control button span,
+.peek-property-control > div > span { font-size: 13px; font-weight: 450; color: var(--txt-secondary); }
 .peek-property-control input::placeholder { color: var(--txt-secondary); }
 .peek-property-control > button > span:last-child,
 .peek-property-control > div > button { opacity: 0; }

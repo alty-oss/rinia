@@ -6,6 +6,7 @@ import { AssigneeOutline, EstimateOutline, HistoryOutline, LabelsOutline, MoreHo
 import { Popover } from "@base-ui/react/popover";
 import { IssueAvatar, PriorityIcon, StateIcon } from "@/features/board/components/issue-property-icons";
 import { cx } from "@/utils/cx";
+import { Avatar } from "@/components/base/avatar/avatar";
 import { Button } from "@/components/base/buttons/button";
 import { overlayChrome } from "@/components/overlay/overlay-chrome";
 import { ButtonUtility } from "@/components/base/buttons/button-utility";
@@ -799,7 +800,7 @@ function IssuePropertyList({
         { label: t("issue.status"), displayLabel: t("issue.state"), Icon: StateOutline, value: issue.columnId, options: (columns ?? []).map((c) => ({ value: c.id, label: translateStatusName(c.name, t), icon: <StateIcon name={c.name} color={c.color} /> })), change: (value: string) => save({ columnId: value }) },
         { label: t("issue.assignee"), Icon: AssigneeOutline, value: issue.assigneeId ?? "", options: [{ value: "", label: t("issue.unassigned"), icon: AssigneeOutline }, ...(members ?? []).map((member) => ({ value: member.id, label: member.name, avatarUrl: member.avatarUrl }))], change: (value: string) => save({ assigneeId: value || null }), searchable: true },
         { label: t("issue.priority"), Icon: PriorityOutline, value: issue.priority, options: (["low", "medium", "high"] as const).map((value) => ({ value, label: t(`issue.${value}`), icon: <PriorityIcon priority={value} /> })), change: (value: string) => save({ priority: value as "low" | "medium" | "high" }) },
-        { label: t("issue.createdBy"), Icon: AssigneeOutline, readonly: issue.createdBy.name, decoration: <IssueAvatar name={issue.createdBy.name} avatarUrl={issue.createdBy.avatarUrl} /> },
+        { label: t("issue.createdBy"), Icon: AssigneeOutline, readonly: issue.createdBy.name, decoration: issue.createdBy.avatarUrl ? <Avatar size="xs" src={issue.createdBy.avatarUrl} alt={issue.createdBy.name} /> : <IssueAvatar name={issue.createdBy.name} avatarUrl={issue.createdBy.avatarUrl} /> },
         { label: t("issue.estimate"), Icon: EstimateOutline, value: String(issue.estimate ?? ""), options: [{ value: "", label: t("issue.noEstimate"), icon: EstimateOutline }, ...[1, 2, 3, 5, 8].map((n) => ({ value: String(n), label: t("projects.points", { count: n }), icon: EstimateOutline }))], change: (value: string) => save({ estimate: value ? Number(value) : null }) },
         { label: t("issue.parent"), Icon: ParentOutline, value: issue.parent?.id ?? "", options: [{ value: "", label: t("issue.addParentIssue"), icon: ParentOutline }, ...(projectIssues ?? []).filter((i) => i.id !== issue.id).map((i) => ({ value: i.id, label: `${i.identifier} · ${i.title}`, icon: ParentOutline }))], change: (value: string) => save({ parentIssueId: value || null }), searchable: true },
         { label: t("issue.label"), Icon: LabelsOutline, value: issue.categoryId ?? "", options: [{ value: "", label: t("issue.addLabel"), icon: LabelsOutline }, ...(categories ?? []).map((c) => ({ value: c.id, label: c.name, icon: <LabelsOutline className="size-3.5" style={{ color: c.color ?? "#7a5af8" }} /> }))], change: (value: string) => save({ categoryId: value || null }), searchable: true },
@@ -810,7 +811,14 @@ function IssuePropertyList({
             {rows.map((row) => <div key={row.label} className="peek-property-row flex min-h-[30px] items-center gap-3">
                 <span className="flex w-[122px] shrink-0 items-center gap-1.5 text-body-xs-regular text-tertiary"><row.Icon className="size-4" />{row.displayLabel ?? row.label}</span>
                 <div className="peek-property-value relative min-w-0 flex-1">
-                    {row.readonly ? <span className="flex items-center gap-2 py-1.5 text-body-xs-medium text-secondary">{row.decoration}{row.readonly}</span> : <PropertySelect label={row.label} value={row.value!} options={row.options!} onChange={row.change!} searchable={row.searchable} isDisabled={isPending} className="peek-property-control" />}
+                    {row.readonly ? (
+                        <div className="peek-property-control w-full">
+                            <div className="flex items-center gap-2">
+                                {row.decoration}
+                                <span className="min-w-0 truncate">{row.readonly}</span>
+                            </div>
+                        </div>
+                    ) : <PropertySelect label={row.label} value={row.value!} options={row.options!} onChange={row.change!} searchable={row.searchable} isDisabled={isPending} className="peek-property-control" />}
                 </div>
             </div>)}
         </div>
