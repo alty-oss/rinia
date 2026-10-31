@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Menu } from "@base-ui/react/menu";
-import { EyeOff, MoreHorizontal, Trash2 } from "lucide-react";
+import { EyeOff, MoreHorizontal, Settings2, Trash2 } from "lucide-react";
 import { overlayChrome } from "@/components/overlay/overlay-chrome";
 import { useDroppable } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
@@ -8,6 +8,7 @@ import { AddOutline } from "@makeplane/propel/icons";
 import { ButtonUtility } from "@/components/base/buttons/button-utility";
 import { Input } from "@/components/base/input/input";
 import { ConfirmDialog } from "@/components/overlay/confirm-dialog";
+import type { UpdateIssueInput } from "@rinia/shared";
 import type { Issue, IssuePerson } from "@/features/issues/api";
 import { ApiError } from "@/lib/api-client";
 import { cx } from "@/utils/cx";
@@ -26,12 +27,17 @@ interface ColumnProps {
     projectId: string;
     categoriesById: Map<string, { name: string; color: string | null }>;
     membersById: Map<string, IssuePerson>;
+    people: IssuePerson[];
+    labels: Array<{ id: string; name: string; color: string | null }>;
+    onUpdateIssue: (identifier: string, input: UpdateIssueInput) => void;
     onOpenIssue: (identifier: string) => void;
     onCreateIssue: (columnId: string) => void;
     onHide: (columnId: string) => void;
+    /** Opens the project's state settings, where states are added and ordered (the board has no "new column" button). */
+    onManageStates: () => void;
 }
 
-export const Column = ({ column, issues, projectId, categoriesById, membersById, onOpenIssue, onCreateIssue, onHide }: ColumnProps) => {
+export const Column = ({ column, issues, projectId, categoriesById, membersById, people, labels, onUpdateIssue, onOpenIssue, onCreateIssue, onHide, onManageStates }: ColumnProps) => {
     const { t } = useTranslation();
     const { setNodeRef: setDropRef, isOver } = useDroppable({ id: column.id });
 
@@ -122,6 +128,10 @@ export const Column = ({ column, issues, projectId, categoriesById, membersById,
                                         <EyeOff className="size-4 text-tertiary" />
                                         {t("projects.hideColumn")}
                                     </Menu.Item>
+                                    <Menu.Item className={columnMenuItem} onClick={onManageStates}>
+                                        <Settings2 className="size-4 text-tertiary" />
+                                        {t("projects.manageStates")}
+                                    </Menu.Item>
                                     <Menu.Separator className="my-1 h-px bg-[var(--border-subtle)]" />
                                     <Menu.Item className={cx(columnMenuItem, "text-danger-primary data-highlighted:text-danger-primary")} onClick={() => setDeleteOpen(true)}>
                                         <Trash2 className="size-4" />
@@ -152,15 +162,18 @@ export const Column = ({ column, issues, projectId, categoriesById, membersById,
                         <IssueCard
                             key={issue.id}
                             issue={issue}
-                            column={column}
                             projectId={projectId}
                             category={issue.categoryId ? categoriesById.get(issue.categoryId) : undefined}
                             assignee={issue.assigneeId ? membersById.get(issue.assigneeId) : undefined}
+                            people={people}
+                            labels={labels}
+                            onUpdate={(input) => onUpdateIssue(issue.identifier, input)}
                             onClick={() => onOpenIssue(issue.identifier)}
                         />
                     ))}
                 </SortableContext>
-                <button type="button" onClick={() => onCreateIssue(column.id)} className="flex h-7 shrink-0 items-center gap-1 rounded px-1 text-left text-xs text-tertiary hover:bg-layer-1-hover hover:text-secondary">
+                {/* Only the hovered (or keyboard-focused) column offers it, so the board stays quiet. */}
+                <button type="button" onClick={() => onCreateIssue(column.id)} className="flex h-7 shrink-0 items-center gap-1 rounded px-1 text-left text-xs text-tertiary opacity-0 transition-opacity duration-150 group-hover/column:opacity-100 hover:bg-layer-1-hover hover:text-secondary focus-visible:opacity-100 motion-reduce:transition-none">
                     <AddOutline className="size-3.5" />
                     {t("issue.newIssue")}
                 </button>

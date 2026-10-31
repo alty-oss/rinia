@@ -9,10 +9,10 @@ import { WorkspaceLoadingFallback } from "@/components/feedback/workspace-loadin
 import { AppIcons } from "@/components/foundations/icons";
 import { ProjectSearchModal } from "@/features/projects/components/project-search-modal";
 import { Sidebar } from "./sidebar";
-import { SidebarAccount } from "./sidebar-account";
 import { useTranslation } from "react-i18next";
 
-const NavigationContext = createContext({ toggleSidebar: () => {} });
+/** Opens the navigation drawer on small screens, where the sidebar is not shown. */
+const NavigationContext = createContext({ openNavigation: () => {} });
 export const useAppNavigation = () => useContext(NavigationContext);
 const readWidth = () => {
     const value = Number(localStorage.getItem("rinia-sidebar-width") ?? 244);
@@ -24,7 +24,6 @@ export const AppShell = () => {
     const navigate = useNavigate();
     const { t } = useTranslation();
     const [width, setWidth] = useState(readWidth);
-    const [collapsed, setCollapsed] = useState(() => localStorage.getItem("rinia-sidebar-collapsed") === "true");
     const [mobileOpen, setMobileOpen] = useState(false);
     const [searchOpen, setSearchOpen] = useState(false);
     const [resizing, setResizing] = useState(false);
@@ -34,9 +33,6 @@ export const AppShell = () => {
     useEffect(() => {
         localStorage.setItem("rinia-sidebar-width", String(width));
     }, [width]);
-    useEffect(() => {
-        localStorage.setItem("rinia-sidebar-collapsed", String(collapsed));
-    }, [collapsed]);
     useHotkeys(
         "mod+k",
         (event) => {
@@ -47,19 +43,15 @@ export const AppShell = () => {
         { enableOnFormTags: true, enableOnContentEditable: true, eventListenerOptions: { capture: true } },
     );
     useHotkeys("g>s", () => navigate("/settings/profile"), { enableOnFormTags: false, enableOnContentEditable: false });
-    useHotkeys("[", () => toggleSidebar(), { enableOnFormTags: false, enableOnContentEditable: false, useKey: true });
-    function toggleSidebar() {
-        if (window.matchMedia("(max-width: 767px)").matches) setMobileOpen((open) => !open);
-        else setCollapsed((value) => !value);
-    }
+    const openNavigation = () => setMobileOpen(true);
     return (
-        <NavigationContext.Provider value={{ toggleSidebar }}>
-            <div className="relative flex h-dvh min-h-0 overflow-hidden bg-canvas text-primary">
+        <NavigationContext.Provider value={{ openNavigation }}>
+            {/* While resizing, nothing on the page can be selected and the resize cursor holds wherever the pointer goes. */}
+            <div className={`relative flex h-dvh min-h-0 overflow-hidden bg-canvas text-primary ${resizing ? "cursor-ew-resize select-none" : ""}`}>
                 <aside
                     className={`relative hidden h-full shrink-0 overflow-hidden md:flex ${resizing ? "" : "transition-[width] duration-200 ease-[cubic-bezier(0.2,0,0,1)]"}`}
-                    style={{ width: collapsed ? 0 : width }}
+                    style={{ width }}
                     aria-label={t("nav.navigation")}
-                    aria-hidden={collapsed}
                 >
                     <div className="flex h-full min-h-0 flex-col overflow-hidden" style={{ width }}>
                         <div className="min-h-0 flex-1">
@@ -67,22 +59,17 @@ export const AppShell = () => {
                         </div>
                     </div>
                 </aside>
-                <div className={`relative flex min-h-0 min-w-0 flex-1 flex-col p-2 transition-[padding] duration-200 ease-[cubic-bezier(0.2,0,0,1)] ${collapsed ? "md:pb-11" : ""}`}>
+                <div className="relative flex min-h-0 min-w-0 flex-1 flex-col p-2">
                     <SidebarResizeHandle
                         width={width}
-                        collapsed={collapsed}
                         resizing={resizing}
-                        onResizeStart={() => {
-                            if (collapsed) setCollapsed(false);
-                            setResizing(true);
-                        }}
+                        onResizeStart={() => setResizing(true)}
                         onResize={(next) => setWidth(Math.max(220, Math.min(360, next)))}
                         onResizeEnd={() => setResizing(false)}
-                        onToggle={() => setCollapsed((value) => !value)}
                     />
                     <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-lg border border-subtle bg-surface-1" data-app-content>
                         <div className="flex h-10 shrink-0 items-center px-2 md:hidden">
-                            <ButtonUtility color="tertiary" icon={AppIcons.Menu} tooltip={t("nav.expand")} onClick={toggleSidebar} />
+                            <ButtonUtility color="tertiary" icon={AppIcons.Menu} tooltip={t("nav.expand")} onClick={openNavigation} />
                         </div>
                         <main className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden" id="main-content">
                             <Suspense fallback={<WorkspaceLoadingFallback />}>
@@ -91,11 +78,6 @@ export const AppShell = () => {
                         </main>
                     </div>
                 </div>
-                {collapsed && (
-                    <div className="absolute bottom-2 left-2 hidden md:block">
-                        <SidebarAccount />
-                    </div>
-                )}
                 <Dialog.Root open={mobileOpen} onOpenChange={setMobileOpen}>
                     <Dialog.Portal>
                         <Dialog.Backdrop className="fixed inset-0 z-40 bg-backdrop transition-opacity duration-200 data-[ending-style]:opacity-0 data-[starting-style]:opacity-0" />
@@ -113,25 +95,21 @@ export const AppShell = () => {
 };
 
 /**
- * Sits on the content panel's left border, as in Linear: drag to resize the sidebar, click to collapse or expand it.
- * A tooltip follows the pointer while hovering.
+ * Sits on the content panel's left border, as in Linear: drag to resize the sidebar (arrow keys, Home and End
+ * work too). A tooltip follows the pointer while hovering.
  */
 function SidebarResizeHandle({
     width,
-    collapsed,
     resizing,
     onResizeStart,
     onResize,
     onResizeEnd,
-    onToggle,
 }: {
     width: number;
-    collapsed: boolean;
     resizing: boolean;
     onResizeStart: () => void;
     onResize: (width: number) => void;
     onResizeEnd: () => void;
-    onToggle: () => void;
 }) {
     const { t } = useTranslation();
     const drag = useRef<{ x: number; width: number; moved: boolean } | null>(null);
@@ -148,18 +126,18 @@ function SidebarResizeHandle({
         }
     }
 
+    function finishDrag() {
+        if (drag.current?.moved) onResizeEnd();
+        drag.current = null;
+    }
+
     function hideHint() {
         window.clearTimeout(hintTimer.current);
         setHint(null);
     }
 
     function onKeyDown(event: KeyboardEvent<HTMLDivElement>) {
-        if (event.key === "Enter" || event.key === " ") {
-            event.preventDefault();
-            onToggle();
-            return;
-        }
-        if (collapsed || !["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+        if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
         event.preventDefault();
         onResize(event.key === "Home" ? 220 : event.key === "End" ? 360 : width + (event.key === "ArrowRight" ? 10 : -10));
     }
@@ -170,40 +148,37 @@ function SidebarResizeHandle({
                 role="separator"
                 aria-label={t("nav.resizeSidebar")}
                 aria-orientation="vertical"
-                aria-valuenow={collapsed ? 0 : width}
+                aria-valuenow={width}
                 aria-valuemin={220}
                 aria-valuemax={360}
                 tabIndex={0}
-                className={`group absolute top-2 left-1 z-20 hidden w-2 cursor-ew-resize touch-none outline-none md:block ${collapsed ? "bottom-11" : "bottom-2"}`}
+                className="group absolute top-2 bottom-2 left-1 z-20 hidden w-2 cursor-ew-resize touch-none outline-none md:block"
                 onPointerDown={(event) => {
                     if (event.button !== 0) return;
+                    // No text selection may start from here, and any selection left on the page is cleared.
+                    event.preventDefault();
+                    document.getSelection()?.removeAllRanges();
                     drag.current = { x: event.clientX, width, moved: false };
                     event.currentTarget.setPointerCapture(event.pointerId);
                     hideHint();
                 }}
                 onPointerMove={(event) => {
                     const current = drag.current;
+                    // A release the handle never heard about (outside the window) leaves no button pressed.
+                    if (current && event.buttons === 0) return finishDrag();
                     if (!current) return showHint(event);
                     const delta = event.clientX - current.x;
                     if (!current.moved && Math.abs(delta) < 3) return;
                     if (!current.moved) {
                         current.moved = true;
                         onResizeStart();
-                        // Dragging from a collapsed sidebar grows it from the edge instead of jumping to its old width.
-                        if (collapsed) current.width = 220 - delta;
                     }
                     onResize(current.width + delta);
                 }}
-                onPointerUp={() => {
-                    const current = drag.current;
-                    drag.current = null;
-                    if (current?.moved) onResizeEnd();
-                    else if (current) onToggle();
-                }}
-                onPointerCancel={() => {
-                    if (drag.current?.moved) onResizeEnd();
-                    drag.current = null;
-                }}
+                onPointerUp={finishDrag}
+                onPointerCancel={finishDrag}
+                // Capture is lost on every release, including one far away or outside the window, so this always ends the drag.
+                onLostPointerCapture={finishDrag}
                 onPointerLeave={hideHint}
                 onKeyDown={onKeyDown}
             >
@@ -223,10 +198,6 @@ function SidebarResizeHandle({
                     style={{ left: hint.x + 14, top: hint.y + 10 }}
                 >
                     <span><strong className="font-medium text-primary">{t("nav.resizeDrag")}</strong> {t("nav.resizeDragHint")}</span>
-                    <span className="flex items-center gap-2">
-                        <span><strong className="font-medium text-primary">{t("nav.resizeClick")}</strong> {collapsed ? t("nav.resizeExpandHint") : t("nav.resizeCollapseHint")}</span>
-                        <kbd className="rounded border border-subtle px-1 font-sans text-[11px] text-tertiary">[</kbd>
-                    </span>
                 </div>
             )}
         </>

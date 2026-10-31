@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { afterEach, mock, test } from "node:test";
+import { afterEach, mock, spyOn, test } from "bun:test";
 import { createDocumentSchema, updateDocumentSchema } from "@rinia/shared";
 import { db } from "../src/db";
 import { projectDocuments, projectMembers } from "../src/db/schema";
@@ -10,7 +10,7 @@ import {
 } from "../src/features/documents/documents.service";
 import { HttpError } from "../src/lib/http-error";
 
-afterEach(() => mock.restoreAll());
+afterEach(() => mock.restore());
 
 const projectId = "11111111-1111-4111-8111-111111111111";
 const documentId = "22222222-2222-4222-8222-222222222222";
@@ -108,16 +108,14 @@ test("document schemas accept URL images and reject non-HTTP schemes", () => {
 });
 
 test("document lookup is scoped by both project and document", async () => {
-  const find = mock.method(
-    db.query.projectDocuments,
-    "findFirst",
+  const find = spyOn(db.query.projectDocuments, "findFirst").mockImplementation(
     async () => undefined,
   );
   await assert.rejects(
     getDocument(projectId, documentId),
     (error: unknown) => error instanceof HttpError && error.statusCode === 404,
   );
-  const condition = find.mock.calls[0].arguments[0].where;
+  const condition = find.mock.calls[0][0].where;
   const uuids = sqlParameters(condition).filter((value) =>
     [projectId, documentId].includes(value),
   );
@@ -125,16 +123,14 @@ test("document lookup is scoped by both project and document", async () => {
 });
 
 test("a successful revision update increments revision and preserves the supplied content", async () => {
-  mock.method(db.query.users, "findFirst", async () => ({ locale: "en" }) as never);
+  spyOn(db.query.users, "findFirst").mockImplementation(async () => ({ locale: "en" }) as never);
   const replacement = {
     ...legacy,
     content: [
       { type: "paragraph", content: [{ type: "text", text: "Saved." }] },
     ],
   };
-  const update = mock.method(
-    db,
-    "update",
+  const update = spyOn(db, "update").mockImplementation(
     () =>
       ({
         set: (values: Record<string, unknown>) => ({
@@ -158,20 +154,18 @@ test("a successful revision update increments revision and preserves the supplie
   });
   assert.equal(result.revision, 2);
   assert.deepEqual(result.contentJson, replacement);
-  assert.equal(update.mock.callCount(), 1);
+  assert.equal(update.mock.calls.length, 1);
 });
 
 test("stale revisions return 409 while missing documents return 404", async () => {
-  mock.method(db.query.users, "findFirst", async () => ({ locale: "en" }) as never);
-  mock.method(
-    db,
-    "update",
+  spyOn(db.query.users, "findFirst").mockImplementation(async () => ({ locale: "en" }) as never);
+  spyOn(db, "update").mockImplementation(
     () =>
       ({
         set: () => ({ where: () => ({ returning: async () => [] }) }),
       }) as never,
   );
-  mock.method(db.query.projectDocuments, "findFirst", async () => page);
+  spyOn(db.query.projectDocuments, "findFirst").mockImplementation(async () => page);
   await assert.rejects(
     updateDocument(projectId, documentId, authorId, {
       title: "New",
@@ -181,17 +175,15 @@ test("stale revisions return 409 while missing documents return 404", async () =
     (error: unknown) => error instanceof HttpError && error.statusCode === 409,
   );
 
-  mock.restoreAll();
-  mock.method(db.query.users, "findFirst", async () => ({ locale: "en" }) as never);
-  mock.method(
-    db,
-    "update",
+  mock.restore();
+  spyOn(db.query.users, "findFirst").mockImplementation(async () => ({ locale: "en" }) as never);
+  spyOn(db, "update").mockImplementation(
     () =>
       ({
         set: () => ({ where: () => ({ returning: async () => [] }) }),
       }) as never,
   );
-  mock.method(db.query.projectDocuments, "findFirst", async () => undefined);
+  spyOn(db.query.projectDocuments, "findFirst").mockImplementation(async () => undefined);
   await assert.rejects(
     updateDocument(projectId, documentId, authorId, {
       title: "New",
@@ -203,35 +195,29 @@ test("stale revisions return 409 while missing documents return 404", async () =
 });
 
 test("only the author, project owner, or admin can delete a page", async () => {
-  const findDocument = mock.method(
-    db.query.projectDocuments,
-    "findFirst",
+  const findDocument = spyOn(db.query.projectDocuments, "findFirst").mockImplementation(
     async () => page,
   );
-  const findMembership = mock.method(
-    db.query.projectMembers,
-    "findFirst",
+  const findMembership = spyOn(db.query.projectMembers, "findFirst").mockImplementation(
     async () => undefined,
   );
-  const deleted = mock.method(
-    db,
-    "delete",
+  const deleted = spyOn(db, "delete").mockImplementation(
     () => ({ where: async () => undefined }) as never,
   );
   await assert.rejects(
     deleteDocument(projectId, documentId, otherId, false),
     (error: unknown) => error instanceof HttpError && error.statusCode === 403,
   );
-  assert.equal(findDocument.mock.callCount(), 1);
-  assert.equal(findMembership.mock.callCount(), 1);
-  assert.equal(deleted.mock.callCount(), 0);
+  assert.equal(findDocument.mock.calls.length, 1);
+  assert.equal(findMembership.mock.calls.length, 1);
+  assert.equal(deleted.mock.calls.length, 0);
 
-  findMembership.mock.mockImplementation(
+  findMembership.mockImplementation(
     async () => ({ role: "owner" }) as typeof projectMembers.$inferSelect,
   );
   await deleteDocument(projectId, documentId, otherId, false);
   await deleteDocument(projectId, documentId, otherId, true);
   await deleteDocument(projectId, documentId, authorId, false);
-  assert.equal(deleted.mock.callCount(), 3);
+  assert.equal(deleted.mock.calls.length, 3);
   assert.equal(projectDocuments.id.name, "id");
 });

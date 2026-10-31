@@ -1,4 +1,3 @@
-import "dotenv/config";
 import { markdownToTiptap, type CreateIssueInput, type CreateProjectInput } from "@rinia/shared";
 import { count } from "drizzle-orm";
 import { createCategory } from "../features/categories/categories.service";
@@ -23,6 +22,9 @@ const SEED_USERS = [
 
 type Username = (typeof SEED_USERS)[number]["username"];
 type Priority = CreateIssueInput["priority"];
+
+/** `SeedIssue.column` indexes these default columns: to do, in progress, done. */
+const SEED_COLUMNS = ["A fazer", "Em andamento", "Concluído"] as const;
 
 interface SeedIssue {
     title: string;
@@ -216,7 +218,7 @@ async function main() {
 
     const [{ value: existingUsers }] = await db.select({ value: count() }).from(users);
     if (existingUsers > 0) {
-        throw new Error("The database already has users. Run `pnpm db:reset` to start from a clean seed.");
+        throw new Error("The database already has users. Run `bun run db:reset` to start from a clean seed.");
     }
 
     const passwordHash = await hashPassword(SEED_PASSWORD);
@@ -243,7 +245,7 @@ async function main() {
             const created = await createIssue(
                 project.id,
                 {
-                    columnId: columns[issue.column].id,
+                    columnId: columns.find((column) => column.name === SEED_COLUMNS[issue.column])!.id,
                     title: issue.title,
                     priority: issue.priority,
                     categoryId: issue.label ? labelId.get(issue.label) : null,

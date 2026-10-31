@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { test } from "node:test";
+import { test } from "bun:test";
 import type { UpdateDocumentInput } from "@rinia/shared";
 import type { DocumentPage } from "../../web/src/features/documents/api";
 import { DocumentSession } from "../../web/src/features/documents/document-session";

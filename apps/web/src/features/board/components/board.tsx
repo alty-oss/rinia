@@ -16,6 +16,7 @@ import {
 } from "@dnd-kit/core";
 import { arrayMove, sortableKeyboardCoordinates } from "@dnd-kit/sortable";
 import { useNavigate } from "react-router";
+import { useRouteProject } from "@/features/projects/route-project";
 import { urls } from "@/lib/urls";
 import { filterIssues, readIssueOrder } from "@/features/issues/lib/issue-filters";
 import { ErrorMessage } from "@/components/feedback/error-message";
@@ -29,7 +30,6 @@ import { useProjectMembers } from "@/features/projects/hooks/use-project-members
 import { ApiError } from "@/lib/api-client";
 import { useColumns } from "../hooks/use-board";
 import { positionAtIndex } from "../position";
-import { AddColumnForm } from "./add-column-form";
 import { Column } from "./column";
 import { HiddenColumns, useHiddenColumns } from "./hidden-columns";
 import { IssueCardContent } from "./issue-card";
@@ -51,6 +51,7 @@ const measuring = { droppable: { strategy: MeasuringStrategy.Always } };
 export const Board = ({ projectId, filters = new URLSearchParams() }: { projectId: string; filters?: URLSearchParams }) => {
     const { t } = useTranslation();
     const navigate = useNavigate();
+    const { projectKey } = useRouteProject();
     const { data: columns, isLoading: columnsLoading, isError: columnsError } = useColumns(projectId);
     const { hidden, hideColumn, showColumn } = useHiddenColumns(projectId);
     const orderBy = readIssueOrder(filters.get("order"));
@@ -79,7 +80,7 @@ export const Board = ({ projectId, filters = new URLSearchParams() }: { projectI
      * During a drag, `dragIssues` is reordered in `onDragOver` so columns live-preview where the
      * issue will land instead of making the user drag blindly.
      */
-    const board = useMemo(() => dragIssues ?? [...filtered].sort((a, b) => a.position - b.position), [dragIssues, filtered]);
+    const board = useMemo(() => dragIssues ?? [...filtered].sort((a, b) => a.position - b.position || a.number - b.number), [dragIssues, filtered]);
 
     /** Resolves the target column: `over` is the column itself (card area) or a card inside it. */
     function resolveColumnId(overId: string, list: Issue[]): string | undefined {
@@ -173,16 +174,21 @@ export const Board = ({ projectId, filters = new URLSearchParams() }: { projectI
             return;
         }
 
-        // Keep the drag preview (`dragIssues`) until the mutation settles instead of clearing it:
-        // `useUpdateIssue` updates the canonical issue cache optimistically, so clearing it first
-        // would make the board fall back to old issues for one frame — the issue would "return"
-        // and only then move to the right place. Freezing the preview makes the board optimistic
-        // immediately and only reverts on error.
         const activeIssue = list.find((issue) => issue.id === activeId);
         if (!activeIssue) {
             setDragIssues(null);
             return;
         }
+
+        // Freeze the preview in its NEW order until the mutation settles. Within a column, dragging only
+        // moves cards visually (SortableContext transforms), so `list` still holds the old order; keeping
+        // that would snap the card back to where it started until the server answered, and only then move it.
+        let slot = 0;
+        setDragIssues(list.map((issue) => {
+            if (issue.columnId !== targetColumnId) return issue;
+            const next = ordered[slot++];
+            return next.id === activeId ? { ...next, columnId: targetColumnId, position } : next;
+        }));
 
         updateIssue.mutate(
             { identifier: activeIssue.identifier, input: { columnId: targetColumnId, position } },
@@ -231,12 +237,15 @@ export const Board = ({ projectId, filters = new URLSearchParams() }: { projectI
                             projectId={projectId}
                             categoriesById={categoriesById}
                             membersById={membersById}
+                            people={members ?? []}
+                            labels={categories ?? []}
+                            onUpdateIssue={(identifier, input) => updateIssue.mutate({ identifier, input })}
                             onOpenIssue={(identifier) => navigate(urls.issue(identifier))}
                             onCreateIssue={(columnId) => setCreateColumnId(columnId)}
                             onHide={hideColumn}
+                            onManageStates={() => navigate(urls.projectSettings(projectKey, "states"))}
                         />
                     ))}
-                    <AddColumnForm projectId={projectId} />
                 </div>
                     <HiddenColumns
                         columns={(columns ?? []).filter((column) => hidden.has(column.id))}
@@ -253,7 +262,6 @@ export const Board = ({ projectId, filters = new URLSearchParams() }: { projectI
                         >
                             <IssueCardContent
                                 issue={activeIssue}
-                                column={columns?.find((column) => column.id === activeIssue.columnId) ?? { name: "" }}
                                 category={activeCategory}
                                 assignee={activeAssignee}
                             />

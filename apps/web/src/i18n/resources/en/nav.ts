@@ -1,7 +1,7 @@
 const nav = {
         projects: "Projects", allProjects: "All projects", projectSettings: "Project settings", overview: "Overview", projectSections: "Project sections",
         issues: "Issues", documents: "Documents", settings: "Settings", config: "Config.", profile: "Profile",
-        collapse: "Collapse navigation", expand: "Expand navigation", expandProject: "Expand", collapseProject: "Collapse",
+        expand: "Expand navigation", expandProject: "Expand", collapseProject: "Collapse",
         expandPages: "Show pages", collapsePages: "Hide pages", newIssue: "New issue", newProject: "New project",
         searchProjects: "Search projects", noProjects: "No projects yet", projectsEmpty: "Create your first project to start organizing your work.",
         account: "Account", signOut: "Sign out", search: "Search",
@@ -10,7 +10,7 @@ const nav = {
         backToApp: "Back to app", preferences: "Preferences", personal: "Personal",
         favorite: "Favorite",
         searchSettings: "Search settings", yourProjects: "Your projects", administration: "Administration", noSettingsFound: "No settings found.",
-        resizeDrag: "Drag", resizeDragHint: "to resize", resizeClick: "Click", resizeCollapseHint: "to collapse", resizeExpandHint: "to expand",
+        resizeDrag: "Drag", resizeDragHint: "to resize",
         favorites: "Favorites", addFavorite: "Add to favorites", removeFavorite: "Remove from favorites",
     } as const;
 

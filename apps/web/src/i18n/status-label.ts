@@ -6,6 +6,8 @@ export function translateStatusName(name: string, t: TFunction): string {
     if (["backlog", "fila"].includes(normalized)) return t("issue.backlog");
     if (["in progress", "in-progress", "em andamento"].includes(normalized)) return t("issue.inProgress");
     if (["done", "complete", "completed", "concluido", "concluida"].includes(normalized)) return t("issue.done");
+    if (["in review", "review", "em revisao"].includes(normalized)) return t("issue.inReview");
+    if (["canceled", "cancelled", "cancelado", "cancelada"].includes(normalized)) return t("issue.canceled");
     return name;
 }
 

@@ -1,39 +1,37 @@
 # syntax=docker/dockerfile:1
 
-FROM node:22-alpine AS base
+FROM oven/bun:1.3.14-alpine AS base
 WORKDIR /app
-RUN corepack enable
 
 # ---------- deps: install everything (including devDependencies) for the build ----------
 FROM base AS deps
-COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
+COPY package.json bun.lock ./
 COPY apps/api/package.json apps/api/package.json
 COPY apps/web/package.json apps/web/package.json
 COPY packages/shared/package.json packages/shared/package.json
-RUN pnpm install --frozen-lockfile
+RUN bun install --frozen-lockfile
 
-# ---------- build: build the frontend (Vite) and backend (esbuild) ----------
+# ---------- build: build the frontend (Vite) and backend (Bun.build) ----------
 FROM deps AS build
 COPY . .
-RUN pnpm --filter @rinia/web build
-RUN pnpm --filter @rinia/api build
-# `pnpm deploy` produces a self-contained directory (node_modules with only production deps +
-# prebuilt dist/ + drizzle/) for apps/api, avoiding workspace symlink problems that would occur
-# when manually copying node_modules between stages.
-RUN pnpm --filter @rinia/api deploy --prod --legacy /app/deploy-api
+RUN bun run --cwd apps/web build
+# scripts/build.ts inlines every dependency (and packages/shared) into dist/, so the runner
+# needs no node_modules at all.
+RUN bun run --cwd apps/api build
 
 # ---------- runner: minimal final image ----------
-FROM node:22-alpine AS runner
+FROM oven/bun:1.3.14-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 
 # Preserve the apps/api + apps/web sibling structure — server.ts and migrate.ts resolve relative
 # paths from cwd (not __dirname), so this structure must match the relative depth used in
 # development (see the comments in app.ts/migrate.ts).
-COPY --from=build /app/deploy-api ./apps/api
+COPY --from=build /app/apps/api/dist ./apps/api/dist
+COPY --from=build /app/apps/api/drizzle ./apps/api/drizzle
 COPY --from=build /app/apps/web/dist ./apps/web/dist
 
 WORKDIR /app/apps/api
 EXPOSE 3000
 
-CMD ["sh", "-c", "node dist/migrate.js && node dist/server.js"]
+CMD ["sh", "-c", "bun dist/migrate.js && bun dist/server.js"]

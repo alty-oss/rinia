@@ -1,9 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
+import { DndContext, DragOverlay } from "@dnd-kit/core";
+import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import type { Issue } from "@/features/issues/api";
+import type { IssueView } from "@rinia/shared";
 import { AddOutline, ChevronDownOutline } from "@makeplane/propel/icons";
-import { LayoutGrid, List, Plus } from "lucide-react";
+import { Plus } from "lucide-react";
 import { useNavigate, useParams, useSearchParams } from "react-router";
 import { urls } from "@/lib/urls";
+import { cx } from "@/utils/cx";
 import { useRouteProject } from "@/features/projects/route-project";
 import { Button } from "@/components/base/buttons/button";
 import { Input } from "@/components/base/input/input";
@@ -18,13 +22,16 @@ import { IssueListRow } from "@/features/issues/components/issue-list-row";
 import { useCreateIssue, useIssues, useUpdateIssue } from "@/features/issues/hooks/use-issues";
 import { ProjectWorkspaceHeader } from "@/features/projects/components/project-workspace-header";
 import { IssueToolbar } from "@/features/issues/components/issue-toolbar";
+import { useIssueView } from "@/features/issues/hooks/use-issue-view";
+import { listGroupKey, useListReorder, type ListGroupBy } from "@/features/issues/hooks/use-list-reorder";
+import { issueViews } from "@/features/issues/views";
 import { useProjectMembers } from "@/features/projects/hooks/use-project-members";
 import { ApiError } from "@/lib/api-client";
 import { useTranslation } from "react-i18next";
 import { translateStatusName } from "@/i18n/status-label";
 
 type OrderBy = "position" | "priority" | "updated" | "number";
-type GroupBy = "none" | "status" | "assignee";
+type GroupBy = ListGroupBy;
 type Scope = "active" | "backlog" | "all";
 
 export const ProjectIssuesPage = () => {
@@ -41,7 +48,7 @@ export const ProjectIssuesPage = () => {
     const assignee = searchParams.get("assignee") ?? "";
     const category = searchParams.get("label") ?? "";
     const scope = readScope(params.scope ?? null);
-    const view = searchParams.get("view") === "board" ? "board" : "list";
+    const { view, setView } = useIssueView(projectId!);
     const { data: issues, isLoading, isError } = useIssues(projectId!, { orderBy });
     const updateIssue = useUpdateIssue(projectId!);
     const { data: columns } = useColumns(projectId!);
@@ -55,6 +62,9 @@ export const ProjectIssuesPage = () => {
     const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
 
     const columnById = useMemo(() => new Map((columns ?? []).map((column) => [column.id, column])), [columns]);
+    // The backlog scope only lists issues in a "Backlog" or "Fila" column; without one it would always be empty,
+    // so its tab only shows when the project has such a column (or a link already opened it).
+    const showBacklog = scope === "backlog" || (columns ?? []).some((column) => columnBucket(column.name) === "backlog");
     const memberById = useMemo(() => new Map((members ?? []).map((member) => [member.id, member])), [members]);
     const filteredIssues = useMemo(
         () =>
@@ -73,13 +83,27 @@ export const ProjectIssuesPage = () => {
             }),
         [assignee, category, columnById, issues, priority, scope, search, status],
     );
+    // In manual order the list sorts by position itself, so a moved issue lands in place before the server answers.
+    const manualOrder = orderBy === "position";
+    const orderedSource = useMemo(
+        () => (manualOrder ? [...filteredIssues].sort((left, right) => left.position - right.position || left.number - right.number) : filteredIssues),
+        [filteredIssues, manualOrder],
+    );
+    const reorder = useListReorder({
+        issues: orderedSource,
+        groupBy,
+        onMove: (issue, input, done) => updateIssue.mutate({ identifier: issue.identifier, input }, { onSettled: done }),
+    });
+    const listIssues = reorder.items;
+    // Every identifier gets the width of the longest one, so titles line up without the ID column taking extra room.
+    const identifierWidth = useMemo(() => Math.max(4, ...(issues ?? []).map((issue) => issue.identifier.length)), [issues]);
 
     const groups = useMemo(() => {
-        if (groupBy === "none") return [{ key: "all", label: null, issues: filteredIssues }];
+        if (groupBy === "none") return [{ key: "all", label: null, issues: listIssues }];
 
         const grouped = new Map<string, Issue[]>();
-        for (const issue of filteredIssues) {
-            const key = groupBy === "status" ? issue.columnId : issue.assigneeId ?? "unassigned";
+        for (const issue of listIssues) {
+            const key = listGroupKey(issue, groupBy);
             grouped.set(key, [...(grouped.get(key) ?? []), issue]);
         }
 
@@ -97,7 +121,7 @@ export const ProjectIssuesPage = () => {
                     : memberById.get(key)?.name ?? t("issue.unassigned"),
             issues: groupedIssues,
         }));
-    }, [columnById, columns, filteredIssues, groupBy, memberById, t]);
+    }, [columnById, columns, listIssues, groupBy, memberById, t]);
     const orderedIssues = useMemo(() => groups.flatMap((group) => group.issues), [groups]);
 
     useEffect(() => {
@@ -110,7 +134,7 @@ export const ProjectIssuesPage = () => {
         function handleListKeyDown(event: KeyboardEvent) {
             const target = event.target as HTMLElement | null;
             if (target?.matches("input, textarea, select, [contenteditable='true']")) return;
-            if (orderedIssues.length === 0) return;
+            if (orderedIssues.length === 0 || reorder.activeIssue) return;
 
             const currentIndex = orderedIssues.findIndex((issue) => issue.id === selectedIssueId);
             if (event.key === "ArrowDown" || event.key === "ArrowUp") {
@@ -130,7 +154,7 @@ export const ProjectIssuesPage = () => {
 
         window.addEventListener("keydown", handleListKeyDown);
         return () => window.removeEventListener("keydown", handleListKeyDown);
-    }, [orderedIssues, selectedIssueId, view]);
+    }, [orderedIssues, reorder.activeIssue, selectedIssueId, view]);
 
     function clearFilters() {
         setSearchParams(
@@ -178,17 +202,6 @@ export const ProjectIssuesPage = () => {
         navigate(`${urls.issues(projectKey, next)}${query ? `?${query}` : ""}`, { replace: true });
     }
 
-    function setView(next: "list" | "board") {
-        setSearchParams((current) => {
-            if (next === "board") current.set("view", "board");
-            else current.delete("view");
-            return current;
-        }, { replace: true });
-    }
-
-    const pill = "flex h-6 items-center rounded-md px-2 text-[13px]";
-    const pillOff = "text-tertiary hover:bg-layer-transparent-hover hover:text-primary";
-    const pillOn = "bg-layer-1-selected text-primary";
 
     return (
         <div className="flex h-full min-h-0 flex-col bg-surface-1">
@@ -210,23 +223,36 @@ export const ProjectIssuesPage = () => {
                     </button>
                 }
             />
+            {/* The view switch leads the bar so neither view leaves its left side empty; every control in it is 28px tall. */}
             <div className="flex h-10 shrink-0 items-center gap-1 border-b border-subtle px-3">
-                {view === "list" && ([
-                    ["active", t("issue.active")],
-                    ["backlog", t("issue.backlog")],
-                    ["all", t("issue.allIssues")],
-                ] as const).map(([value, label]) => (
-                    <button key={value} type="button" aria-pressed={scope === value} className={`${pill} ${scope === value ? pillOn : pillOff}`} onClick={() => setScope(value)}>
-                        {label}
-                    </button>
-                ))}
-                <div className="ml-auto flex items-center gap-2">
-                    <ViewSwitch view={view} onChange={setView} />
-                    <IssueToolbar chrome layout={view} projectId={projectId!} onCreate={() => setIsCreating(true)} />
-                </div>
+                {view && (
+                    <div className="animate-enter flex min-w-0 items-center gap-1">
+                        <ViewSwitch view={view} onChange={setView} />
+                        {view === "list" && (
+                            <div key="scopes" className="animate-enter flex items-center gap-1">
+                                <span aria-hidden="true" className="mx-1 h-4 w-px bg-border-secondary" />
+                                {([
+                                    ["active", t("issue.active")],
+                                    ...(showBacklog ? [["backlog", t("issue.backlog")] as const] : []),
+                                    ["all", t("issue.allIssues")],
+                                ] as const).map(([value, label]) => (
+                                    <button key={value} type="button" aria-pressed={scope === value} className={tab(scope === value)} onClick={() => setScope(value)}>
+                                        {label}
+                                    </button>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                )}
+                {view && (
+                    <div className="animate-enter ml-auto flex items-center gap-1">
+                        <IssueToolbar chrome layout={view} projectId={projectId!} onCreate={() => setIsCreating(true)} />
+                    </div>
+                )}
             </div>
-            {view === "board" ? (
-                <div className="min-h-0 flex-1 overflow-x-auto bg-surface-2 px-4 pt-3 pb-3">
+            {/* Each view eases in when it opens, so switching (or a first-time preference arriving) never pops. */}
+            {view === "board" && (
+                <div key="board" className="animate-enter min-h-0 flex-1 overflow-x-auto bg-surface-2 px-4 pt-3 pb-3">
                     <Board projectId={projectId!} filters={searchParams} />
                     {isCreating && columns?.[0] && (
                         <IssueQuickCreateModal
@@ -241,8 +267,9 @@ export const ProjectIssuesPage = () => {
                         />
                     )}
                 </div>
-            ) : (
-            <main className="min-h-0 w-full flex-1 overflow-y-auto">
+            )}
+            {view === "list" && (
+            <main key="list" className="animate-enter min-h-0 w-full flex-1 overflow-y-auto">
                 <div className="flex flex-col">
                     {isCreating && !creatingColumnId && (
                         <CreateRow
@@ -258,7 +285,7 @@ export const ProjectIssuesPage = () => {
                     {isLoading && <IssueListSkeleton />}
                     {isError && <ErrorMessage message={t("issue.couldNotLoadIssues")} />}
                     {!isLoading && !isError && (
-                        <div>
+                        <DndContext {...reorder.dndProps}>
                             {groups.map((group) => {
                                 const column = columnById.get(group.key);
                                 return (
@@ -300,11 +327,14 @@ export const ProjectIssuesPage = () => {
                                             onCancel={() => { setIsCreating(false); setCreatingColumnId(null); }}
                                         />
                                     )}
+                                    <SortableContext items={collapsedGroups.has(group.key) ? [] : group.issues.map((issue) => issue.id)} strategy={verticalListSortingStrategy}>
                                     {!collapsedGroups.has(group.key) && group.issues.map((issue) => (
                                         <IssueListRow
                                             key={issue.id}
                                             issue={issue}
                                             projectId={projectId!}
+                                            identifierWidth={identifierWidth}
+                                            sortable={manualOrder}
                                             column={columnById.get(issue.columnId)}
                                             columns={columns ?? []}
                                             member={issue.assigneeId ? memberById.get(issue.assigneeId) : undefined}
@@ -314,6 +344,7 @@ export const ProjectIssuesPage = () => {
                                             onUpdate={(input) => updateIssue.mutate({ identifier: issue.identifier, input })}
                                         />
                                     ))}
+                                    </SortableContext>
                                 </section>
                                 );
                             })}
@@ -334,7 +365,16 @@ export const ProjectIssuesPage = () => {
                                     }
                                 />
                             )}
-                        </div>
+                            <DragOverlay>
+                                {reorder.activeIssue && (
+                                    <div className="flex h-9 items-center gap-2 rounded-md border border-accent-strong bg-surface-1 px-2 text-[13px] shadow-overlay-200">
+                                        <span className="size-5 shrink-0" />
+                                        <span className="shrink-0 font-mono text-xs text-tertiary" style={{ width: `${identifierWidth}ch` }}>{reorder.activeIssue.identifier}</span>
+                                        <span className="min-w-0 flex-1 truncate text-secondary">{reorder.activeIssue.title}</span>
+                                    </div>
+                                )}
+                            </DragOverlay>
+                        </DndContext>
                     )}
                 </div>
             </main>
@@ -343,19 +383,20 @@ export const ProjectIssuesPage = () => {
     );
 };
 
-function ViewSwitch({ view, onChange }: { view: "list" | "board"; onChange: (view: "list" | "board") => void }) {
+/** A tab in the issues bar: the view switch and the list's scopes share it, at the toolbar buttons' 28px. */
+const tab = (active: boolean) =>
+    cx("flex h-7 items-center gap-1.5 rounded-md px-2 text-[13px]", active ? "bg-layer-1-selected text-primary" : "text-tertiary hover:bg-layer-transparent-hover hover:text-primary");
+
+function ViewSwitch({ view, onChange }: { view: IssueView; onChange: (view: IssueView) => void }) {
     const { t } = useTranslation();
-    const button = "flex h-6 items-center gap-1 rounded px-2 text-[13px]";
     return (
-        <div role="group" aria-label={t("issue.view")} className="flex items-center gap-0.5 rounded-md bg-layer-1 p-0.5">
-            <button type="button" aria-pressed={view === "list"} className={`${button} ${view === "list" ? "bg-layer-1-selected text-primary" : "text-tertiary hover:text-primary"}`} onClick={() => onChange("list")}>
-                <List className="size-3.5" />
-                {t("issue.list")}
-            </button>
-            <button type="button" aria-pressed={view === "board"} className={`${button} ${view === "board" ? "bg-layer-1-selected text-primary" : "text-tertiary hover:text-primary"}`} onClick={() => onChange("board")}>
-                <LayoutGrid className="size-3.5" />
-                {t("projects.board")}
-            </button>
+        <div role="group" aria-label={t("issue.view")} className="flex items-center gap-1">
+            {issueViews.map(({ value, icon: Icon, label }) => (
+                <button key={value} type="button" aria-pressed={view === value} className={tab(view === value)} onClick={() => onChange(value)}>
+                    <Icon className="size-3.5" />
+                    {t(label)}
+                </button>
+            ))}
         </div>
     );
 }

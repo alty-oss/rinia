@@ -10,6 +10,8 @@ const envSchema = z.object({
     NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
 });
 
+// Bun loads apps/api/.env by itself (it reads .env from the cwd), so there is no dotenv import.
+// In production the container passes the variables instead.
 const parsed = envSchema.safeParse(process.env);
 
 if (!parsed.success) {
