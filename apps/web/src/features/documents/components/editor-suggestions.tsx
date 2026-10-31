@@ -153,7 +153,7 @@ export function executeBlockCommand(editor: Editor, item: EditorCommand, range: 
     item.run?.(editor, range);
 }
 
-const commandIcons: Record<string, LucideIcon> = {
+export const commandIcons: Record<string, LucideIcon> = {
     text: Type,
     "heading-1": Heading1,
     "heading-2": Heading2,

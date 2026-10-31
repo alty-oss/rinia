@@ -3,10 +3,10 @@ import { Popover } from "@base-ui/react/popover";
 import { DragHandle } from "@tiptap/extension-drag-handle-react";
 import { TextSelection, type Transaction } from "@tiptap/pm/state";
 import { type Editor, useEditorState } from "@tiptap/react";
-import { GripVertical, Plus } from "lucide-react";
+import { ArrowDown, ArrowUp, Copy, GripVertical, Plus, Trash2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { convertDocumentBlock } from "./block-conversion";
-import { filterBlockCommands } from "./editor-suggestions";
+import { commandIcons, filterBlockCommands } from "./editor-suggestions";
 
 function getTopLevelBlock(editor: Editor, position: number) {
     if (!Number.isInteger(position) || position < 0 || position >= editor.state.doc.content.size) return null;
@@ -83,6 +83,7 @@ function BlockActions({
                             <Popover.Title className="mb-2 px-2 text-xs font-medium text-tertiary">{t("editor.blockActions")}</Popover.Title>
                             <div className="flex flex-col" onClick={() => setMenuOpen(false)}>
                                 <button className="document-menu-item" onClick={add}>
+                                    <Plus className="size-4 shrink-0" />
                                     {t("editor.addBlockBelow")}
                                 </button>
                                 <button
@@ -97,6 +98,7 @@ function BlockActions({
                                                 .run();
                                     }}
                                 >
+                                    <Copy className="size-4 shrink-0" />
                                     {t("editor.duplicate")}
                                 </button>
                                 <button
@@ -104,6 +106,7 @@ function BlockActions({
                                     disabled={position === 0}
                                     onClick={() => moveDocumentBlock(editor, currentPosition(), -1)}
                                 >
+                                    <ArrowUp className="size-4 shrink-0" />
                                     {t("editor.moveUp")}
                                 </button>
                                 <button
@@ -111,6 +114,7 @@ function BlockActions({
                                     disabled={!node || position + node.nodeSize === editor.state.doc.content.size}
                                     onClick={() => moveDocumentBlock(editor, currentPosition(), 1)}
                                 >
+                                    <ArrowDown className="size-4 shrink-0" />
                                     {t("editor.moveDown")}
                                 </button>
                                 <button
@@ -125,12 +129,15 @@ function BlockActions({
                                                 .run();
                                     }}
                                 >
+                                    <Trash2 className="size-4 shrink-0" />
                                     {t("editor.deleteBlock")}
                                 </button>
                                 {node && !["image", "table", "horizontalRule"].includes(node.type.name) && (
                                     <>
                                         <p className="mt-2 border-t border-subtle px-2 py-2 text-xs text-tertiary">{t("editor.turnInto")}</p>
-                                        {filterBlockCommands("").slice(0, 9).map((command) => (
+                                        {filterBlockCommands("").slice(0, 9).map((command) => {
+                                            const Icon = commandIcons[command.id];
+                                            return (
                                             <button
                                                 key={command.id}
                                                 className="document-menu-item"
@@ -138,9 +145,11 @@ function BlockActions({
                                                     convertDocumentBlock(editor, currentPosition(), command.id);
                                                 }}
                                             >
+                                                {Icon && <Icon className="size-4 shrink-0" />}
                                                 {command.label}
                                             </button>
-                                        ))}
+                                            );
+                                        })}
                                     </>
                                 )}
                             </div>
