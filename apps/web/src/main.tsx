@@ -12,6 +12,11 @@ import { LanguageProvider } from "@/i18n/language-provider";
 import { AppRoutes } from "@/routes";
 import "@/styles/globals.css";
 
+// Development-only element picker for agents. Vite replaces `import.meta.env.DEV` with `false` in builds, so production never ships it.
+if (import.meta.env.DEV) {
+    void import("react-grab");
+}
+
 createRoot(document.getElementById("root")!).render(
     <StrictMode>
         <AppErrorBoundary>
