@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
+import { DndContext, DragOverlay } from "@dnd-kit/core";
+import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import type { Issue } from "@/features/issues/api";
 import type { IssueView } from "@rinia/shared";
 import { AddOutline, ChevronDownOutline } from "@makeplane/propel/icons";
@@ -21,6 +23,7 @@ import { useCreateIssue, useIssues, useUpdateIssue } from "@/features/issues/hoo
 import { ProjectWorkspaceHeader } from "@/features/projects/components/project-workspace-header";
 import { IssueToolbar } from "@/features/issues/components/issue-toolbar";
 import { useIssueView } from "@/features/issues/hooks/use-issue-view";
+import { listGroupKey, useListReorder, type ListGroupBy } from "@/features/issues/hooks/use-list-reorder";
 import { issueViews } from "@/features/issues/views";
 import { useProjectMembers } from "@/features/projects/hooks/use-project-members";
 import { ApiError } from "@/lib/api-client";
@@ -28,7 +31,7 @@ import { useTranslation } from "react-i18next";
 import { translateStatusName } from "@/i18n/status-label";
 
 type OrderBy = "position" | "priority" | "updated" | "number";
-type GroupBy = "none" | "status" | "assignee";
+type GroupBy = ListGroupBy;
 type Scope = "active" | "backlog" | "all";
 
 export const ProjectIssuesPage = () => {
@@ -59,6 +62,9 @@ export const ProjectIssuesPage = () => {
     const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
 
     const columnById = useMemo(() => new Map((columns ?? []).map((column) => [column.id, column])), [columns]);
+    // The backlog scope only lists issues in a "Backlog" or "Fila" column; without one it would always be empty,
+    // so its tab only shows when the project has such a column (or a link already opened it).
+    const showBacklog = scope === "backlog" || (columns ?? []).some((column) => columnBucket(column.name) === "backlog");
     const memberById = useMemo(() => new Map((members ?? []).map((member) => [member.id, member])), [members]);
     const filteredIssues = useMemo(
         () =>
@@ -77,13 +83,27 @@ export const ProjectIssuesPage = () => {
             }),
         [assignee, category, columnById, issues, priority, scope, search, status],
     );
+    // In manual order the list sorts by position itself, so a moved issue lands in place before the server answers.
+    const manualOrder = orderBy === "position";
+    const orderedSource = useMemo(
+        () => (manualOrder ? [...filteredIssues].sort((left, right) => left.position - right.position || left.number - right.number) : filteredIssues),
+        [filteredIssues, manualOrder],
+    );
+    const reorder = useListReorder({
+        issues: orderedSource,
+        groupBy,
+        onMove: (issue, input, done) => updateIssue.mutate({ identifier: issue.identifier, input }, { onSettled: done }),
+    });
+    const listIssues = reorder.items;
+    // Every identifier gets the width of the longest one, so titles line up without the ID column taking extra room.
+    const identifierWidth = useMemo(() => Math.max(4, ...(issues ?? []).map((issue) => issue.identifier.length)), [issues]);
 
     const groups = useMemo(() => {
-        if (groupBy === "none") return [{ key: "all", label: null, issues: filteredIssues }];
+        if (groupBy === "none") return [{ key: "all", label: null, issues: listIssues }];
 
         const grouped = new Map<string, Issue[]>();
-        for (const issue of filteredIssues) {
-            const key = groupBy === "status" ? issue.columnId : issue.assigneeId ?? "unassigned";
+        for (const issue of listIssues) {
+            const key = listGroupKey(issue, groupBy);
             grouped.set(key, [...(grouped.get(key) ?? []), issue]);
         }
 
@@ -101,7 +121,7 @@ export const ProjectIssuesPage = () => {
                     : memberById.get(key)?.name ?? t("issue.unassigned"),
             issues: groupedIssues,
         }));
-    }, [columnById, columns, filteredIssues, groupBy, memberById, t]);
+    }, [columnById, columns, listIssues, groupBy, memberById, t]);
     const orderedIssues = useMemo(() => groups.flatMap((group) => group.issues), [groups]);
 
     useEffect(() => {
@@ -114,7 +134,7 @@ export const ProjectIssuesPage = () => {
         function handleListKeyDown(event: KeyboardEvent) {
             const target = event.target as HTMLElement | null;
             if (target?.matches("input, textarea, select, [contenteditable='true']")) return;
-            if (orderedIssues.length === 0) return;
+            if (orderedIssues.length === 0 || reorder.activeIssue) return;
 
             const currentIndex = orderedIssues.findIndex((issue) => issue.id === selectedIssueId);
             if (event.key === "ArrowDown" || event.key === "ArrowUp") {
@@ -134,7 +154,7 @@ export const ProjectIssuesPage = () => {
 
         window.addEventListener("keydown", handleListKeyDown);
         return () => window.removeEventListener("keydown", handleListKeyDown);
-    }, [orderedIssues, selectedIssueId, view]);
+    }, [orderedIssues, reorder.activeIssue, selectedIssueId, view]);
 
     function clearFilters() {
         setSearchParams(
@@ -213,7 +233,7 @@ export const ProjectIssuesPage = () => {
                                 <span aria-hidden="true" className="mx-1 h-4 w-px bg-border-secondary" />
                                 {([
                                     ["active", t("issue.active")],
-                                    ["backlog", t("issue.backlog")],
+                                    ...(showBacklog ? [["backlog", t("issue.backlog")] as const] : []),
                                     ["all", t("issue.allIssues")],
                                 ] as const).map(([value, label]) => (
                                     <button key={value} type="button" aria-pressed={scope === value} className={tab(scope === value)} onClick={() => setScope(value)}>
@@ -265,7 +285,7 @@ export const ProjectIssuesPage = () => {
                     {isLoading && <IssueListSkeleton />}
                     {isError && <ErrorMessage message={t("issue.couldNotLoadIssues")} />}
                     {!isLoading && !isError && (
-                        <div>
+                        <DndContext {...reorder.dndProps}>
                             {groups.map((group) => {
                                 const column = columnById.get(group.key);
                                 return (
@@ -307,11 +327,14 @@ export const ProjectIssuesPage = () => {
                                             onCancel={() => { setIsCreating(false); setCreatingColumnId(null); }}
                                         />
                                     )}
+                                    <SortableContext items={collapsedGroups.has(group.key) ? [] : group.issues.map((issue) => issue.id)} strategy={verticalListSortingStrategy}>
                                     {!collapsedGroups.has(group.key) && group.issues.map((issue) => (
                                         <IssueListRow
                                             key={issue.id}
                                             issue={issue}
                                             projectId={projectId!}
+                                            identifierWidth={identifierWidth}
+                                            sortable={manualOrder}
                                             column={columnById.get(issue.columnId)}
                                             columns={columns ?? []}
                                             member={issue.assigneeId ? memberById.get(issue.assigneeId) : undefined}
@@ -321,6 +344,7 @@ export const ProjectIssuesPage = () => {
                                             onUpdate={(input) => updateIssue.mutate({ identifier: issue.identifier, input })}
                                         />
                                     ))}
+                                    </SortableContext>
                                 </section>
                                 );
                             })}
@@ -341,7 +365,16 @@ export const ProjectIssuesPage = () => {
                                     }
                                 />
                             )}
-                        </div>
+                            <DragOverlay>
+                                {reorder.activeIssue && (
+                                    <div className="flex h-9 items-center gap-2 rounded-md border border-accent-strong bg-surface-1 px-2 text-[13px] shadow-overlay-200">
+                                        <span className="size-5 shrink-0" />
+                                        <span className="shrink-0 font-mono text-xs text-tertiary" style={{ width: `${identifierWidth}ch` }}>{reorder.activeIssue.identifier}</span>
+                                        <span className="min-w-0 flex-1 truncate text-secondary">{reorder.activeIssue.title}</span>
+                                    </div>
+                                )}
+                            </DragOverlay>
+                        </DndContext>
                     )}
                 </div>
             </main>

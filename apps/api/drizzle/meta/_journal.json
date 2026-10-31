@@ -134,6 +134,13 @@
       "when": 1790010000000,
       "tag": "0018_project_view_preferences",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1790011000000,
+      "tag": "0019_distinct_issue_positions",
+      "breakpoints": true
     }
   ]
 }

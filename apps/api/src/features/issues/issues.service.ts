@@ -1,5 +1,5 @@
 import type { CreateIssueCommentInput, CreateIssueInput, CreateIssueRelationInput, IssueListQuery, TiptapDocument, UpdateIssueCommentInput, UpdateIssueInput } from "@rinia/shared";
-import { and, asc, count, desc, eq, or, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, max, or, sql } from "drizzle-orm";
 import { db } from "../../db";
 import { boardColumns, categories, issueActivities, issueComments, issueRelations, issues, projectKeyAliases, projectMembers, projects, users } from "../../db/schema";
 import { HttpError } from "../../lib/http-error";
@@ -137,7 +137,8 @@ export async function listIssues(projectId: string, query: IssueListQuery) {
     if (query.categoryId) filters.push(eq(issues.categoryId, query.categoryId));
 
     const order = query.orderBy === "updated" ? desc(issues.updatedAt) : query.orderBy === "number" ? asc(issues.number) : query.orderBy === "priority" ? asc(priorityRank) : asc(issues.position);
-    const rows = await db.query.issues.findMany({ where: and(...filters), orderBy: [order] });
+    // The number breaks ties, so issues that share a position (or a priority, for that order) keep a stable order.
+    const rows = await db.query.issues.findMany({ where: and(...filters), orderBy: [order, asc(issues.number)] });
     const project = await db.query.projects.findFirst({ where: eq(projects.id, projectId), columns: { issueKey: true } });
     if (!project) throw new HttpError(404, "Project not found");
     return rows.map((issue) => ({ ...issue, identifier: `${project.issueKey}-${issue.number}` }));
@@ -153,6 +154,9 @@ export async function createIssue(projectId: string, input: CreateIssueInput, ac
 
     const issue = await db.transaction(async (tx) => {
         const identity = await nextIssueNumber(projectId, tx);
+        // New issues go to the end of the project's manual order, each with a position of its own, so any two
+        // issues can be reordered between each other.
+        const [last] = await tx.select({ position: max(issues.position) }).from(issues).where(eq(issues.projectId, projectId));
         const [created] = await tx
             .insert(issues)
             .values({
@@ -167,7 +171,7 @@ export async function createIssue(projectId: string, input: CreateIssueInput, ac
                 parentIssueId: input.parentIssueId,
                 estimate: input.estimate,
                 createdBy: actorId,
-                position: 1000,
+                position: (last?.position ?? 0) + 1000,
             })
             .returning();
         await tx.insert(issueActivities).values({ issueId: created.id, actorId, type: "created", payload: {} });
