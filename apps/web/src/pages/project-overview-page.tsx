@@ -70,7 +70,7 @@ export const ProjectOverviewPage = () => {
                             <GoTo to={`/projects/${projectId}/settings/general`} icon={AppIcons.Settings} label={t("nav.projectSettings")} />
                             <GoTo to={`/projects/${projectId}/issues/list`} icon={AppIcons.Issues} label={t("nav.issues")} />
                             <GoTo to={`/projects/${projectId}/documents`} icon={AppIcons.Documents} label={t("nav.documents")} />
-                            <GoTo to={`/projects/${projectId}/board`} icon={AppIcons.Board} label={t("nav.views")} />
+                            <GoTo to={`/projects/${projectId}/board`} icon={AppIcons.Board} label={t("projects.board")} />
                         </nav>
                     </aside>
                 </div>

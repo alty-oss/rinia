@@ -22,7 +22,6 @@ const ProjectIssuesPage = lazy(() => import("@/pages/project-issues-page").then(
 const ProjectOverviewPage = lazy(() => import("@/pages/project-overview-page").then((module) => ({ default: module.ProjectOverviewPage })));
 const PreferencesSettingsPage = lazy(() => import("@/pages/preferences-settings-page").then((module) => ({ default: module.PreferencesSettingsPage })));
 const ProjectsPage = lazy(() => import("@/pages/projects-page").then((module) => ({ default: module.ProjectsPage })));
-const WorkspaceSectionPage = lazy(() => import("@/pages/workspace-section-page").then((module) => ({ default: module.WorkspaceSectionPage })));
 const RegisterPage = lazy(() => import("@/pages/register-page").then((module) => ({ default: module.RegisterPage })));
 
 function ProjectSettingsRedirect() {
@@ -54,7 +53,6 @@ export const AppRoutes = () => {
                     <Route path="/" element={<ProjectsPage />} />
                     <Route path="/settings/profile" element={<ProfileSettingsPage />} />
                     <Route path="/settings/preferences" element={<PreferencesSettingsPage />} />
-                    <Route path="/workspace/:section" element={<WorkspaceSectionPage />} />
                     <Route path="/projects/:projectId/settings" element={<ProjectSettingsRedirect />} />
                     <Route path="/projects/:projectId/settings/:section" element={<ProjectSettingsPage />} />
                     <Route path="/projects/:projectId" element={<ProjectOverviewPage />} />

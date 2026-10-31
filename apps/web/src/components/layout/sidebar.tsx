@@ -1,6 +1,6 @@
 import { Fragment, useEffect, useState, type Dispatch, type SetStateAction } from "react";
 import { ChevronRightOutline } from "@makeplane/propel/icons";
-import { Bot, Circle, Eye, FolderGit2, GitBranch, House, Inbox, LayoutGrid, MoreHorizontal, Orbit, Plus, Search, SquarePen, UserRound, Users } from "lucide-react";
+import { Circle, House, LayoutGrid, Search, SquarePen, UserRound, Users } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router";
 import { AppIcons } from "@/components/foundations/icons";
 import type { AppIcon } from "@/components/foundations/icons";
@@ -62,11 +62,14 @@ function openStoredId(key: string, setter: Dispatch<SetStateAction<Set<string>>>
     });
 }
 
-function readSections(): { workspace: boolean; teams: boolean; try: boolean } {
-    const fallback = { workspace: true, teams: true, try: true };
+function readSections(): { projects: boolean } {
+    const fallback = { projects: true };
     try {
-        const stored = JSON.parse(localStorage.getItem(SECTIONS_KEY) ?? "null") as Partial<typeof fallback> | null;
-        if (stored && typeof stored === "object") return { ...fallback, ...stored };
+        const stored = JSON.parse(localStorage.getItem(SECTIONS_KEY) ?? "null") as { projects?: boolean; teams?: boolean } | null;
+        if (stored && typeof stored === "object") {
+            if (typeof stored.projects === "boolean") return { projects: stored.projects };
+            if (typeof stored.teams === "boolean") return { projects: stored.teams };
+        }
     } catch {
         /* ignore invalid storage */
     }
@@ -93,9 +96,9 @@ export function Sidebar({ onSearch, onNavigate }: { onSearch: () => void; onNavi
         storeOpenProject(routeProjectId);
     }, [routeProjectId]);
 
-    function toggleSection(key: "workspace" | "teams" | "try") {
+    function toggleProjects() {
         setSections((current) => {
-            const next = { ...current, [key]: !current[key] };
+            const next = { projects: !current.projects };
             localStorage.setItem(SECTIONS_KEY, JSON.stringify(next));
             return next;
         });
@@ -132,23 +135,8 @@ export function Sidebar({ onSearch, onNavigate }: { onSearch: () => void; onNavi
                         </button>
                     </div>
                     <div className="min-h-0 flex-1 overflow-y-auto px-3 pb-2">
-                        <NavLink to="/workspace/inbox" icon={Inbox} label={t("nav.inbox")} />
-                        <NavLink to="/workspace/my-issues" icon={UserRound} label={t("nav.myIssues")} />
-                        <NavLink to="/workspace/reviews" icon={Circle} label={t("nav.reviews")} />
-                        <NavLink to="/workspace/agent" icon={Bot} label={t("nav.agent")} />
-
-                        <SectionLabel label={t("nav.workspace")} open={sections.workspace} onToggle={() => toggleSection("workspace")} />
-                        {sections.workspace && (
-                            <>
-                                <NavLink to="/" icon={FolderGit2} label={t("nav.projects")} />
-                                <NavLink to="/workspace/views" icon={Eye} label={t("nav.views")} />
-                                <NavLink to="/workspace/loops" icon={Orbit} label={t("nav.loops")} />
-                                <NavLink to="/workspace/more" icon={MoreHorizontal} label={t("nav.more")} />
-                            </>
-                        )}
-
-                        <SectionLabel label={t("nav.yourTeams")} open={sections.teams} onToggle={() => toggleSection("teams")} />
-                        {sections.teams && (projects ?? []).map((project) => (
+                        <SectionLabel label={t("nav.projects")} open={sections.projects} to="/" onToggle={toggleProjects} />
+                        {sections.projects && (projects ?? []).map((project) => (
                             <ProjectNavItem
                                 key={project.id}
                                 project={project}
@@ -170,15 +158,6 @@ export function Sidebar({ onSearch, onNavigate }: { onSearch: () => void; onNavi
                                 onOpenDocs={() => openStoredId(OPEN_DOCS_KEY, setOpenDocs, project.id)}
                             />
                         ))}
-
-                        <SectionLabel label={t("nav.try")} open={sections.try} onToggle={() => toggleSection("try")} />
-                        {sections.try && (
-                            <>
-                                <NavLink to="/workspace/import" icon={Plus} label={t("nav.importIssues")} />
-                                <NavLink to={createTarget ? `/projects/${createTarget}/settings/members` : "/workspace/import"} icon={Users} label={t("nav.invitePeople")} />
-                                <NavLink to={createTarget ? `/projects/${createTarget}/settings/general` : "/workspace/repository"} icon={GitBranch} label={t("nav.connectRepository")} />
-                            </>
-                        )}
                     </div>
                 </>
             )}
@@ -206,23 +185,16 @@ function CreateElsewhere({ projectId, onClose, onCreated }: { projectId: string;
     return <IssueQuickCreateModal projectId={projectId} columnId={columns[0].id} onClose={onClose} onCreated={onCreated} />;
 }
 
-function SectionLabel({ label, open, onToggle }: { label: string; open: boolean; onToggle: () => void }) {
-    return (
-        <button type="button" aria-expanded={open} className="mt-3 flex h-7 w-full items-center gap-1 px-2 text-left text-[12px] text-tertiary hover:text-secondary" onClick={(event) => { event.stopPropagation(); onToggle(); }}>
-            <ChevronRightOutline className={`size-3 shrink-0 transition-transform ${open ? "rotate-90" : ""}`} />
-            {label}
-        </button>
-    );
-}
-
-function NavLink({ to, icon: Icon, label, nested = false }: { to: string; icon: AppIcon; label: string; nested?: boolean }) {
+function SectionLabel({ label, open, onToggle, to }: { label: string; open: boolean; onToggle: () => void; to: string }) {
     const location = useLocation();
     const active = location.pathname === to;
     return (
-        <Link to={to} className={`${ITEM} ${nested ? "pl-7" : ""} ${active ? ACTIVE : ""}`} aria-current={active ? "page" : undefined}>
-            <Icon className="size-4 shrink-0" />
-            <span className="truncate">{label}</span>
-        </Link>
+        <div className="mt-3 flex h-7 w-full items-center gap-1 px-2 text-[12px] text-tertiary">
+            <button type="button" aria-expanded={open} aria-label={label} className="flex size-4 items-center justify-center hover:text-secondary" onClick={(event) => { event.stopPropagation(); onToggle(); }}>
+                <ChevronRightOutline className={`size-3 shrink-0 transition-transform ${open ? "rotate-90" : ""}`} />
+            </button>
+            <Link to={to} className={`min-w-0 flex-1 truncate text-left hover:text-secondary ${active ? "text-primary" : ""}`} aria-current={active ? "page" : undefined}>{label}</Link>
+        </div>
     );
 }
 
@@ -329,7 +301,7 @@ function ProjectNavItem({
                             <ProjectDocumentsNav projectId={project.id} />
                         </div>
                     )}
-                    <ChildLink to={`/projects/${project.id}/board`} icon={LayoutGrid} label={t("nav.views")} active={views} />
+                    <ChildLink to={`/projects/${project.id}/board`} icon={LayoutGrid} label={t("projects.board")} active={views} />
                 </nav>
             )}
         </div>

@@ -1,9 +1,8 @@
 import { Suspense, createContext, useContext, useEffect, useRef, useState } from "react";
 import type { KeyboardEvent, PointerEvent } from "react";
 import { Dialog } from "@base-ui/react/dialog";
-import { Bot } from "lucide-react";
 import { useHotkeys } from "react-hotkeys-hook";
-import { Link, Outlet, useLocation, useNavigate } from "react-router";
+import { Outlet, useLocation, useNavigate } from "react-router";
 import { ButtonUtility } from "@/components/base/buttons/button-utility";
 import { NetworkStatus } from "@/components/feedback/network-status";
 import { WorkspaceLoadingFallback } from "@/components/feedback/workspace-loading-fallback";
@@ -77,14 +76,6 @@ export const AppShell = () => {
                         <div className="min-h-0 flex-1">
                             <Sidebar onSearch={() => setSearchOpen(true)} />
                         </div>
-                        <button
-                            type="button"
-                            aria-label={t("nav.help")}
-                            className="m-2 flex size-7 items-center justify-center rounded-full text-tertiary hover:bg-layer-transparent-hover hover:text-primary"
-                            onClick={() => navigate("/workspace/inbox")}
-                        >
-                            <span className="text-sm" aria-hidden="true">?</span>
-                        </button>
                     </div>
                     {!collapsed && (
                         <div
@@ -132,13 +123,6 @@ export const AppShell = () => {
                         <SidebarAccount />
                     </div>
                 )}
-                <Link
-                    to="/workspace/agent"
-                    className="absolute right-3 bottom-1.5 flex items-center gap-1 text-xs text-tertiary hover:text-primary"
-                >
-                    <Bot className="size-3.5" aria-hidden="true" />
-                    {t("nav.agent")}
-                </Link>
                 <Dialog.Root open={mobileOpen} onOpenChange={setMobileOpen}>
                     <Dialog.Portal>
                         <Dialog.Backdrop className="fixed inset-0 z-40 bg-backdrop transition-opacity duration-200 data-[ending-style]:opacity-0 data-[starting-style]:opacity-0" />
