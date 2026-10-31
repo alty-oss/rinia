@@ -18,7 +18,7 @@ const OPEN_PROJECTS_KEY = "rinia-open-projects";
 const OPEN_DOCS_KEY = "rinia-open-project-docs";
 const SECTIONS_KEY = "rinia-sidebar-sections";
 const ITEM = "flex h-7 w-full min-w-0 items-center gap-2.5 rounded-md px-2 text-left text-[13px] font-medium";
-const IDLE = "text-secondary hover:bg-layer-transparent-hover hover:text-primary";
+const IDLE = "text-tertiary hover:bg-layer-transparent-hover hover:text-primary";
 const ACTIVE = "bg-layer-1-selected text-white [&_svg]:text-white";
 
 function itemClass(active: boolean, extra = "") {
@@ -130,7 +130,7 @@ export function Sidebar({ onSearch, onNavigate }: { onSearch: () => void; onNavi
                         <button
                             type="button"
                             aria-label={t("nav.newIssue")}
-                            className="flex size-7 items-center justify-center rounded-lg bg-layer-1 text-secondary hover:bg-layer-1-hover hover:text-primary"
+                            className="flex size-7 items-center justify-center rounded-lg bg-layer-1 text-tertiary hover:bg-layer-1-hover hover:text-primary"
                             onClick={(event) => {
                                 event.stopPropagation();
                                 if (createTarget) setCreatingProjectId(createTarget);
@@ -260,10 +260,10 @@ function SectionLabel({ label, open, onToggle }: { label: string; open: boolean;
             type="button"
             aria-expanded={open}
             onClick={onToggle}
-            className="mt-5 mb-0.5 flex h-6 items-center gap-1 rounded-md px-2 text-[12px] font-medium text-tertiary hover:text-secondary"
+            className="group/section mt-5 mb-0.5 flex h-6 items-center gap-1 rounded-md px-2 text-[12px] font-medium text-tertiary hover:text-secondary"
         >
             {label}
-            <Caret open={open} />
+            <span className="text-placeholder group-hover/section:text-tertiary"><Caret open={open} /></span>
         </button>
     );
 }
@@ -315,7 +315,7 @@ function ProjectNavItem({
             >
                 <ProjectIcon icon={project.iconAppearance ?? project.icon} className="size-4 shrink-0" />
                 <span className="truncate">{project.name}</span>
-                <span className="text-tertiary"><Caret open={open} /></span>
+                <span className="text-placeholder"><Caret open={open} /></span>
             </button>
             {open && (
                 <nav aria-label={project.name} className="ml-4 flex flex-col gap-px">
@@ -330,7 +330,7 @@ function ProjectNavItem({
                             type="button"
                             aria-expanded={docsOpen}
                             aria-label={docsOpen ? t("nav.collapsePages") : t("nav.expandPages")}
-                            className="grid size-5 shrink-0 place-items-center rounded text-tertiary hover:text-primary"
+                            className="grid size-5 shrink-0 place-items-center rounded text-placeholder hover:text-primary"
                             onClick={onToggleDocs}
                         >
                             <Caret open={docsOpen} />
