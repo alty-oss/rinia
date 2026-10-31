@@ -207,65 +207,8 @@ input[type="number"] {
 }
 
 .project-board-page > header { height: 45px; position: relative; }
-.project-board-page [data-peek-selected="true"] { border-color: var(--border-accent-strong); }
-.issue-peek-panel .issue-view-header { height: 60px; flex-shrink: 0; }
-.issue-peek-panel .issue-view-header > div:last-child button { width: 28px; height: 28px; }
-.issue-peek-panel .issue-view-header > div:last-child button:not(:first-of-type) { background: var(--bg-layer-2); box-shadow: inset 0 0 0 1px var(--border-strong); }
-.issue-peek-panel .peek-description .tiptap-editor { min-height: 0; }
-.issue-peek-panel .peek-description .ProseMirror {
-    min-height: 24px;
-    padding: 0;
-    font-size: 16px;
-    line-height: 28px;
-    font-weight: 400;
-    color: var(--txt-primary);
-}
-.issue-peek-panel .peek-description .tiptap-toolbar { margin-bottom: 8px; }
-.issue-peek-panel .peek-description.is-clamped .tiptap-editor-description {
-    max-height: 7.5rem;
-    overflow: hidden;
-    position: relative;
-}
-.issue-peek-panel .peek-description.is-clamped .tiptap-editor-description::after {
-    content: "";
-    pointer-events: none;
-    position: absolute;
-    inset-inline: 0;
-    bottom: 0;
-    height: 2.5rem;
-    background: linear-gradient(to bottom, transparent, var(--bg-surface-1));
-}
-.peek-property-control > label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
-.peek-property-control { gap: 0; }
-.peek-property-control > button,
-.peek-property-control > div {
-    height: 30px;
-    min-height: 30px;
-    padding: 0 8px;
-    background: transparent;
-    border-radius: 4px;
-    box-shadow: none;
-}
-.peek-property-control > button:hover,
-.peek-property-control > div:hover { background: var(--bg-layer-1-hover); }
-.peek-property-control > button:focus-visible,
-.peek-property-control > div:focus-within { outline: 1px solid var(--border-accent-strong); }
-.peek-property-control input,
-.peek-property-control button span,
-.peek-property-control > div > span { font-size: 13px; font-weight: 450; color: var(--txt-secondary); }
-.peek-property-control input::placeholder { color: var(--txt-secondary); }
-.peek-property-control > button > span:last-child,
-.peek-property-control > div > button { opacity: 0; }
-.peek-property-control:hover > button > span:last-child,
-.peek-property-control:focus-within > button > span:last-child,
-.peek-property-control:hover > div > button,
-.peek-property-control:focus-within > div > button { opacity: 1; }
-.peek-comments .tiptap-editor { min-height: 0; }
-.peek-comments .ProseMirror { min-height: 60px; padding: 8px; font-size: 13px; }
 @media (max-width: 767px) {
     .project-board-page > header { height: auto; min-height: 45px; flex-wrap: wrap; padding-block: 8px; }
-    .issue-peek-panel .issue-peek-body { padding: 16px; }
-    .peek-property-row > span { width: 110px; }
 }
 
 .tiptap-editor-readonly .ProseMirror [data-type="taskItem"] > label {
@@ -383,6 +326,70 @@ input[type="search"]::-webkit-search-cancel-button {
     outline: none;
 }
 
+html:not([data-theme*="dark"]) {
+    --bg-canvas: #efefef;
+    --bg-surface-1: #f9f9f9;
+    --bg-surface-2: #f4f4f4;
+    --bg-layer-1: #ffffff;
+    --bg-layer-1-hover: #f4f4f4;
+    --bg-layer-1-active: #ececec;
+    --bg-layer-1-selected: #e3e3e3;
+    --bg-layer-2: #ffffff;
+    --bg-layer-2-hover: #f1f1f1;
+    --bg-layer-2-active: #e9e9e9;
+    --bg-layer-2-selected: #e9e9e9;
+    --bg-layer-3: #f0f0f0;
+    --bg-layer-3-hover: #e8e8e8;
+    --bg-layer-transparent-hover: rgb(0 0 0 / 4%);
+    --bg-layer-transparent-active: rgb(0 0 0 / 6%);
+    --bg-layer-transparent-selected: rgb(0 0 0 / 6%);
+    --border-subtle: #e6e6e6;
+    --border-subtle-1: #dedede;
+    --border-strong: #d6d6d6;
+    --border-strong-1: #c8c8c8;
+    --txt-primary: #141414;
+    --txt-secondary: #303030;
+    --txt-tertiary: #5b5b5b;
+    --txt-placeholder: #9c9c9c;
+    --txt-accent-primary: #4f5bc4;
+    --txt-link-primary: #4f5bc4;
+    --brand-default: #5e6ad2;
+    --bg-accent-primary: #5e6ad2;
+    --border-accent-strong: #5e6ad2;
+}
+
+html[data-theme*="dark"] {
+    --bg-canvas: #090909;
+    --bg-surface-1: #121212;
+    --bg-surface-2: #161616;
+    --bg-layer-1: #1a1a1a;
+    --bg-layer-1-hover: #222222;
+    --bg-layer-1-active: #2a2a2a;
+    --bg-layer-1-selected: #2c2c2c;
+    --bg-layer-2: #1c1c1c;
+    --bg-layer-2-hover: #262626;
+    --bg-layer-2-active: #303030;
+    --bg-layer-2-selected: #303030;
+    --bg-layer-3: #262626;
+    --bg-layer-3-hover: #303030;
+    --bg-layer-transparent-hover: rgb(255 255 255 / 5%);
+    --bg-layer-transparent-active: rgb(255 255 255 / 8%);
+    --bg-layer-transparent-selected: rgb(255 255 255 / 8%);
+    --border-subtle: #2a2a2a;
+    --border-subtle-1: #333333;
+    --border-strong: #3a3a3a;
+    --border-strong-1: #454545;
+    --txt-primary: #f3f3f3;
+    --txt-secondary: #d2d2d2;
+    --txt-tertiary: #8f8f8f;
+    --txt-placeholder: #6b6b6b;
+    --txt-accent-primary: #8b8cff;
+    --txt-link-primary: #8b8cff;
+    --brand-default: #5e6ad2;
+    --bg-accent-primary: #5e6ad2;
+    --border-accent-strong: #5e6ad2;
+}
+
 @layer base {
     html { color-scheme: light; background: var(--bg-canvas); }
     html[data-theme*="dark"] { color-scheme: dark; }
@@ -391,3 +398,19 @@ input[type="search"]::-webkit-search-cancel-button {
     :focus-visible { outline: 2px solid var(--border-accent-strong); outline-offset: 2px; }
     input:-webkit-autofill { -webkit-background-clip: text; -webkit-text-fill-color: var(--txt-primary); caret-color: var(--txt-primary); }
 }
+
+/* Items that join a list (sub-issues, comments, activity) ease in instead of popping. */
+@keyframes rinia-enter {
+    from { opacity: 0; transform: translateY(-3px); }
+}
+.animate-enter { animation: rinia-enter 180ms cubic-bezier(0.2, 0, 0, 1); }
+@media (prefers-reduced-motion: reduce) { .animate-enter { animation: none; } }
+
+/* Issue page: the description reads as page text, and comments stay compact. */
+.issue-description .tiptap-editor { min-height: 0; }
+.issue-description .ProseMirror { min-height: 3rem; padding: 0; font-size: 15px; line-height: 1.65; color: var(--color-text-secondary); }
+.issue-description .ProseMirror:focus-visible,
+.issue-comment-composer .ProseMirror:focus-visible { outline: none; }
+.tiptap-editor.issue-comment-composer { min-height: 0; }
+.issue-comment-composer .ProseMirror { min-height: 2.5rem; padding: 0.75rem 1rem 0.25rem; font-size: 14px; }
+.issue-comment-body .ProseMirror { min-height: 0; padding: 0; font-size: 14px; }

@@ -1,10 +1,13 @@
 import { addProjectMemberSchema, createProjectSchema, updateProjectPageSchema, updateProjectSchema } from "@rinia/shared";
+import { z } from "zod";
 import { asyncHandler } from "../../middleware/async-handler";
+import { assertProjectMembership } from "../../middleware/project-membership.middleware";
 import {
     addProjectMember,
     createProject,
     deleteProject,
     getProjectById,
+    getProjectByKey,
     listProjectMembers,
     listProjectsForUser,
     removeProjectMember,
@@ -21,6 +24,12 @@ export const create = asyncHandler(async (req, res) => {
 export const list = asyncHandler(async (req, res) => {
     const projectList = await listProjectsForUser(req.user!.sub, req.user!.isAdmin);
     res.json({ projects: projectList });
+});
+
+export const getByKey = asyncHandler<{ key: string }>(async (req, res) => {
+    const project = await getProjectByKey(z.string().trim().min(1).max(16).parse(req.params.key));
+    await assertProjectMembership(project.id, req.user!.sub, req.user!.isAdmin);
+    res.json({ project });
 });
 
 export const getOne = asyncHandler<{ projectId: string }>(async (req, res) => {

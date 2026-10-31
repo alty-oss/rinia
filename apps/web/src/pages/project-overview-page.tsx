@@ -1,168 +1,217 @@
-import { ArrowNarrowRightOutline } from "@makeplane/propel/icons";
-import { parseProjectCover } from "@rinia/shared";
-import { Link, useParams } from "react-router";
+import { useEffect, useRef, useState } from "react";
+import { AddOutline as Plus } from "@makeplane/propel/icons";
+import { ChevronRight, FileText } from "lucide-react";
+import { Link, useNavigate } from "react-router";
+import { urls } from "@/lib/urls";
+import { useRouteProject } from "@/features/projects/route-project";
+import { Avatar } from "@/components/base/avatar/avatar";
 import { Skeleton } from "@/components/base/feedback/skeleton";
-import { EmptyState } from "@/components/feedback/empty-state";
 import { ErrorMessage } from "@/components/feedback/error-message";
 import { AppIcons } from "@/components/foundations/icons";
-import { GradientCover } from "@/components/appearance/gradient-cover";
-import { useColumns } from "@/features/board/hooks/use-board";
-import { useIssues } from "@/features/issues/hooks/use-issues";
-import { ProjectCoverControl, ProjectIconControl } from "@/features/projects/components/project-appearance-controls";
+import { ModalDialog } from "@/components/overlay/modal-dialog";
+import { useCreateDocument, useDocuments } from "@/features/documents/hooks/use-documents";
+import { AddMemberForm, memberInitials } from "@/features/projects/components/members-panel";
+import { ProjectIconControl } from "@/features/projects/components/project-appearance-controls";
+import { ProjectHomeTabs } from "@/features/projects/components/project-home-tabs";
+import { ProjectIcon, projectIconColor } from "@/features/projects/components/project-icon";
 import { ProjectWorkspaceHeader } from "@/features/projects/components/project-workspace-header";
 import { useProject } from "@/features/projects/hooks/use-project";
+import { useProjectMembers } from "@/features/projects/hooks/use-project-members";
 import { useProjectPermissions } from "@/features/projects/hooks/use-project-permissions";
+import { useUpdateProject } from "@/features/projects/hooks/use-projects";
 import { useTranslation } from "react-i18next";
 
 export const ProjectOverviewPage = () => {
-    const { projectId } = useParams<{ projectId: string }>();
-    const { t } = useTranslation();
-    const { data: project, isLoading, isError } = useProject(projectId!);
-    const { isProjectOwner } = useProjectPermissions(projectId!);
-    const { data: issues, isLoading: issuesLoading, isError: issuesError } = useIssues(projectId!);
-    const { data: columns, isLoading: columnsLoading, isError: columnsError } = useColumns(projectId!);
-    const totalEstimate = (issues ?? []).reduce((total, issue) => total + (issue.estimate ?? 0), 0);
-    const overviewLoading = isLoading || issuesLoading || columnsLoading;
-    const overviewError = isError || issuesError || columnsError;
+    const { projectId, projectKey } = useRouteProject();
+    const { t, i18n } = useTranslation();
+    const navigate = useNavigate();
+    const { data: project, isLoading, isError } = useProject(projectId);
+    const { data: documents } = useDocuments(projectId);
+    const { data: members } = useProjectMembers(projectId);
+    const { isProjectOwner } = useProjectPermissions(projectId);
+    const createDocument = useCreateDocument(projectId);
+    const icon = project?.iconAppearance ?? project?.icon;
+    const colored = !!projectIconColor(icon);
+
+    async function addDocument() {
+        const page = await createDocument.mutateAsync({});
+        navigate(urls.document(projectKey, page));
+    }
 
     return (
         <div className="flex h-full min-h-0 flex-col bg-surface-1">
-            <ProjectWorkspaceHeader projectId={projectId!} activeView="overview" />
-            <main className="mx-auto min-h-0 w-full max-w-6xl flex-1 overflow-y-auto px-4 py-4 lg:px-6 lg:py-5">
-                {overviewLoading ? (
+            <ProjectWorkspaceHeader projectId={projectId} activeView="overview" />
+            <ProjectHomeTabs projectKey={projectKey} current="overview" />
+            <main className="min-h-0 w-full flex-1 overflow-y-auto">
+                {isLoading ? (
                     <OverviewSkeleton />
-                ) : overviewError || !project ? (
+                ) : isError || !project ? (
                     <ErrorMessage message={t("errors.requestFailed")} />
                 ) : (
-                <div className="flex flex-col">
-                    <header className="overflow-hidden rounded-md border border-subtle">
-                        <div className="relative">
-                            <GradientCover cover={project.cover} className="h-28 sm:h-36" />
-                            <div className="absolute right-3 top-3">
-                                <ProjectCoverControl
-                                    projectId={project.id}
-                                    cover={project.cover}
+                    <div className="mx-auto grid max-w-6xl gap-10 px-6 py-10 lg:grid-cols-[minmax(0,1fr)_14rem] lg:px-10">
+                        <div className="min-w-0 lg:pl-12">
+                            <div className="flex items-center gap-3">
+                                <ProjectIconControl
+                                    projectId={projectId}
+                                    icon={icon}
                                     isProjectOwner={isProjectOwner}
-                                    triggerClassName={parseProjectCover(project.cover)
-                                        ? "inline-flex h-8 items-center gap-2 rounded px-2 text-xs font-medium text-white hover:bg-white/15 disabled:opacity-50"
-                                        : undefined}
+                                    className={`grid size-9 shrink-0 place-items-center rounded-lg outline-accent-strong ${colored ? "" : "bg-accent-primary text-white"}`}
+                                    iconClassName={colored ? "size-9 rounded-lg" : "size-5"}
                                 />
+                                <h1 className="min-w-0 truncate text-[26px] leading-8 font-semibold tracking-tight text-primary">{project.name}</h1>
                             </div>
-                        </div>
-                        <div className={`relative px-4 pb-4 sm:px-5 ${parseProjectCover(project.cover) ? "-mt-6" : "pt-4"}`}>
-                            <ProjectIconControl
-                                projectId={project.id}
-                                icon={project.iconAppearance ?? project.icon}
-                                isProjectOwner={isProjectOwner}
-                                className="grid size-12 place-items-center rounded-md border border-subtle bg-layer-2 text-primary shadow-raised-100 outline-accent-strong hover:bg-layer-2-hover"
-                                iconClassName="size-6"
-                            />
-                            <div className="mt-3 min-w-0">
-                                <p className="font-mono text-[11px] text-accent-primary">{project.issueKey}</p>
-                                <h1 className="mt-0.5 text-xl font-semibold tracking-tight text-primary">{project.name}</h1>
-                                {project.description && <p className="mt-1.5 max-w-2xl text-[13px] leading-5 text-tertiary">{project.description}</p>}
-                            </div>
-                        </div>
-                    </header>
+                            <ProjectDescription projectId={projectId} description={project.description ?? ""} editable={isProjectOwner} />
 
-                    <section className="grid gap-4 border-b border-subtle py-4 lg:grid-cols-[minmax(0,1fr)_16rem]">
-                        <div>
-                            <div className="flex items-center justify-between gap-3">
-                                <div>
-                                    <h2 className="text-sm font-semibold text-primary">{t("projects.projectStatus")}</h2>
-                                    <p className="mt-1 text-sm text-tertiary">{t("projects.workflowSummary")}</p>
+                            <section className="mt-12" aria-labelledby="project-resources">
+                                <div className="flex items-center justify-between gap-3">
+                                    <h2 id="project-resources" className="text-[17px] font-medium text-primary">{t("projects.homeResources")}</h2>
+                                    <button
+                                        type="button"
+                                        aria-label={t("documents.newPage")}
+                                        title={t("documents.newPage")}
+                                        disabled={createDocument.isPending}
+                                        onClick={() => void addDocument().catch(() => undefined)}
+                                        className="grid size-7 place-items-center rounded-full border border-subtle text-tertiary hover:bg-layer-transparent-hover hover:text-primary disabled:opacity-50"
+                                    >
+                                        <Plus className="size-3.5" />
+                                    </button>
                                 </div>
-                                <span className="text-xs text-tertiary">{issuesLoading ? "..." : t("projects.issueCount", { count: issues?.length ?? 0 })}</span>
-                            </div>
-                            <div className="mt-4 divide-y divide-subtle rounded-lg border border-subtle">
-                                {(columns ?? []).map((column) => {
-                                    const count = (issues ?? []).filter((issue) => issue.columnId === column.id).length;
-                                    return (
-                                        <div key={column.id} className="flex items-center justify-between gap-4 px-3 py-2">
-                                            <div className="flex min-w-0 items-center gap-2">
-                                                <span aria-hidden="true" className="size-2 shrink-0 rounded-full" style={{ backgroundColor: column.color ?? "#87888c" }} />
-                                                <span className="truncate text-sm text-secondary">{column.name}</span>
-                                            </div>
-                                            <span className="font-mono text-xs text-tertiary">{issuesLoading ? "—" : count}</span>
-                                        </div>
-                                    );
-                                })}
-                                {!columnsLoading && columns?.length === 0 && <div className="px-3 py-4 text-sm text-tertiary">{t("projects.addStatus")}</div>}
-                            </div>
+                                {createDocument.isError && <div className="mt-3"><ErrorMessage message={t("documents.createFailed")} /></div>}
+                                {documents && documents.length > 0 ? (
+                                    <ul className="mt-3 -mx-2">
+                                        {documents.map((document) => (
+                                            <li key={document.id}>
+                                                <Link
+                                                    to={urls.document(projectKey, document)}
+                                                    className="flex h-9 items-center gap-2.5 rounded-md px-2 text-[13px] text-secondary hover:bg-layer-transparent-hover hover:text-primary"
+                                                    data-document-context="true"
+                                                    data-project-id={projectId}
+                                                    data-document-id={document.id}
+                                                    data-document-title={document.title}
+                                                    data-document-author-id={document.createdBy}
+                                                >
+                                                    {document.iconAppearance ? <ProjectIcon icon={document.iconAppearance} className="size-4 shrink-0" /> : <FileText className="size-4 shrink-0 text-tertiary" />}
+                                                    <span className="min-w-0 flex-1 truncate">{document.title}</span>
+                                                    <span className="shrink-0 text-xs text-placeholder">
+                                                        {new Intl.DateTimeFormat(i18n.language, { dateStyle: "medium" }).format(new Date(document.updatedAt))}
+                                                    </span>
+                                                </Link>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                ) : (
+                                    documents && <p className="mt-2 text-[13px] text-placeholder">{t("projects.homeResourcesHint")}</p>
+                                )}
+                            </section>
                         </div>
 
-                        <div className="grid grid-cols-2 gap-4 lg:grid-cols-1">
-                            <Fact icon={AppIcons.Issues} label={t("projects.estimate")} value={t("projects.points", { count: totalEstimate })} />
-                        </div>
-                    </section>
-
-                    <section className="py-4">
-                        <div className="mb-3">
-                            <h2 className="text-sm font-semibold text-primary">{t("projects.views")}</h2>
-                            <p className="mt-1 text-sm text-tertiary">{t("projects.viewsDescription")}</p>
-                        </div>
-                        <div className="divide-y divide-subtle rounded-lg border border-subtle">
-                            <OverviewLink href={`/projects/${projectId}/issues`} icon={AppIcons.Issues} title={t("nav.issues")} description={t("projects.browseIssues")} />
-                            <OverviewLink href={`/projects/${projectId}/board`} icon={AppIcons.Board} title={t("projects.board")} description={t("projects.moveIssues")} />
-                            <OverviewLink href={`/projects/${projectId}/documents`} icon={AppIcons.Documents} title={t("nav.documents")} description={t("projects.mainDocument")} />
-                        </div>
-                    </section>
-
-                    {!issuesLoading && issues?.length === 0 && <EmptyState title={t("issue.noIssues")} description={t("issue.createFirst")} />}
-                </div>
+                        <aside className="flex flex-col gap-8">
+                            <section aria-labelledby="project-members">
+                                <h2 id="project-members" className="text-[13px] text-tertiary">{t("settings.members")}</h2>
+                                <div className="mt-2.5 flex items-center gap-1.5">
+                                    <Link
+                                        to={urls.members(projectKey)}
+                                        aria-label={t("projects.viewMembers")}
+                                        className="flex h-8 items-center gap-1 rounded-full border border-subtle py-1 pr-1.5 pl-1 text-tertiary hover:bg-layer-transparent-hover hover:text-primary"
+                                    >
+                                        <span className="flex -space-x-1.5">
+                                            {(members ?? []).slice(0, 4).map((member) => (
+                                                <Avatar key={member.id} src={member.avatarUrl ?? undefined} initials={memberInitials(member.name)} size="xs" className="ring-2 ring-[var(--bg-surface-1)]" />
+                                            ))}
+                                        </span>
+                                        {members && members.length > 4 && <span className="pl-1 text-xs">+{members.length - 4}</span>}
+                                        <ChevronRight className="size-3.5" aria-hidden="true" />
+                                    </Link>
+                                    {isProjectOwner && (
+                                        <ModalDialog
+                                            trigger={
+                                                <button type="button" aria-label={t("settings.addMember")} title={t("settings.addMember")} className="grid size-8 place-items-center rounded-full border border-subtle text-tertiary hover:bg-layer-transparent-hover hover:text-primary">
+                                                    <Plus className="size-3.5" />
+                                                </button>
+                                            }
+                                            title={t("settings.addMember")}
+                                            description={t("settings.addMemberDescription")}
+                                        >
+                                            {({ close }) => <AddMemberForm projectId={projectId} onClose={close} />}
+                                        </ModalDialog>
+                                    )}
+                                </div>
+                            </section>
+                            <section aria-labelledby="project-go-to">
+                                <h2 id="project-go-to" className="text-[13px] text-tertiary">{t("projects.goTo")}</h2>
+                                <nav className="mt-2 -mx-1.5 grid gap-0.5">
+                                    {isProjectOwner && <GoTo to={urls.projectSettings(projectKey, "general")} icon={AppIcons.Settings} label={t("nav.projectSettings")} />}
+                                    <GoTo to={urls.issues(projectKey)} icon={AppIcons.Issues} label={t("nav.issues")} />
+                                    <GoTo to={urls.documents(projectKey)} icon={AppIcons.Documents} label={t("nav.documents")} />
+                                </nav>
+                            </section>
+                        </aside>
+                    </div>
                 )}
             </main>
         </div>
     );
 };
 
+/** Owners edit the description in place; it saves when the field loses focus. */
+function ProjectDescription({ projectId, description, editable }: { projectId: string; description: string; editable: boolean }) {
+    const { t } = useTranslation();
+    const update = useUpdateProject(projectId);
+    const [draft, setDraft] = useState(description);
+    const field = useRef<HTMLTextAreaElement>(null);
+    useEffect(() => setDraft(description), [description]);
+    useEffect(() => {
+        const element = field.current;
+        if (!element) return;
+        element.style.height = "auto";
+        element.style.height = `${element.scrollHeight}px`;
+    }, [draft]);
+
+    if (!editable) return description ? <p className="mt-3 max-w-2xl text-[15px] leading-6 whitespace-pre-wrap text-secondary">{description}</p> : null;
+
+    return (
+        <textarea
+            ref={field}
+            rows={1}
+            value={draft}
+            maxLength={2000}
+            aria-label={t("projects.description")}
+            placeholder={t("projects.addDescription")}
+            onChange={(event) => setDraft(event.target.value)}
+            onBlur={() => {
+                const next = draft.trim();
+                if (next !== description) update.mutate({ description: next || null });
+            }}
+            onKeyDown={(event) => {
+                if (event.key === "Escape") {
+                    setDraft(description);
+                    event.currentTarget.blur();
+                }
+            }}
+            className="mt-3 block w-full max-w-2xl resize-none overflow-hidden bg-transparent text-[15px] leading-6 text-secondary outline-none placeholder:text-placeholder"
+        />
+    );
+}
+
 function OverviewSkeleton() {
     const { t } = useTranslation();
     return (
-        <div className="flex flex-col" role="status" aria-label={t("common.loading")} aria-live="polite">
-            <div className="space-y-3 border-b border-subtle pb-6">
-                <Skeleton className="h-3 w-16" />
-                <Skeleton className="h-8 w-72 max-w-full" />
-                <Skeleton className="h-4 w-96 max-w-full" />
+        <div className="mx-auto grid max-w-6xl gap-10 px-6 py-10 lg:grid-cols-[minmax(0,1fr)_14rem] lg:px-10" role="status" aria-label={t("common.loading")} aria-live="polite">
+            <div className="space-y-4 lg:pl-12">
+                <div className="flex items-center gap-3"><Skeleton className="size-9 rounded-lg" /><Skeleton className="h-7 w-56" /></div>
+                <Skeleton className="h-5 w-80 max-w-full" />
+                <div className="space-y-2 pt-8"><Skeleton className="h-5 w-40" /><Skeleton className="h-8 w-full" /><Skeleton className="h-8 w-full" /></div>
             </div>
-            <div className="grid gap-6 border-b border-subtle py-6 lg:grid-cols-[minmax(0,1fr)_16rem]">
-                <div className="space-y-4">
-                    <div className="space-y-2"><Skeleton className="h-4 w-32" /><Skeleton className="h-4 w-64 max-w-full" /></div>
-                    <div className="space-y-3 rounded-lg border border-subtle p-4"><Skeleton className="h-4 w-full" /><Skeleton className="h-4 w-full" /><Skeleton className="h-4 w-full" /></div>
-                </div>
-                <div className="grid grid-cols-2 gap-4 lg:grid-cols-1"><Skeleton className="h-20 rounded-lg" /><Skeleton className="h-20 rounded-lg" /></div>
-            </div>
-            <section className="space-y-4 py-6">
-                <div className="space-y-2"><Skeleton className="h-4 w-28" /><Skeleton className="h-4 w-72 max-w-full" /></div>
-                <div className="space-y-3 rounded-lg border border-subtle p-4"><Skeleton className="h-8 w-full" /><Skeleton className="h-8 w-full" /><Skeleton className="h-8 w-full" /></div>
-            </section>
+            <div className="space-y-3"><Skeleton className="h-4 w-20" /><Skeleton className="h-8 w-24 rounded-full" /><Skeleton className="h-4 w-16" /><Skeleton className="h-24 w-full" /></div>
         </div>
     );
 }
 
-function Fact({ icon: Icon, label, value }: { icon: typeof AppIcons.Issues; label: string; value: string }) {
+function GoTo({ to, icon: Icon, label }: { to: string; icon: typeof AppIcons.Issues; label: string }) {
     return (
-        <div className="rounded-lg border border-subtle p-4">
-            <div className="flex items-center gap-2 text-xs text-tertiary">
-                <Icon className="size-3.5 text-placeholder" aria-hidden="true" />
-                <span>{label}</span>
-            </div>
-            <p className="mt-2 truncate text-sm font-medium text-primary">{value}</p>
-        </div>
-    );
-}
-
-function OverviewLink({ href, icon: Icon, title, description }: { href: string; icon: typeof AppIcons.Issues; title: string; description: string }) {
-    return (
-        <Link to={href} className="group flex items-center gap-4 px-3 py-3 transition-colors duration-200 hover:bg-surface-2">
-            <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-surface-2 text-placeholder group-hover:text-accent-primary">
-                <Icon className="size-4" aria-hidden="true" />
-            </span>
-            <span className="min-w-0 flex-1">
-                <span className="block text-sm font-medium text-primary">{title}</span>
-                <span className="mt-0.5 block truncate text-sm text-tertiary">{description}</span>
-            </span>
-            <ArrowNarrowRightOutline className="size-4 shrink-0 text-placeholder transition duration-200 group-hover:translate-x-0.5 group-hover:text-accent-primary" aria-hidden="true" />
+        <Link to={to} className="flex h-8 items-center gap-2.5 rounded-md px-1.5 text-[13px] text-secondary hover:bg-layer-transparent-hover hover:text-primary">
+            <Icon className="size-4 text-tertiary" />
+            {label}
         </Link>
     );
 }

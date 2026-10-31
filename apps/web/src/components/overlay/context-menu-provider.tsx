@@ -13,6 +13,8 @@ import { useDeleteIssue } from "@/features/issues/hooks/use-issues";
 import { fetchIssueClipboardContent } from "@/features/issues/lib/issue-clipboard";
 import { DeleteProjectDialog } from "@/features/projects/components/delete-project-dialog";
 import { useProjectPermissions } from "@/features/projects/hooks/use-project-permissions";
+import { useProjects } from "@/features/projects/hooks/use-projects";
+import { urls } from "@/lib/urls";
 import { cx } from "@/utils/cx";
 import { useTranslation } from "react-i18next";
 import { ApiError } from "@/lib/api-client";
@@ -270,6 +272,7 @@ export const ContextMenuProvider = ({ children }: { children: ReactNode }) => {
         return () => window.clearTimeout(timeout);
     }, [notice]);
 
+    const { data: projects } = useProjects();
     const canDeleteProject = Boolean(user && (user.isAdmin || (!permissionsLoading && !permissionsError && isProjectOwner)));
     const canDeleteDocument = Boolean(
         state?.entity.type === "document" && user && (user.isAdmin || state.entity.authorId === user.id || (!permissionsLoading && !permissionsError && isProjectOwner)),
@@ -278,13 +281,14 @@ export const ContextMenuProvider = ({ children }: { children: ReactNode }) => {
     const actions = useMemo<MenuAction[]>(() => {
         if (!state) return [];
         const { entity } = state;
-        const projectUrl = `/projects/${entity.projectId}`;
-        const entityUrl = entity.type === "project" ? projectUrl : entity.type === "issue" ? `${projectUrl}/issues/${encodeURIComponent(entity.identifier)}` : `${projectUrl}/documents/${encodeURIComponent(entity.documentId)}`;
+        const projectKey = entity.type === "project" ? entity.issueKey : projects?.find((project) => project.id === entity.projectId)?.issueKey ?? "";
+        const projectUrl = urls.project(projectKey);
+        const entityUrl = entity.type === "project" ? projectUrl : entity.type === "issue" ? urls.issue(entity.identifier, entity.title) : urls.document(projectKey, { id: entity.documentId, title: entity.title });
         const openItem: MenuAction = {
             key: "open",
             label: t("contextMenu.open"),
             icon: ExternalLink,
-            onSelect: () => navigate(entityUrl, entity.type === "issue" ? { state: { backgroundLocation: location } } : undefined),
+            onSelect: () => navigate(entityUrl),
         };
         const newTabItem: MenuAction = { key: "new-tab", label: t("common.openInNewTab"), icon: ExternalLink, onSelect: () => window.open(entityUrl, "_blank", "noopener,noreferrer") };
         const copyLinkItem: MenuAction = {
@@ -299,7 +303,7 @@ export const ContextMenuProvider = ({ children }: { children: ReactNode }) => {
                 openItem,
                 newTabItem,
                 copyLinkItem,
-                { key: "settings", label: t("contextMenu.projectSettings"), icon: Settings2, onSelect: () => navigate(`${projectUrl}/settings/general`) },
+                { key: "settings", label: t("contextMenu.projectSettings"), icon: Settings2, onSelect: () => navigate(urls.projectSettings(projectKey, "general")) },
                 ...(canDeleteProject ? [{ key: "delete", label: t("contextMenu.deleteProject"), icon: Trash2, destructive: true, onSelect: () => setConfirmation(entity) }] : []),
             ];
         }
@@ -324,7 +328,7 @@ export const ContextMenuProvider = ({ children }: { children: ReactNode }) => {
             },
             { key: "delete", label: t("contextMenu.deleteIssue"), icon: Trash2, destructive: true, onSelect: () => setConfirmation(entity) },
         ];
-    }, [canDeleteDocument, canDeleteProject, copy, navigate, state, t]);
+    }, [canDeleteDocument, canDeleteProject, copy, navigate, projects, state, t]);
 
     async function confirmDelete() {
         if (!confirmation) return;
@@ -348,8 +352,9 @@ export const ContextMenuProvider = ({ children }: { children: ReactNode }) => {
                 await queryClient.cancelQueries({ queryKey: documentKey(confirmation.projectId, confirmation.documentId) });
                 queryClient.removeQueries({ queryKey: documentKey(confirmation.projectId, confirmation.documentId) });
                 await queryClient.invalidateQueries({ queryKey: documentsKey(confirmation.projectId), exact: true });
-                if (location.pathname.endsWith(`/documents/${confirmation.documentId}`)) {
-                    navigate(`/projects/${confirmation.projectId}/documents`, { replace: true });
+                const deletedKey = projects?.find((project) => project.id === confirmation.projectId)?.issueKey;
+                if (deletedKey && location.pathname.startsWith(`${urls.documents(deletedKey)}/`) && location.pathname.endsWith(confirmation.documentId.replace(/-/g, "").slice(0, 12))) {
+                    navigate(urls.documents(deletedKey), { replace: true });
                 }
             }
             setConfirmation(null);

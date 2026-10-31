@@ -32,7 +32,7 @@ export const IssueQuickCreateModal = ({ projectId, columnId, onClose, onCreated 
 
         setError(null);
         createIssue.mutate(
-            { columnId, title: trimmedTitle, descriptionJson: EMPTY_TIPTAP_DOCUMENT, priority: "medium" },
+            { columnId, title: trimmedTitle, descriptionJson: EMPTY_TIPTAP_DOCUMENT, priority: "none" },
             {
                 onSuccess: (issue) => {
                     onCreated?.(issue.identifier);

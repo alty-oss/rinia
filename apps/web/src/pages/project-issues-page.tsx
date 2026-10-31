@@ -1,19 +1,21 @@
 import { useEffect, useMemo, useState } from "react";
 import type { Issue } from "@/features/issues/api";
 import { AddOutline, ChevronDownOutline } from "@makeplane/propel/icons";
-import { Link, useLocation, useNavigate, useParams, useSearchParams } from "react-router";
-import type { Location } from "react-router";
-import { Avatar } from "@/components/base/avatar/avatar";
+import { LayoutGrid, List, Plus } from "lucide-react";
+import { useNavigate, useParams, useSearchParams } from "react-router";
+import { urls } from "@/lib/urls";
+import { useRouteProject } from "@/features/projects/route-project";
 import { Button } from "@/components/base/buttons/button";
 import { Input } from "@/components/base/input/input";
-import { ContextMenuButton } from "@/components/overlay/context-menu-provider";
 import { EmptyState } from "@/components/feedback/empty-state";
 import { ErrorMessage } from "@/components/feedback/error-message";
 import { Skeleton } from "@/components/base/feedback/skeleton";
-import { ImportanceBadge } from "@/features/board/components/importance-badge";
+import { Board } from "@/features/board/components/board";
+import { StateIcon } from "@/features/board/components/issue-property-icons";
 import { useColumns } from "@/features/board/hooks/use-board";
-import { useCategories } from "@/features/categories/hooks/use-categories";
-import { useCreateIssue, useIssues } from "@/features/issues/hooks/use-issues";
+import { IssueQuickCreateModal } from "@/features/issues/components/issue-quick-create-modal";
+import { IssueListRow } from "@/features/issues/components/issue-list-row";
+import { useCreateIssue, useIssues, useUpdateIssue } from "@/features/issues/hooks/use-issues";
 import { ProjectWorkspaceHeader } from "@/features/projects/components/project-workspace-header";
 import { IssueToolbar } from "@/features/issues/components/issue-toolbar";
 import { useProjectMembers } from "@/features/projects/hooks/use-project-members";
@@ -23,13 +25,12 @@ import { translateStatusName } from "@/i18n/status-label";
 
 type OrderBy = "position" | "priority" | "updated" | "number";
 type GroupBy = "none" | "status" | "assignee";
-
-const listGrid = "grid-cols-1 items-center gap-x-4 gap-y-1.5 px-4 py-2.5 sm:h-11 sm:grid-cols-[7.5rem_minmax(0,1fr)_10rem_9rem_11rem] sm:py-0 lg:grid-cols-[7.5rem_minmax(0,1fr)_10rem_9rem_11rem_8.5rem_4.5rem]";
+type Scope = "active" | "backlog" | "all";
 
 export const ProjectIssuesPage = () => {
     const { t } = useTranslation();
-    const { projectId } = useParams<{ projectId: string }>();
-    const location = useLocation();
+    const { projectId, projectKey } = useRouteProject();
+    const params = useParams<{ scope: string }>();
     const navigate = useNavigate();
     const [searchParams, setSearchParams] = useSearchParams();
     const orderBy = readOrder(searchParams.get("order"));
@@ -39,12 +40,15 @@ export const ProjectIssuesPage = () => {
     const status = searchParams.get("status") ?? "";
     const assignee = searchParams.get("assignee") ?? "";
     const category = searchParams.get("label") ?? "";
+    const scope = readScope(params.scope ?? null);
+    const view = searchParams.get("view") === "board" ? "board" : "list";
     const { data: issues, isLoading, isError } = useIssues(projectId!, { orderBy });
+    const updateIssue = useUpdateIssue(projectId!);
     const { data: columns } = useColumns(projectId!);
-    const { data: categories } = useCategories(projectId!);
     const { data: members } = useProjectMembers(projectId!);
     const createIssue = useCreateIssue(projectId!);
     const [isCreating, setIsCreating] = useState(false);
+    const [creatingColumnId, setCreatingColumnId] = useState<string | null>(null);
     const [title, setTitle] = useState("");
     const [createError, setCreateError] = useState<string | null>(null);
     const [selectedIssueId, setSelectedIssueId] = useState<string | null>(null);
@@ -52,21 +56,22 @@ export const ProjectIssuesPage = () => {
 
     const columnById = useMemo(() => new Map((columns ?? []).map((column) => [column.id, column])), [columns]);
     const memberById = useMemo(() => new Map((members ?? []).map((member) => [member.id, member])), [members]);
-    const categoryById = useMemo(() => new Map((categories ?? []).map((item) => [item.id, item])), [categories]);
-
     const filteredIssues = useMemo(
         () =>
             (issues ?? []).filter((issue) => {
                 const textMatch = !search || `${issue.identifier} ${issue.title}`.toLowerCase().includes(search.toLowerCase());
+                const bucket = columnBucket(columnById.get(issue.columnId)?.name ?? "");
+                const scopeMatch = scope === "all" || bucket === scope;
                 return (
                     textMatch &&
+                    scopeMatch &&
                     (!priority || issue.priority === priority) &&
                     (!status || issue.columnId === status) &&
                     (!assignee || issue.assigneeId === assignee) &&
                     (!category || issue.categoryId === category)
                 );
             }),
-        [assignee, category, issues, priority, search, status],
+        [assignee, category, columnById, issues, priority, scope, search, status],
     );
 
     const groups = useMemo(() => {
@@ -78,7 +83,13 @@ export const ProjectIssuesPage = () => {
             grouped.set(key, [...(grouped.get(key) ?? []), issue]);
         }
 
-        return [...grouped.entries()].map(([key, groupedIssues]) => ({
+        const ordered = [...grouped.entries()].sort((left, right) => {
+            if (groupBy !== "status") return left[0].localeCompare(right[0]);
+            const leftIndex = (columns ?? []).findIndex((column) => column.id === left[0]);
+            const rightIndex = (columns ?? []).findIndex((column) => column.id === right[0]);
+            return (leftIndex < 0 ? 99 : leftIndex) - (rightIndex < 0 ? 99 : rightIndex);
+        });
+        return ordered.map(([key, groupedIssues]) => ({
             key,
             label:
                 groupBy === "status"
@@ -86,7 +97,7 @@ export const ProjectIssuesPage = () => {
                     : memberById.get(key)?.name ?? t("issue.unassigned"),
             issues: groupedIssues,
         }));
-    }, [columnById, filteredIssues, groupBy, memberById, t]);
+    }, [columnById, columns, filteredIssues, groupBy, memberById, t]);
     const orderedIssues = useMemo(() => groups.flatMap((group) => group.issues), [groups]);
 
     useEffect(() => {
@@ -94,7 +105,7 @@ export const ProjectIssuesPage = () => {
     }, [orderedIssues, selectedIssueId]);
 
     useEffect(() => {
-        if (!location.pathname.endsWith("/issues/list")) return;
+        if (view !== "list") return;
 
         function handleListKeyDown(event: KeyboardEvent) {
             const target = event.target as HTMLElement | null;
@@ -119,7 +130,7 @@ export const ProjectIssuesPage = () => {
 
         window.addEventListener("keydown", handleListKeyDown);
         return () => window.removeEventListener("keydown", handleListKeyDown);
-    }, [location.pathname, orderedIssues, selectedIssueId]);
+    }, [orderedIssues, selectedIssueId, view]);
 
     function clearFilters() {
         setSearchParams(
@@ -133,7 +144,7 @@ export const ProjectIssuesPage = () => {
 
 
     function openIssue(identifier: string) {
-        navigate(`/projects/${projectId}/issues/${identifier}`, { state: { backgroundLocation: location } });
+        navigate(urls.issue(identifier));
     }
 
     function submitIssue() {
@@ -141,17 +152,19 @@ export const ProjectIssuesPage = () => {
             setCreateError(t("validation.required"));
             return;
         }
-        if (!columns?.[0]) {
+        const columnId = creatingColumnId ?? columns?.[0]?.id;
+        if (!columnId) {
             setCreateError(t("issue.createStatusFirst"));
             return;
         }
         setCreateError(null);
         createIssue.mutate(
-            { columnId: columns[0].id, title: title.trim(), priority: "medium" },
+            { columnId, title: title.trim(), priority: "none" },
             {
                 onSuccess: (issue) => {
                     setTitle("");
                     setIsCreating(false);
+                    setCreatingColumnId(null);
                     openIssue(issue.identifier);
                 },
                 onError: (reason) => setCreateError(reason instanceof ApiError ? reason.message : t("errors.requestFailed")),
@@ -160,87 +173,150 @@ export const ProjectIssuesPage = () => {
     }
 
 
+    function setScope(next: Scope) {
+        const query = searchParams.toString();
+        navigate(`${urls.issues(projectKey, next)}${query ? `?${query}` : ""}`, { replace: true });
+    }
+
+    function setView(next: "list" | "board") {
+        setSearchParams((current) => {
+            if (next === "board") current.set("view", "board");
+            else current.delete("view");
+            return current;
+        }, { replace: true });
+    }
+
+    const pill = "flex h-6 items-center rounded-md px-2 text-[13px]";
+    const pillOff = "text-tertiary hover:bg-layer-transparent-hover hover:text-primary";
+    const pillOn = "bg-layer-1-selected text-primary";
+
     return (
         <div className="flex h-full min-h-0 flex-col bg-surface-1">
-            <ProjectWorkspaceHeader projectId={projectId!} activeView="issues" />
-            <IssueToolbar projectId={projectId!} onCreate={() => { setCreateError(null); setIsCreating(true); }} />
+            <ProjectWorkspaceHeader
+                projectId={projectId!}
+                activeView="issues"
+                actions={
+                    <button
+                        type="button"
+                        className="flex h-7 items-center gap-1 rounded-md border border-subtle px-2 text-[13px] text-secondary hover:bg-layer-transparent-hover"
+                        onClick={() => {
+                            setCreateError(null);
+                            setCreatingColumnId(columns?.[0]?.id ?? null);
+                            setIsCreating(true);
+                        }}
+                    >
+                        <Plus className="size-3.5" />
+                        {t("issue.newIssue")}
+                    </button>
+                }
+            />
+            <div className="flex h-10 shrink-0 items-center gap-1 border-b border-subtle px-3">
+                {view === "list" && ([
+                    ["active", t("issue.active")],
+                    ["backlog", t("issue.backlog")],
+                    ["all", t("issue.allIssues")],
+                ] as const).map(([value, label]) => (
+                    <button key={value} type="button" aria-pressed={scope === value} className={`${pill} ${scope === value ? pillOn : pillOff}`} onClick={() => setScope(value)}>
+                        {label}
+                    </button>
+                ))}
+                <div className="ml-auto flex items-center gap-2">
+                    <ViewSwitch view={view} onChange={setView} />
+                    <IssueToolbar chrome layout={view} projectId={projectId!} onCreate={() => setIsCreating(true)} />
+                </div>
+            </div>
+            {view === "board" ? (
+                <div className="min-h-0 flex-1 overflow-x-auto bg-surface-2 px-4 pt-3 pb-3">
+                    <Board projectId={projectId!} filters={searchParams} />
+                    {isCreating && columns?.[0] && (
+                        <IssueQuickCreateModal
+                            projectId={projectId!}
+                            columnId={creatingColumnId ?? columns[0].id}
+                            onClose={() => { setIsCreating(false); setCreatingColumnId(null); }}
+                            onCreated={(identifier) => {
+                                setIsCreating(false);
+                                setCreatingColumnId(null);
+                                openIssue(identifier);
+                            }}
+                        />
+                    )}
+                </div>
+            ) : (
             <main className="min-h-0 w-full flex-1 overflow-y-auto">
                 <div className="flex flex-col">
-                    {isCreating && (
-                        <div className="flex items-center gap-2 border-b border-subtle bg-surface-2 px-3 py-2">
-                            <Input
-                                autoFocus
-                                value={title}
-                                onChange={(value) => {
-                                    setCreateError(null);
-                                    setTitle(value);
-                                }}
-                                onKeyDown={(event) => event.key === "Enter" && submitIssue()}
-                                placeholder={t("issue.issueTitle")}
-                                size="sm"
-                                className="min-w-0 flex-1"
-                                aria-label={t("issue.issueTitle")}
-                            />
-                            <Button size="xs" isLoading={createIssue.isPending} onClick={submitIssue}>
-                                {t("common.create")}
-                            </Button>
-                            <Button size="xs" color="tertiary" onClick={() => setIsCreating(false)}>
-                                {t("common.cancel")}
-                            </Button>
-                            {createError && <p role="alert" className="text-xs text-danger-primary">{createError}</p>}
-                        </div>
+                    {isCreating && !creatingColumnId && (
+                        <CreateRow
+                            title={title}
+                            pending={createIssue.isPending}
+                            error={createError}
+                            onChange={(value) => { setCreateError(null); setTitle(value); }}
+                            onSubmit={submitIssue}
+                            onCancel={() => { setIsCreating(false); setCreatingColumnId(null); }}
+                        />
                     )}
 
                     {isLoading && <IssueListSkeleton />}
                     {isError && <ErrorMessage message={t("issue.couldNotLoadIssues")} />}
                     {!isLoading && !isError && (
-                        <div className="overflow-hidden">
-                            <div className={`${listGrid} hidden border-b border-subtle text-[11px] font-medium text-tertiary sm:grid`}>
-                                <span>{t("issue.issueIdentifier")}</span>
-                                <span>{t("issue.title")}</span>
-                                <span>{t("issue.status")}</span>
-                                <span>{t("issue.priority")}</span>
-                                <span>{t("issue.assignee")}</span>
-                                <span className="hidden lg:block">{t("issue.label")}</span>
-                                <span className="hidden text-right lg:block">{t("issue.estimate")}</span>
-                            </div>
-                            {groups.map((group) => (
+                        <div>
+                            {groups.map((group) => {
+                                const column = columnById.get(group.key);
+                                return (
                                 <section key={group.key} aria-label={group.label ?? t("issue.allIssues")}>
                                     {group.label && (
-                                        <h2 className="border-b border-subtle bg-surface-2">
-                                            <button
-                                                type="button"
-                                                aria-expanded={!collapsedGroups.has(group.key)}
-                                                onClick={() => setCollapsedGroups((current) => {
-                                                    const next = new Set(current);
-                                                    if (next.has(group.key)) next.delete(group.key);
-                                                    else next.add(group.key);
-                                                    return next;
-                                                })}
-                                                className="flex w-full items-center gap-2 px-4 py-2 text-left text-[11px] font-medium text-secondary hover:bg-layer-1-hover"
-                                            >
-                                                <ChevronDownOutline className={`size-3.5 text-placeholder transition-transform duration-200 ${collapsedGroups.has(group.key) ? "-rotate-90" : ""}`} aria-hidden="true" />
-                                                {groupBy === "status" && <span aria-hidden="true" className="size-2 shrink-0 rounded-full" style={{ backgroundColor: columnById.get(group.key)?.color ?? "#71717a" }} />}
-                                                <span>{group.label === "Unknown status" ? t("issue.unknownStatus") : translateStatusName(group.label, t)}</span>
-                                                <span className="text-tertiary">{group.issues.length}</span>
-                                            </button>
+                                        <h2 className="bg-layer-transparent-hover">
+                                            <div className="flex h-9 items-center gap-2 px-3 text-[13px] text-secondary">
+                                                <button
+                                                    type="button"
+                                                    aria-expanded={!collapsedGroups.has(group.key)}
+                                                    onClick={() => setCollapsedGroups((current) => {
+                                                        const next = new Set(current);
+                                                        if (next.has(group.key)) next.delete(group.key);
+                                                        else next.add(group.key);
+                                                        return next;
+                                                    })}
+                                                    className="flex min-w-0 flex-1 items-center gap-2 text-left"
+                                                >
+                                                    <ChevronDownOutline className={`size-3.5 text-placeholder transition-transform duration-200 ${collapsedGroups.has(group.key) ? "-rotate-90" : ""}`} aria-hidden="true" />
+                                                    {groupBy === "status" && <StateIcon name={column?.name ?? group.label} color={column?.color} />}
+                                                    <span>{group.label === "Unknown status" ? t("issue.unknownStatus") : translateStatusName(group.label, t)}</span>
+                                                    <span className="text-tertiary">{group.issues.length}</span>
+                                                </button>
+                                                {groupBy === "status" && (
+                                                    <button type="button" aria-label={t("issue.newIssue")} className="flex size-6 items-center justify-center rounded text-tertiary hover:bg-layer-1-hover hover:text-primary" onClick={() => { setCreateError(null); setTitle(""); setCreatingColumnId(group.key); setIsCreating(true); }}>
+                                                        <Plus className="size-3.5" />
+                                                    </button>
+                                                )}
+                                            </div>
                                         </h2>
                                     )}
+                                    {isCreating && creatingColumnId === group.key && (
+                                        <CreateRow
+                                            title={title}
+                                            pending={createIssue.isPending}
+                                            error={createError}
+                                            onChange={(value) => { setCreateError(null); setTitle(value); }}
+                                            onSubmit={submitIssue}
+                                            onCancel={() => { setIsCreating(false); setCreatingColumnId(null); }}
+                                        />
+                                    )}
                                     {!collapsedGroups.has(group.key) && group.issues.map((issue) => (
-                                        <IssueRow
+                                        <IssueListRow
                                             key={issue.id}
                                             issue={issue}
                                             projectId={projectId!}
                                             column={columnById.get(issue.columnId)}
+                                            columns={columns ?? []}
                                             member={issue.assigneeId ? memberById.get(issue.assigneeId) : undefined}
-                                            category={issue.categoryId ? categoryById.get(issue.categoryId) : undefined}
-                                            backgroundLocation={location}
+                                            members={members ?? []}
                                             selected={selectedIssueId === issue.id}
                                             onSelect={() => setSelectedIssueId(issue.id)}
+                                            onUpdate={(input) => updateIssue.mutate({ identifier: issue.identifier, input })}
                                         />
                                     ))}
                                 </section>
-                            ))}
+                                );
+                            })}
                             {filteredIssues.length === 0 && (
                                 <EmptyState
                                     title={issues?.length ? t("issue.noIssuesMatch") : t("issue.noIssues")}
@@ -251,7 +327,7 @@ export const ProjectIssuesPage = () => {
                                                 {t("issue.clearFilters")}
                                             </Button>
                                         ) : (
-                                            <Button size="sm" iconLeading={AddOutline} onClick={() => setIsCreating(true)}>
+                                            <Button size="sm" iconLeading={AddOutline} onClick={() => { setCreatingColumnId(columns?.[0]?.id ?? null); setIsCreating(true); }}>
                                                 {t("issue.newIssue")}
                                             </Button>
                                         )
@@ -262,9 +338,39 @@ export const ProjectIssuesPage = () => {
                     )}
                 </div>
             </main>
+            )}
         </div>
     );
 };
+
+function ViewSwitch({ view, onChange }: { view: "list" | "board"; onChange: (view: "list" | "board") => void }) {
+    const { t } = useTranslation();
+    const button = "flex h-6 items-center gap-1 rounded px-2 text-[13px]";
+    return (
+        <div role="group" aria-label={t("issue.view")} className="flex items-center gap-0.5 rounded-md bg-layer-1 p-0.5">
+            <button type="button" aria-pressed={view === "list"} className={`${button} ${view === "list" ? "bg-layer-1-selected text-primary" : "text-tertiary hover:text-primary"}`} onClick={() => onChange("list")}>
+                <List className="size-3.5" />
+                {t("issue.list")}
+            </button>
+            <button type="button" aria-pressed={view === "board"} className={`${button} ${view === "board" ? "bg-layer-1-selected text-primary" : "text-tertiary hover:text-primary"}`} onClick={() => onChange("board")}>
+                <LayoutGrid className="size-3.5" />
+                {t("projects.board")}
+            </button>
+        </div>
+    );
+}
+
+function CreateRow({ title, pending, error, onChange, onSubmit, onCancel }: { title: string; pending: boolean; error: string | null; onChange: (value: string) => void; onSubmit: () => void; onCancel: () => void }) {
+    const { t } = useTranslation();
+    return (
+        <div className="flex items-center gap-2 px-3 py-2">
+            <Input autoFocus value={title} onChange={onChange} onKeyDown={(event) => event.key === "Enter" && onSubmit()} placeholder={t("issue.issueTitle")} size="sm" className="min-w-0 flex-1" aria-label={t("issue.issueTitle")} />
+            <Button size="xs" isLoading={pending} onClick={onSubmit}>{t("common.create")}</Button>
+            <Button size="xs" color="tertiary" onClick={onCancel}>{t("common.cancel")}</Button>
+            {error && <p role="alert" className="text-xs text-danger-primary">{error}</p>}
+        </div>
+    );
+}
 
 function IssueListSkeleton() {
     const { t } = useTranslation();
@@ -281,80 +387,17 @@ function readOrder(value: string | null): OrderBy {
 }
 
 function readGroup(value: string | null): GroupBy {
-    return value === "status" || value === "assignee" ? value : "none";
+    if (value === "none" || value === "assignee") return value;
+    return "status";
 }
 
-function IssueRow({
-    issue,
-    projectId,
-    column,
-    member,
-    category,
-    backgroundLocation,
-    selected,
-    onSelect,
-}: {
-    issue: Issue;
-    projectId: string;
-    column?: { name: string; color: string | null };
-    member?: { name: string; avatarUrl: string | null };
-    category?: { name: string; color: string | null };
-    backgroundLocation: Location;
-    selected: boolean;
-    onSelect: () => void;
-}) {
-    const { t } = useTranslation();
-    return (
-        <div
-            className="group/issue relative"
-            data-issue-id={issue.id}
-            data-issue-context="true"
-            data-project-id={projectId}
-            data-issue-identifier={issue.identifier}
-            data-issue-title={issue.title}
-        >
-            <Link
-                to={`/projects/${projectId}/issues/${issue.identifier}`}
-                state={{ backgroundLocation }}
-                tabIndex={0}
-                onFocus={onSelect}
-                className={`grid ${listGrid} w-full border-b border-subtle pr-12 text-left transition-colors duration-200 last:border-0 hover:bg-layer-1-hover focus-visible:z-10 focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-accent-strong sm:pr-4 ${
-                    selected ? "bg-accent-subtle" : ""
-                }`}
-            >
-                <span className="font-mono text-xs text-tertiary">{issue.identifier}</span>
-                <span className="min-w-0 truncate text-body-sm-medium text-primary">{issue.title}</span>
-                <span className="flex min-w-0 items-center gap-2 text-xs text-secondary">
-                    <span aria-hidden="true" className="size-2 shrink-0 rounded-full" style={{ backgroundColor: column?.color ?? "#71717a" }} />
-                    <span className="truncate">{column ? translateStatusName(column.name, t) : t("issue.unknown")}</span>
-                </span>
-                <span className="max-sm:hidden"><ImportanceBadge importance={issue.priority} /></span>
-                <span className="flex min-w-0 items-center gap-2 text-xs text-tertiary max-sm:hidden">
-                    {member ? <Avatar size="xs" src={member.avatarUrl ?? undefined} initials={initialsOf(member.name)} /> : <span className="size-6 shrink-0 rounded-full border border-dashed border-subtle" />}
-                    <span className="truncate">{member?.name ?? t("issue.unassigned")}</span>
-                </span>
-                <span className="hidden min-w-0 items-center gap-2 text-xs text-tertiary lg:flex">
-                    {category ? <span aria-hidden="true" className="size-2 shrink-0 rounded-[2px]" style={{ backgroundColor: category.color ?? "#7a5af8" }} /> : null}
-                    <span className="truncate">{category?.name ?? "—"}</span>
-                </span>
-                <span className="hidden text-right font-mono text-xs text-tertiary lg:block">{issue.estimate ?? "—"}</span>
-                <span className="truncate text-[11px] text-tertiary sm:hidden">
-                    {[category?.name, `${t(`issue.${issue.priority}`)} · ${t("issue.priority")}`].filter(Boolean).join(" · ")}
-                </span>
-            </Link>
-            <ContextMenuButton
-                entity={{ type: "issue", projectId, identifier: issue.identifier, title: issue.title }}
-                className="absolute top-1/2 right-1 -translate-y-1/2 bg-surface-1"
-            />
-        </div>
-    );
+function readScope(value: string | null): Scope {
+    return value === "backlog" || value === "all" ? value : "active";
 }
 
-function initialsOf(name: string) {
-    return name
-        .split(" ")
-        .filter(Boolean)
-        .slice(0, 2)
-        .map((part) => part[0]!.toUpperCase())
-        .join("");
+function columnBucket(name: string): "active" | "backlog" | "closed" {
+    const normalized = name.toLowerCase();
+    if (normalized.includes("backlog") || normalized.includes("fila")) return "backlog";
+    if (normalized.includes("done") || normalized.includes("cancel") || normalized.includes("duplicate") || normalized.includes("conclu")) return "closed";
+    return "active";
 }

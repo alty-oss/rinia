@@ -1,17 +1,17 @@
 import { Menu } from "@base-ui/react/menu";
+import { ChevronDown, LogOut, Settings } from "lucide-react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router";
 import { Avatar } from "@/components/base/avatar/avatar";
 import { overlayChrome } from "@/components/overlay/overlay-chrome";
 import { cx } from "@/utils/cx";
-import { AppIcons } from "@/components/foundations/icons";
 import { AUTH_QUERY_KEY, logout } from "@/features/auth/api";
 import { useAuth } from "@/features/auth/hooks/use-auth";
 import { clearDocumentDrafts } from "@/features/documents/sessions";
 import { issueDescriptionDrafts } from "@/features/issues/lib/issue-description-drafts";
 import { useTranslation } from "react-i18next";
 
-export function SidebarAccount({ variant = "icon" }: { variant?: "icon" | "row" }) {
+export function SidebarAccount({ variant = "icon" }: { variant?: "icon" | "row" | "header" }) {
     const { user } = useAuth();
     const queryClient = useQueryClient();
     const navigate = useNavigate();
@@ -35,18 +35,27 @@ export function SidebarAccount({ variant = "icon" }: { variant?: "icon" | "row" 
         .slice(0, 2)
         .map((n) => n[0])
         .join("");
-    const item = "flex min-h-7 cursor-pointer items-center gap-2 rounded px-2 py-1 text-sm text-secondary outline-none data-highlighted:bg-layer-2-hover";
+    const item = "flex min-h-7 cursor-pointer items-center gap-2 rounded px-2 py-1 text-[13px] text-secondary outline-none data-highlighted:bg-layer-2-hover";
+    const header = variant === "header";
     return (
         <Menu.Root>
             <Menu.Trigger
                 aria-label={t("nav.account")}
                 className={
-                    variant === "row"
-                        ? "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left hover:bg-layer-1-hover"
-                        : "flex size-7 items-center justify-center rounded-md hover:bg-layer-1"
+                    header
+                        ? "flex min-w-0 flex-1 items-center gap-2 rounded-md px-1 py-1 text-left hover:bg-layer-transparent-hover"
+                        : variant === "row"
+                          ? "flex w-full items-center gap-2 rounded-md px-2 py-1 text-left hover:bg-layer-1-hover"
+                          : "flex size-7 items-center justify-center rounded-md hover:bg-layer-1"
                 }
             >
                 <Avatar key={user.avatarUrl} src={user.avatarUrl ?? undefined} initials={initials} size="xs" />
+                {header && (
+                    <>
+                        <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-primary">{user.name}</span>
+                        <ChevronDown className="size-3 shrink-0 text-tertiary" aria-hidden="true" />
+                    </>
+                )}
                 {variant === "row" && (
                     <span className="min-w-0">
                         <span className="block truncate text-xs font-medium text-primary">{user.name}</span>
@@ -55,19 +64,20 @@ export function SidebarAccount({ variant = "icon" }: { variant?: "icon" | "row" 
                 )}
             </Menu.Trigger>
             <Menu.Portal>
-                <Menu.Positioner align={variant === "row" ? "start" : "end"} side={variant === "row" ? "top" : "bottom"} sideOffset={6} className="z-50">
+                <Menu.Positioner align={variant === "icon" ? "end" : "start"} side={variant === "row" ? "top" : "bottom"} sideOffset={6} className="z-50">
                     <Menu.Popup className={cx("w-64", overlayChrome.menu)}>
                         <div className="border-b border-subtle px-2 py-2">
                             <p className="truncate text-sm font-medium text-primary">{user.name}</p>
                             <p className="truncate text-xs text-tertiary">{user.email}</p>
                         </div>
-                        <Menu.Item className={`${item} mt-1`} onClick={() => navigate("/settings/profile")}>
-                            <AppIcons.Settings className="size-4" />
-                            {t("nav.settings")}
+                        <Menu.Item className={`${item} mt-1`} onClick={() => navigate("/settings/preferences")}>
+                            <Settings className="size-4" />
+                            <span className="flex-1">{t("nav.settings")}</span>
+                            <span className="text-[11px] text-placeholder">G S</span>
                         </Menu.Item>
                         <Menu.Separator className="my-1 border-t border-subtle" />
                         <Menu.Item className={item} disabled={mutation.isPending} onClick={() => mutation.mutate()}>
-                            <AppIcons.SignOut className="size-4" />
+                            <LogOut className="size-4" />
                             {t("nav.signOut")}
                         </Menu.Item>
                         {mutation.isError && (

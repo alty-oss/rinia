@@ -16,7 +16,13 @@ const emojiValueSchema = z
     // Covers pictographs and flags while preserving complete ZWJ/skin-tone sequences as entered.
     .refine((value) => /[\p{Extended_Pictographic}\p{Regional_Indicator}]/u.test(value), "Choose an emoji");
 
-export const catalogIconSchema = z.object({ type: z.literal("icon"), key: z.string().trim().min(1).max(100) });
+export const iconColorSchema = z.string().regex(/^#[0-9a-fA-F]{6}$/, "Color must be a hex value");
+
+export const catalogIconSchema = z.object({
+    type: z.literal("icon"),
+    key: z.string().trim().min(1).max(100),
+    color: iconColorSchema.optional(),
+});
 export const emojiIconSchema = z.object({ type: z.literal("emoji"), value: emojiValueSchema });
 export const imageIconSchema = z.object({ type: z.literal("image"), url: remoteImageUrlSchema });
 export const entityIconSchema = z.discriminatedUnion("type", [catalogIconSchema, emojiIconSchema, imageIconSchema]);

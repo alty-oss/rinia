@@ -13,6 +13,7 @@ import {
 import {
   addMember,
   create,
+  getByKey,
   getOne,
   list,
   listMembers,
@@ -29,6 +30,7 @@ projectsRouter.use(requireAuth);
 projectsRouter.get("/", list);
 projectsRouter.post("/", create);
 
+projectsRouter.get("/by-key/:key", getByKey);
 projectsRouter.get("/:projectId", requireProjectMember, getOne);
 projectsRouter.patch("/:projectId", requireProjectOwner, update);
 projectsRouter.delete("/:projectId", requireProjectOwner, remove);

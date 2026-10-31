@@ -1,3 +1,4 @@
+import type { IssuePriority } from "@rinia/shared";
 import type {
     CreateIssueCommentInput,
     CreateIssueInput,
@@ -27,7 +28,7 @@ export interface Issue {
     descriptionRevision: number;
     assigneeId: string | null;
     categoryId: string | null;
-    priority: "low" | "medium" | "high";
+    priority: IssuePriority;
     createdBy: string;
     position: number;
     parentIssueId: string | null;

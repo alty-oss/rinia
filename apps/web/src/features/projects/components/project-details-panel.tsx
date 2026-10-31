@@ -1,18 +1,19 @@
-import { parseProjectCover, updateProjectSchema } from "@rinia/shared";
+import type { ReactNode } from "react";
+import { updateProjectSchema } from "@rinia/shared";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useForm } from "react-hook-form";
+import { Controller, useForm, type FieldError } from "react-hook-form";
 import { Button } from "@/components/base/buttons/button";
 import { Alert } from "@/components/base/feedback/alert";
 import { ErrorMessage } from "@/components/feedback/error-message";
 import { LoadingState } from "@/components/feedback/loading-state";
-import { ControlledSettingsInput as ControlledInput, ControlledSettingsDescription } from "@/components/settings/settings-input";
-import { SettingsControl } from "@/components/settings/settings-layout";
-import { GradientCover } from "@/components/appearance/gradient-cover";
+import { SettingsControl, SettingsGroup, settingsFieldClass } from "@/components/settings/settings-layout";
+import { translateValidationMessage } from "@/i18n/validation";
 import { ApiError } from "@/lib/api-client";
 import { useProject } from "../hooks/use-project";
 import { useUpdateProject } from "../hooks/use-projects";
 import { DeleteProjectDialog } from "./delete-project-dialog";
 import { ProjectCoverControl, ProjectIconControl } from "./project-appearance-controls";
+import { projectIconColor } from "./project-icon";
 import { useTranslation } from "react-i18next";
 
 export const ProjectDetailsPanel = ({ projectId, isProjectOwner }: { projectId: string; isProjectOwner: boolean }) => {
@@ -34,37 +35,11 @@ export const ProjectDetailsPanel = ({ projectId, isProjectOwner }: { projectId: 
     if (isLoading) return <LoadingState label={t("settings.loadingProject")} />;
     if (isError || !project) return <ErrorMessage message={t("settings.couldNotLoadProject")} />;
     const disabled = !isProjectOwner || mutation.isPending;
-    const hasBanner = !!parseProjectCover(project.cover);
+    const icon = project.iconAppearance ?? project.icon;
+    const colored = !!projectIconColor(icon);
 
     return (
         <div>
-            <div className="relative flex h-32 items-end overflow-hidden rounded-md border border-subtle bg-surface-2 p-3">
-                <GradientCover cover={project.cover} className="absolute inset-0" />
-                {hasBanner && <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />}
-                <div className="flex min-w-0 items-center gap-3">
-                    <ProjectIconControl
-                        projectId={projectId}
-                        icon={project.iconAppearance ?? project.icon}
-                        isProjectOwner={isProjectOwner}
-                        className="flex size-11 shrink-0 items-center justify-center rounded-md border border-subtle bg-layer-2 outline-accent-strong hover:bg-layer-2-hover"
-                        iconClassName="size-6"
-                    />
-                    <div className="min-w-0">
-                        <h1 className="text-base truncate font-semibold">{project.name}</h1>
-                        <p className="mt-1 text-sm text-tertiary">{project.issueKey}</p>
-                    </div>
-                </div>
-                <div className="absolute right-3 top-3">
-                    <ProjectCoverControl
-                        projectId={projectId}
-                        cover={project.cover}
-                        isProjectOwner={isProjectOwner}
-                        triggerClassName={hasBanner
-                            ? "inline-flex h-8 items-center gap-2 rounded px-2 text-xs font-medium text-white hover:bg-white/15 disabled:opacity-50"
-                            : undefined}
-                    />
-                </div>
-            </div>
             <form
                 noValidate
                 onSubmit={handleSubmit((data) =>
@@ -73,32 +48,87 @@ export const ProjectDetailsPanel = ({ projectId, isProjectOwner }: { projectId: 
                     }),
                 )}
             >
-                <div className="mt-8 flex flex-col gap-8">
-                    <ControlledInput control={control} name="name" label={t("projects.projectName")} isRequired isDisabled={disabled} />
-                    <ControlledSettingsDescription control={control} name="description" isDisabled={disabled} />
-                    <div className="grid gap-6 md:grid-cols-2">
-                        <ControlledInput
+                <SettingsGroup>
+                    <SettingsControl title={t("projects.projectName")}>
+                        <ProjectIconControl
+                            projectId={projectId}
+                            icon={icon}
+                            isProjectOwner={isProjectOwner}
+                            className={`grid size-9 shrink-0 place-items-center rounded-lg outline-accent-strong ${colored ? "" : "bg-accent-primary text-white"}`}
+                            iconClassName={colored ? "size-9 rounded-lg" : "size-4"}
+                        />
+                        <Controller
+                            control={control}
+                            name="name"
+                            render={({ field, fieldState }) => (
+                                <Field error={fieldState.error}>
+                                    <input {...field} value={field.value ?? ""} required disabled={disabled} aria-label={t("projects.projectName")} aria-invalid={!!fieldState.error} className={settingsFieldClass} />
+                                </Field>
+                            )}
+                        />
+                    </SettingsControl>
+                    <SettingsControl title={t("settings.identifier")} description={project.nextIssueNumber > 1 ? t("settings.projectIdRename") : t("settings.identifierHint")}>
+                        <Controller
                             control={control}
                             name="issueKey"
-                            label={t("projects.projectId")}
-                            isDisabled={disabled || project.nextIssueNumber > 1}
-                            hint={
-                                project.nextIssueNumber > 1 ? t("settings.projectIdLocked") : t("projects.projectIssueKeyHint")
-                            }
+                            render={({ field, fieldState }) => (
+                                <Field error={fieldState.error}>
+                                    <input
+                                        {...field}
+                                        value={field.value ?? ""}
+                                        maxLength={8}
+                                        spellCheck={false}
+                                        disabled={disabled}
+                                        aria-label={t("settings.identifier")}
+                                        aria-invalid={!!fieldState.error}
+                                        onChange={(event) => field.onChange(event.target.value.toUpperCase())}
+                                        className={`${settingsFieldClass} font-mono uppercase`}
+                                    />
+                                </Field>
+                            )}
                         />
-                        <ControlledInput
+                    </SettingsControl>
+                    <SettingsControl title={t("projects.repository")} description={t("settings.repositoryHint")}>
+                        <Controller
                             control={control}
                             name="repositoryUrl"
-                            label={t("projects.repository")}
-                            isDisabled={disabled}
-                            placeholder="https://github.com/..."
+                            render={({ field, fieldState }) => (
+                                <Field error={fieldState.error}>
+                                    <input {...field} value={field.value ?? ""} type="url" disabled={disabled} placeholder="https://github.com/..." aria-label={t("projects.repository")} aria-invalid={!!fieldState.error} className={settingsFieldClass} />
+                                </Field>
+                            )}
                         />
-                    </div>
+                    </SettingsControl>
+                    <SettingsControl title={t("appearance.projectBanner")} description={t("settings.bannerHint")}>
+                        {isProjectOwner ? <ProjectCoverControl projectId={projectId} cover={project.cover} isProjectOwner /> : <span className="text-[13px] text-tertiary">—</span>}
+                    </SettingsControl>
+                </SettingsGroup>
+
+                <SettingsGroup title={t("projects.description")} description={t("settings.descriptionHint")}>
+                    <Controller
+                        control={control}
+                        name="description"
+                        render={({ field }) => (
+                            <textarea
+                                {...field}
+                                value={field.value ?? ""}
+                                rows={4}
+                                maxLength={2000}
+                                disabled={disabled}
+                                aria-label={t("projects.description")}
+                                placeholder={t("settings.descriptionPlaceholder")}
+                                className="-mx-4 block w-[calc(100%+2rem)] resize-none bg-transparent px-4 py-3.5 text-[13px] leading-5 text-primary outline-none placeholder:text-placeholder disabled:text-tertiary"
+                            />
+                        )}
+                    />
+                </SettingsGroup>
+
+                <div className="mt-4 flex flex-col gap-3">
                     {formState.errors.root && <Alert tone="error">{formState.errors.root.message}</Alert>}
                     {mutation.isSuccess && !formState.isDirty && <Alert tone="success">{t("settings.projectDetailsSaved")}</Alert>}
                     {isProjectOwner && (
-                        <div className="py-2">
-                            <Button type="submit" size="lg" isLoading={mutation.isPending} isDisabled={!formState.isDirty}>
+                        <div className="flex justify-end">
+                            <Button type="submit" size="sm" isLoading={mutation.isPending} isDisabled={!formState.isDirty}>
                                 {t("common.saveChanges")}
                             </Button>
                         </div>
@@ -106,15 +136,22 @@ export const ProjectDetailsPanel = ({ projectId, isProjectOwner }: { projectId: 
                 </div>
             </form>
             {isProjectOwner && (
-                <div className="mt-10">
-                    <SettingsControl
-                        title={t("projects.deleteProject")}
-                        description={t("settings.deleteProjectDescription")}
-                    >
+                <SettingsGroup title={t("settings.dangerZone")}>
+                    <SettingsControl title={t("projects.deleteProject")} description={t("settings.deleteProjectDescription")}>
                         <DeleteProjectDialog project={project} />
                     </SettingsControl>
-                </div>
+                </SettingsGroup>
             )}
         </div>
     );
 };
+
+function Field({ error, children }: { error?: FieldError; children: ReactNode }) {
+    const { t } = useTranslation();
+    return (
+        <div className="flex w-full flex-col gap-1 sm:w-64">
+            {children}
+            {error?.message && <p className="text-xs text-danger-primary">{translateValidationMessage(error.message, t)}</p>}
+        </div>
+    );
+}

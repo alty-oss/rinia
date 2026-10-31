@@ -8,9 +8,10 @@
                 var preference = "dark";
                 try {
                     var stored = localStorage.getItem(key);
-                    if (stored === "system" || stored === "light" || stored === "dark" || stored === "light-contrast" || stored === "dark-contrast") preference = stored;
+                    if (stored === "light" || stored === "light-contrast") preference = "light";
+                    else if (stored === "system") preference = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
                 } catch (e) {}
-                var resolved = preference === "system" ? (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light") : preference;
+                var resolved = preference;
                 var root = document.documentElement;
                 root.setAttribute("data-theme", resolved);
                 root.setAttribute("data-theme-preference", preference);
@@ -18,7 +19,10 @@
                 root.classList.toggle("dark-mode", resolved.indexOf("dark") !== -1);
             })();
         </script>
-        <link rel="icon" type="image/svg+xml" href="/rinia-icon.svg" />
+        <link rel="icon" href="/favicon.ico" sizes="32x32" />
+        <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+        <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+        <link rel="manifest" href="/site.webmanifest" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <meta name="description" content="Rinia" />
         <meta name="theme-color" content="#0f1011" />

@@ -1,5 +1,5 @@
 const issue = {
-        newIssue: "Nova tarefa", genericIssue: "Tarefa", title: "Título da tarefa", description: "Descrição", status: "Estado", priority: "Prioridade", assignee: "Responsável",
+        newIssue: "Nova tarefa", active: "Ativas", genericIssue: "Tarefa", title: "Título da tarefa", description: "Descrição", status: "Estado", priority: "Prioridade", assignee: "Responsável",
         category: "Categoria", estimate: "Estimativa", createdBy: "Criado por", created: "Criado em", updated: "Atualizado em",
         parent: "Tarefa principal", none: "Nenhum", unassigned: "Sem responsável", noIssues: "Nenhuma tarefa ainda", createFirst: "Crie uma tarefa para começar a acompanhar o trabalho deste projeto.",
         low: "Baixa", medium: "Média", high: "Alta", urgent: "Urgente", backlog: "Fila", inProgress: "Em andamento", done: "Concluída",
@@ -14,8 +14,17 @@ const issue = {
         chooseIssueToRelate: "Escolha uma tarefa para relacionar.", chooseIssueFromProject: "Escolha uma tarefa deste projeto.", couldNotAddRelation: "Não foi possível adicionar a relação.", relations: "Relações", removeRelation: "Remover relação", issueIdentifier: "Identificador da tarefa", relationType: "Tipo de relação", relatedTo: "Relacionada a", blocks: "Bloqueia", blockedBy: "Bloqueada por", duplicateOf: "Duplicada de", add: "Adicionar",
         createdThisIssue: "criou esta tarefa", changedStatus: "alterou o estado", changedPriority: "alterou a prioridade", changedAssignee: "alterou o responsável", changedCategory: "alterou a etiqueta", changedCycle: "alterou o ciclo", changedEstimate: "alterou a estimativa", changedParent: "alterou a tarefa principal", addedRelation: "adicionou uma relação", removedRelation: "removeu uma relação", activity: "Atividade", noneValue: "Nenhum", comments: "Comentários", leaveComment: "Escreva um comentário…", commentAction: "Comentar", couldNotAddComment: "Não foi possível adicionar o comentário.", couldNotDeleteComment: "Não foi possível excluir o comentário.", couldNotUpdateComment: "Não foi possível atualizar o comentário.", loadingIssue: "Carregando tarefa", loadingIssueDetails: "Carregando detalhes da tarefa", issuePanel: "Painel da tarefa", couldNotLoadIssue: "Não foi possível carregar esta tarefa.", couldNotSaveIssue: "Não foi possível salvar a tarefa.",
         copyContent: "Copiar todo o conteúdo da tarefa", copyIdentifier: "Copiar identificador da tarefa", copyIssueLink: "Copiar link da tarefa",
-        openIssue: "Abrir tarefa", deleteIssue: "Excluir tarefa", filter: "Filtrar", sort: "Ordenar", searchIssues: "Buscar tarefas", issues: "Visualização de tarefas", list: "Lista", layout: "visualização",
+        openIssue: "Abrir tarefa", deleteIssue: "Excluir tarefa", filter: "Filtrar", sort: "Ordenar", searchIssues: "Buscar tarefas", issues: "Visualização de tarefas", list: "Lista", layout: "visualização", view: "Visualização",
         descriptionPlaceholder: "Adicione uma descrição…", comment: "Comentário", addComment: "Adicione um comentário…",
+        couldNotCopy: "Não foi possível copiar", linkCopied: "Link da tarefa copiado", idCopied: "{{id}} copiado",
+        branchCopied: "Nome da branch copiado. Cole no seu cliente git.", promptCopied: "Tarefa copiada como prompt",
+        copyBranchName: "Copiar nome da branch", copyAsPrompt: "Copiar como prompt",
+        titleRequired: "O título não pode ficar vazio", titleReverted: "O título voltou ao valor anterior",
+        changeStatus: "Mudar estado…", setPriority: "Definir prioridade…", assignTo: "Atribuir a…", setEstimate: "Estimar…",
+        setParent: "Definir tarefa pai…", addLabelPlaceholder: "Adicionar etiqueta…", assign: "Atribuir", estimateAction: "Estimar",
+        addSubIssue: "Adicionar subtarefa", subIssueTitle: "Título da subtarefa", couldNotCreateSubIssue: "Não foi possível criar a subtarefa.",
+        createdByOn: "Criada por {{name}} em {{date}}", labels: "Etiquetas",
+        noPriority: "Sem prioridade", setPriorityAction: "Definir prioridade",
     } as const;
 
 export default issue;

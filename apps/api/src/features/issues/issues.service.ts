@@ -1,10 +1,13 @@
 import type { CreateIssueCommentInput, CreateIssueInput, CreateIssueRelationInput, IssueListQuery, TiptapDocument, UpdateIssueCommentInput, UpdateIssueInput } from "@rinia/shared";
 import { and, asc, count, desc, eq, or, sql } from "drizzle-orm";
 import { db } from "../../db";
-import { boardColumns, categories, issueActivities, issueComments, issueRelations, issues, projectMembers, projects, users } from "../../db/schema";
+import { boardColumns, categories, issueActivities, issueComments, issueRelations, issues, projectKeyAliases, projectMembers, projects, users } from "../../db/schema";
 import { HttpError } from "../../lib/http-error";
 
 const EMPTY_DOCUMENT = { type: "doc" as const, content: [] };
+
+/** Most urgent first, issues without a priority last. The enum's own order runs low to high, so it cannot sort this. */
+const priorityRank = sql`case ${issues.priority} when 'urgent' then 0 when 'high' then 1 when 'medium' then 2 when 'low' then 3 else 4 end`;
 
 function validateIssueImageUrls(document?: TiptapDocument) {
     if (!document) return;
@@ -39,7 +42,15 @@ async function findIssue(identifier: string) {
             .from(issues)
             .innerJoin(projects, eq(issues.projectId, projects.id))
             .where(and(eq(projects.issueKey, parsed.key), eq(issues.number, parsed.number)));
-        identifier = match?.id ?? identifier;
+        // Identifiers from before a project key change still open the same issue.
+        const [aliased] = match
+            ? []
+            : await db
+                  .select({ id: issues.id })
+                  .from(issues)
+                  .innerJoin(projectKeyAliases, eq(issues.projectId, projectKeyAliases.projectId))
+                  .where(and(eq(projectKeyAliases.key, parsed.key), eq(issues.number, parsed.number)));
+        identifier = match?.id ?? aliased?.id ?? identifier;
     }
 
     return db.query.issues.findFirst({
@@ -125,7 +136,7 @@ export async function listIssues(projectId: string, query: IssueListQuery) {
     if (query.assigneeId) filters.push(eq(issues.assigneeId, query.assigneeId));
     if (query.categoryId) filters.push(eq(issues.categoryId, query.categoryId));
 
-    const order = query.orderBy === "updated" ? desc(issues.updatedAt) : query.orderBy === "number" ? asc(issues.number) : query.orderBy === "priority" ? asc(issues.priority) : asc(issues.position);
+    const order = query.orderBy === "updated" ? desc(issues.updatedAt) : query.orderBy === "number" ? asc(issues.number) : query.orderBy === "priority" ? asc(priorityRank) : asc(issues.position);
     const rows = await db.query.issues.findMany({ where: and(...filters), orderBy: [order] });
     const project = await db.query.projects.findFirst({ where: eq(projects.id, projectId), columns: { issueKey: true } });
     if (!project) throw new HttpError(404, "Project not found");

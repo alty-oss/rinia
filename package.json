@@ -14,6 +14,8 @@
     "build": "pnpm --filter @rinia/web build && pnpm --filter @rinia/api build",
     "typecheck": "pnpm -r typecheck",
     "db:generate": "pnpm --filter @rinia/api db:generate",
-    "db:migrate": "pnpm --filter @rinia/api db:migrate"
+    "db:migrate": "pnpm --filter @rinia/api db:migrate",
+    "db:seed": "pnpm --filter @rinia/api db:seed",
+    "db:reset": "pnpm --filter @rinia/api db:reset"
   }
 }

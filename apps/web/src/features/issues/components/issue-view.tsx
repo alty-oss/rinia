@@ -1,29 +1,41 @@
-import { useEffect, useRef, useState } from "react";
-import type { TiptapDocument, UpdateIssueInput } from "@rinia/shared";
-import { ArrowLeft, ArrowRight, Ban, CheckCircle, Copy, ExternalLink, Link2, Plus, ShieldOff, Trash2 } from "lucide-react";
-import { Link, useBeforeUnload, useNavigate, useParams } from "react-router";
-import { AssigneeOutline, EstimateOutline, HistoryOutline, LabelsOutline, MoreHorizontalOutline, ParentOutline, PriorityOutline, StateOutline } from "@makeplane/propel/icons";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import type { EntityIcon, TiptapDocument, UpdateIssueInput } from "@rinia/shared";
+import { ArrowDown, ArrowUp, Ban, Check, ChevronRight, Copy, GitBranch, Link2, Pencil, Plus, ShieldOff, Sparkles, Trash2 } from "lucide-react";
+import { Link, useBeforeUnload, useLocation, useNavigate, useParams } from "react-router";
+import { useQueryClient } from "@tanstack/react-query";
+import { useHotkeys } from "react-hotkeys-hook";
+import { Menu } from "@base-ui/react/menu";
 import { Popover } from "@base-ui/react/popover";
-import { IssueAvatar, PriorityIcon, StateIcon } from "@/features/board/components/issue-property-icons";
-import { cx } from "@/utils/cx";
-import { Avatar } from "@/components/base/avatar/avatar";
+import { EstimateOutline, LabelsOutline, MoreHorizontalOutline, ParentOutline } from "@makeplane/propel/icons";
+import { Collapse } from "@/components/base/collapse";
 import { Button } from "@/components/base/buttons/button";
-import { overlayChrome } from "@/components/overlay/overlay-chrome";
 import { ButtonUtility } from "@/components/base/buttons/button-utility";
 import { Skeleton } from "@/components/base/feedback/skeleton";
-import { Sheet } from "@/components/base/sheet/sheet";
 import { ComboBox, ComboBoxItem } from "@/components/base/select/combobox";
 import { Select } from "@/components/base/select/select";
 import { ErrorMessage } from "@/components/feedback/error-message";
+import { useToast, type ToastInput } from "@/components/feedback/toaster";
+import { AppIcons } from "@/components/foundations/icons";
+import { useAppNavigation } from "@/components/layout/app-shell";
 import { ConfirmDialog } from "@/components/overlay/confirm-dialog";
-import { ContextMenuButton } from "@/components/overlay/context-menu-provider";
+import { overlayChrome } from "@/components/overlay/overlay-chrome";
 import { useAuth } from "@/features/auth/hooks/use-auth";
-import { useClipboard } from "@/hooks/use-clipboard";
+import { IssueAvatar, PriorityIcon, StateIcon } from "@/features/board/components/issue-property-icons";
 import { useColumns } from "@/features/board/hooks/use-board";
 import { useCategories } from "@/features/categories/hooks/use-categories";
+import { FavoriteStar } from "@/features/favorites/components/favorite-star";
+import { ProjectIcon } from "@/features/projects/components/project-icon";
+import { useProject } from "@/features/projects/hooks/use-project";
+import { useCurrentProject } from "@/features/projects/hooks/use-current-project";
+import { urls } from "@/lib/urls";
+import { PRIORITY_OPTIONS, priorityLabelKey } from "@/features/issues/lib/priority";
 import { useProjectMembers } from "@/features/projects/hooks/use-project-members";
+import { useBreakpoint } from "@/hooks/use-breakpoint";
+import { useClipboard } from "@/hooks/use-clipboard";
 import { ApiError } from "@/lib/api-client";
+import { cx } from "@/utils/cx";
 import {
+    issueKey,
     useCreateIssue,
     useCreateIssueComment,
     useCreateIssueRelation,
@@ -45,18 +57,13 @@ import { EMPTY_TIPTAP_DOCUMENT, RichTextEditor } from "./rich-text-editor";
 import { useTranslation } from "react-i18next";
 import { translateStatusName } from "@/i18n/status-label";
 import type { TranslationKey } from "@/i18n/resources";
-import type { SelectItemType } from "@/components/base/select/select-shared";
 
-interface IssueViewProps {
-    identifier?: string;
-    projectId?: string;
-    mode?: "page" | "peek";
-    onClose?: () => void;
-}
+const propertyButton =
+    "flex h-8 w-full min-w-0 items-center gap-2.5 rounded-md px-2 text-left text-[13px] font-medium text-secondary outline-none transition-colors duration-150 hover:bg-layer-transparent-hover hover:text-primary focus-visible:bg-layer-transparent-hover disabled:opacity-60 data-[popup-open]:bg-layer-transparent-hover";
+const menuItemClass = "flex h-8 w-full cursor-pointer items-center gap-2.5 rounded px-2 text-[13px] text-secondary outline-none data-highlighted:bg-layer-2-hover data-highlighted:text-primary";
+const popupMotion = "origin-[var(--transform-origin)] transition-[opacity,transform] duration-150 ease-out data-[ending-style]:scale-95 data-[ending-style]:opacity-0 data-[starting-style]:scale-95 data-[starting-style]:opacity-0";
 
-const issuePageBodyClass = "flex min-h-0 flex-1 overflow-hidden";
-const issuePageMainClass = "min-w-0 flex-1 space-y-6 overflow-y-auto px-9 pb-5";
-const issuePageRailClass = "hidden shrink-0 overflow-y-auto border-l border-subtle bg-surface-1 px-5 py-5 lg:block lg:min-w-80 xl:min-w-96";
+type PropertyMenuId = "state" | "priority" | "assignee" | "estimate" | "parent" | "label";
 
 const activityLabelKeys: Record<string, TranslationKey> = {
     created: "issue.createdThisIssue",
@@ -71,15 +78,24 @@ const activityLabelKeys: Record<string, TranslationKey> = {
     relation_removed: "issue.removedRelation",
 };
 
-export const IssueView = ({ identifier, projectId, mode = "page", onClose }: IssueViewProps) => {
-    const { t, i18n } = useTranslation();
+export const IssueView = () => {
+    const { t } = useTranslation();
     const navigate = useNavigate();
     const params = useParams<{ projectId: string; issueIdentifier: string }>();
-    const resolvedIdentifier = identifier ?? params.issueIdentifier ?? "";
-    const resolvedProjectId = projectId ?? params.projectId ?? "";
+    const resolvedIdentifier = params.issueIdentifier ?? "";
+    const currentProject = useCurrentProject();
+    const resolvedProjectId = currentProject?.id ?? "";
+    const location = useLocation();
     const { user } = useAuth();
-    const { copy, copied } = useClipboard();
+    const { copy } = useClipboard();
+    const showToast = useToast();
+    const queryClient = useQueryClient();
+    const { toggleSidebar } = useAppNavigation();
+    const wide = useBreakpoint("lg");
+    const [openMenu, setOpenMenu] = useState<PropertyMenuId | null>(null);
+    const [deleteOpen, setDeleteOpen] = useState(false);
     const { data: issue, isLoading, isError } = useIssue(resolvedIdentifier);
+    const { data: project } = useProject(issue?.projectId ?? resolvedProjectId);
     const updateIssue = useUpdateIssue(issue?.projectId ?? resolvedProjectId);
     const createIssue = useCreateIssue(issue?.projectId ?? resolvedProjectId);
     const deleteIssue = useDeleteIssue(issue?.projectId ?? resolvedProjectId);
@@ -95,10 +111,20 @@ export const IssueView = ({ identifier, projectId, mode = "page", onClose }: Iss
     const updateComment = useUpdateIssueComment(issue?.identifier ?? resolvedIdentifier);
     const createRelation = useCreateIssueRelation(issue?.identifier ?? resolvedIdentifier);
     const deleteRelation = useDeleteIssueRelation(issue?.identifier ?? resolvedIdentifier);
-    const [descriptionEditing, setDescriptionEditing] = useState(false);
-    const [descriptionExpanded, setDescriptionExpanded] = useState(false);
-    const [descriptionOverflows, setDescriptionOverflows] = useState(false);
-    const peekDescriptionRef = useRef<HTMLDivElement>(null);
+    // Linear-style property shortcuts; ignored while typing in a field or the editor.
+    const propertyHotkey = { enableOnFormTags: false, enableOnContentEditable: false, useKey: true, preventDefault: true } as const;
+    useHotkeys("s", () => setOpenMenu("state"), propertyHotkey);
+    useHotkeys("p", () => setOpenMenu("priority"), propertyHotkey);
+    useHotkeys("a", () => setOpenMenu("assignee"), propertyHotkey);
+    useHotkeys("l", () => setOpenMenu("label"), propertyHotkey);
+
+    // Keep the URL canonical: an identifier from before a key change, a missing or stale title slug,
+    // or a lowercase identifier all become `/issue/KEY-12/current-title`.
+    const canonicalUrl = issue ? urls.issue(issue.identifier, issue.title) : null;
+    useEffect(() => {
+        if (!canonicalUrl || location.pathname === canonicalUrl) return;
+        navigate(`${canonicalUrl}${location.search}`, { replace: true });
+    }, [canonicalUrl, location.pathname, location.search, navigate]);
     const [relationsOpen, setRelationsOpen] = useState(false);
     const [description, setDescription] = useState<TiptapDocument>(EMPTY_TIPTAP_DOCUMENT);
     const [title, setTitle] = useState("");
@@ -106,11 +132,9 @@ export const IssueView = ({ identifier, projectId, mode = "page", onClose }: Iss
     const [titleSaveError, setTitleSaveError] = useState<string | null>(null);
     const [descriptionSaveError, setDescriptionSaveError] = useState<string | null>(null);
     const [descriptionStatus, setDescriptionStatus] = useState<"saved" | "unsaved" | "saving" | "offline" | "error" | "conflict">("saved");
-    const [discussionTab, setDiscussionTab] = useState<"comments" | "activity">("comments");
     const [propertySaveError, setPropertySaveError] = useState<string | null>(null);
     const [commentSaveError, setCommentSaveError] = useState<string | null>(null);
     const [isCopyingIssue, setIsCopyingIssue] = useState(false);
-    const [issueCopyError, setIssueCopyError] = useState(false);
     const loadedIssueId = useRef<string | null>(null);
     const titleDirty = useRef(false);
     const descriptionDirty = useRef(false);
@@ -129,7 +153,6 @@ export const IssueView = ({ identifier, projectId, mode = "page", onClose }: Iss
     const persistDescriptionDraftRef = useRef<() => void>(() => undefined);
     const persistCommentDraftRef = useRef<() => void>(() => undefined);
     const titleRef = useRef<HTMLTextAreaElement>(null);
-    const peekRef = useRef<HTMLDivElement>(null);
 
     useBeforeUnload((event) => {
         if (!titleDirty.current && !descriptionDirty.current && !hasMeaningfulTiptapContent(comment)) return;
@@ -181,16 +204,9 @@ export const IssueView = ({ identifier, projectId, mode = "page", onClose }: Iss
             setTitleSaveError(null);
             setDescriptionSaveError(null);
             setPropertySaveError(null);
-            setIssueCopyError(false);
             setDescriptionStatus("saved");
-            setDescriptionEditing(false);
-            setDescriptionExpanded(false);
-            setDescriptionOverflows(false);
             setRelationsOpen(false);
-            try {
-                const storedTab = sessionStorage.getItem(`rinia-issue-discussion-tab:${issue.id}`);
-                setDiscussionTab(storedTab === "activity" ? "activity" : "comments");
-            } catch { setDiscussionTab("comments"); }
+            setOpenMenu(null);
             return;
         }
 
@@ -283,25 +299,6 @@ export const IssueView = ({ identifier, projectId, mode = "page", onClose }: Iss
     }, [description, issue?.id, user?.id]);
 
     useEffect(() => {
-        if (mode !== "peek" || descriptionEditing || descriptionExpanded) {
-            setDescriptionOverflows(false);
-            return;
-        }
-        const root = peekDescriptionRef.current;
-        if (!root) return;
-        const measure = () => {
-            const editor = root.querySelector<HTMLElement>(".tiptap-editor-description");
-            setDescriptionOverflows(Boolean(editor && editor.scrollHeight > editor.clientHeight + 2));
-        };
-        measure();
-        const observer = new ResizeObserver(measure);
-        observer.observe(root);
-        const editor = root.querySelector(".tiptap-editor-description");
-        if (editor) observer.observe(editor);
-        return () => observer.disconnect();
-    }, [mode, description, descriptionEditing, descriptionExpanded]);
-
-    useEffect(() => {
         if (!issue || !user?.id || commentDraftOwner.current !== issue.id) return;
         const timer = window.setTimeout(() => {
             const key = issueDraftKey(user.id, issue.projectId, issue.id);
@@ -325,13 +322,6 @@ export const IssueView = ({ identifier, projectId, mode = "page", onClose }: Iss
         titleElement.style.height = "auto";
         titleElement.style.height = `${titleElement.scrollHeight}px`;
     }, [title]);
-
-    useEffect(() => {
-        if (mode !== "peek") return;
-        const card = document.querySelector<HTMLElement>(`[data-issue-identifier="${resolvedIdentifier}"]`);
-        card?.setAttribute("data-peek-selected", "true");
-        return () => card?.removeAttribute("data-peek-selected");
-    }, [mode, resolvedIdentifier]);
 
     flushDescriptionRef.current = async () => {
         if (!issue || !descriptionDirty.current) return;
@@ -408,13 +398,13 @@ export const IssueView = ({ identifier, projectId, mode = "page", onClose }: Iss
         void save.catch(() => undefined);
     };
 
-    if (isLoading) {
-        const state = <IssueLoadingSkeleton mode={mode} />;
-        return mode === "peek" ? <IssuePeekState onClose={onClose}>{state}</IssuePeekState> : state;
-    }
+    if (isLoading) return <IssueLoadingSkeleton />;
     if (isError || !issue) {
-        const state = <ErrorMessage message={t("issue.couldNotLoadIssue")} />;
-        return mode === "peek" ? <IssuePeekState onClose={onClose}>{state}</IssuePeekState> : state;
+        return (
+            <main className="flex h-full min-h-0 items-center justify-center bg-surface-1 p-6">
+                <ErrorMessage message={t("issue.couldNotLoadIssue")} />
+            </main>
+        );
     }
 
     const save = (input: UpdateIssueInput) => {
@@ -425,137 +415,138 @@ export const IssueView = ({ identifier, projectId, mode = "page", onClose }: Iss
             { onError: (reason) => { if (loadedIssueId.current === actionIssueId) setPropertySaveError(errorMessage(reason, t("issue.couldNotSaveIssue"))); } },
         );
     };
-    const copyIssueContent = async () => {
+    const currentTitle = title.trim() || issue.title;
+    const copyText = async (text: string, success: ToastInput) => {
+        const result = await copy(text, "issue-meta");
+        showToast(result.success ? success : { tone: "error", title: t("issue.couldNotCopy") });
+    };
+    const copyLink = () => void copyText(`${window.location.origin}${urls.issue(issue.identifier, currentTitle)}`, { tone: "copy", title: t("issue.linkCopied") });
+    const copyId = () => void copyText(issue.identifier, { tone: "copy", title: t("issue.idCopied", { id: issue.identifier }) });
+    const copyBranch = () => {
+        const branch = gitBranchName(user?.username, issue.identifier, currentTitle);
+        void copyText(branch, { tone: "copy", title: branch, description: t("issue.branchCopied") });
+    };
+    const copyAsPrompt = async () => {
         setIsCopyingIssue(true);
-        setIssueCopyError(false);
         try {
-            const content = await fetchIssueClipboardContent(issue.identifier, {
-                title: title.trim() || issue.title,
-                description,
-            });
-            const result = await copy(content, "issue-content");
-            setIssueCopyError(!result.success);
+            const content = await fetchIssueClipboardContent(issue.identifier, { title: currentTitle, description });
+            await copyText(content, { tone: "copy", title: t("issue.promptCopied") });
         } catch {
-            setIssueCopyError(true);
+            showToast({ tone: "error", title: t("issue.couldNotCopyContent") });
         } finally {
             setIsCopyingIssue(false);
         }
     };
-    const selectDiscussionTab = (tab: "comments" | "activity") => {
-        setDiscussionTab(tab);
-        try { sessionStorage.setItem(`rinia-issue-discussion-tab:${issue.id}`, tab); } catch { /* Storage is optional. */ }
+    const saveTitle = () => {
+        const nextTitle = title.trim();
+        if (!nextTitle) {
+            setTitle(issue.title);
+            titleDirty.current = false;
+            showToast({ tone: "error", title: t("issue.titleRequired"), description: t("issue.titleReverted") });
+            return;
+        }
+        if (nextTitle === issue.title) {
+            titleDirty.current = false;
+            return;
+        }
+        const saveVersion = titleVersion.current;
+        updateIssue.mutate(
+            { identifier: issue.identifier, input: { title: nextTitle } },
+            {
+                onSuccess: () => {
+                    if (loadedIssueId.current === issue.id && titleVersion.current === saveVersion) titleDirty.current = false;
+                },
+                onError: (reason) => { if (loadedIssueId.current === issue.id) setTitleSaveError(errorMessage(reason, t("issue.couldNotSaveIssue"))); },
+            },
+        );
     };
-    const handleDiscussionTabKeyDown = (event: React.KeyboardEvent<HTMLButtonElement>) => {
-        if (!(["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key))) return;
-        event.preventDefault();
-        const tabs = Array.from(event.currentTarget.parentElement?.querySelectorAll<HTMLButtonElement>("[role='tab']") ?? []);
-        if (!tabs.length) return;
-        const index = tabs.indexOf(event.currentTarget);
-        const next = event.key === "Home" ? 0 : event.key === "End" ? tabs.length - 1 : (index + (event.key === "ArrowRight" ? 1 : tabs.length - 1)) % tabs.length;
-        tabs[next]?.focus();
-        const value = tabs[next]?.dataset.discussionTab;
-        if (value === "comments" || value === "activity") selectDiscussionTab(value);
+    const createSubIssue = async (subTitle: string) => {
+        await createIssue.mutateAsync({ columnId: columns?.[0]?.id ?? issue.columnId, title: subTitle, parentIssueId: issue.id, priority: "none" });
+        await queryClient.invalidateQueries({ queryKey: issueKey(issue.identifier) });
     };
-    const content = (
-        <div className={cx("flex h-full min-h-0 flex-col", mode === "peek" && "issue-peek-panel")}>
-            <div className={cx("issue-view-header flex items-center justify-between gap-3 px-4 py-3", mode === "page" && "border-b border-subtle")}>
-                <div className="flex min-w-0 items-center gap-2 text-sm text-tertiary">
-                    {onClose && <ButtonUtility icon={mode === "peek" ? ArrowRight : ArrowLeft} size="sm" color="tertiary" tooltip={t("issue.closeIssue")} onClick={onClose} />}
-                    {mode === "page" && !onClose && <ButtonUtility icon={ArrowLeft} size="sm" color="tertiary" tooltip={t("issue.closeIssue")} onClick={() => navigate(`/projects/${issue.projectId}/issues`)} />}
-                    {mode === "page" && <><Link to={`/projects/${issue.projectId}`} className="truncate hover:text-primary">
-                        {issue.project.name}
-                    </Link>
-                    <span>/</span>
-                    <span className="font-mono text-xs text-accent-primary">{issue.identifier}</span></>}
-                </div>
-                <div className="flex items-center gap-2">
-                    <span className="text-body-xs-regular text-tertiary" role="status">{updateIssue.isPending || descriptionStatus === "saving" ? t("issue.savingIssue") : titleDirty.current || descriptionDirty.current ? t("issue.unsavedIssue") : t("issue.savedIssue")}</span>
-                    <ButtonUtility
-                        icon={Link2}
-                        size="sm"
-                        color="tertiary"
-                        tooltip={t("issue.copyIssueLink")}
-                        onClick={() => navigator.clipboard.writeText(`${window.location.origin}/projects/${issue.projectId}/issues/${issue.identifier}`)}
-                    />
-                    <ButtonUtility
-                        icon={copied ? CheckCircle : Copy}
-                        size="sm"
-                        color="tertiary"
-                        tooltip={issueCopyError ? t("issue.couldNotCopyContent") : copied ? t("issue.copiedContent") : t("issue.copyContent")}
-                        isDisabled={isCopyingIssue}
-                        onClick={() => void copyIssueContent()}
-                    />
-                    {mode === "peek" && (
-                        <ButtonUtility
-                            icon={ExternalLink}
-                            size="sm"
-                            color="tertiary"
-                            tooltip={t("issue.openFullPage")}
-                            onClick={() => navigate(`/projects/${issue.projectId}/issues/${issue.identifier}`, { replace: true })}
-                        />
-                    )}
-                    <Popover.Root>
-                        <Popover.Trigger render={<ButtonUtility icon={MoreHorizontalOutline} size="sm" color="tertiary" tooltip={t("issue.issueActions")} />} />
-                        <Popover.Portal><Popover.Positioner sideOffset={4} align="end" className="z-50"><Popover.Popup className={overlayChrome.menu}>
-                            <Popover.Title className="sr-only">{t("issue.issueActions")}</Popover.Title>
-                            <ConfirmDialog trigger={<Button color="tertiary" size="sm" iconLeading={Trash2}>{t("issue.deleteIssue")}</Button>} title={t("issue.deleteIssue")} description={t("issue.deleteIssueDescription", { title: issue.title })} confirmLabel={t("issue.deleteIssue")} isPending={deleteIssue.isPending} onConfirm={() => deleteIssue.mutate(issue.identifier, { onSuccess: onClose ?? (() => navigate(`/projects/${issue.projectId}`)) })} />
-                        </Popover.Popup></Popover.Positioner></Popover.Portal>
-                    </Popover.Root>
-                </div>
-            </div>
+    const saving = updateIssue.isPending || descriptionStatus === "saving";
+    const unsaved = titleDirty.current || descriptionDirty.current;
+    const descriptionNotice =
+        descriptionStatus === "offline" ? t("issue.descriptionOffline") : descriptionStatus === "error" ? t("issue.descriptionSaveFailed") : descriptionStatus === "conflict" ? t("issue.descriptionConflict") : null;
+    const properties = (
+        <IssueProperties
+            issue={issue}
+            projectIcon={project?.iconAppearance ?? project?.icon}
+            columns={columns ?? []}
+            members={members ?? []}
+            categories={categories ?? []}
+            projectIssues={projectIssues ?? []}
+            save={save}
+            isPending={updateIssue.isPending}
+            error={propertySaveError}
+            openMenu={openMenu}
+            onOpenMenuChange={setOpenMenu}
+        />
+    );
+    const copyActions = { onCopyLink: copyLink, onCopyId: copyId, onCopyBranch: copyBranch, onCopyPrompt: () => void copyAsPrompt(), isCopying: isCopyingIssue };
 
-            <div className={mode === "page" ? issuePageBodyClass : "min-h-0 flex-1 overflow-y-auto"}>
-                <div className={mode === "peek" ? "issue-peek-body px-6 py-4" : issuePageMainClass}>
-                    <div className={mode === "peek" ? "min-w-0 flex-1" : "min-w-0 space-y-6 pt-5"}>
-                        {mode === "peek" && <div className="mb-2 text-caption-md-regular text-tertiary">{issue.identifier}</div>}
+    return (
+        <main className="flex h-full min-h-0 flex-col bg-surface-1">
+            <header className="flex h-11 shrink-0 items-center justify-between gap-3 border-b border-subtle px-3">
+                <div className="flex min-w-0 items-center gap-1.5 text-[13px]">
+                    <span className="md:hidden">
+                        <ButtonUtility icon={AppIcons.Menu} color="tertiary" tooltip={t("nav.expand")} onClick={toggleSidebar} />
+                    </span>
+                    <Link to={urls.project(issue.project.issueKey)} className="flex min-w-0 shrink items-center gap-2 text-secondary hover:text-primary">
+                        <ProjectIcon icon={project?.iconAppearance ?? project?.icon} className="size-4 shrink-0" />
+                        <span className="truncate">{issue.project.name}</span>
+                    </Link>
+                    <ChevronRight className="size-3 shrink-0 text-placeholder" aria-hidden="true" />
+                    <Link to={urls.issues(issue.project.issueKey)} className="shrink-0 text-secondary hover:text-primary">{t("nav.issues")}</Link>
+                    <ChevronRight className="size-3 shrink-0 text-placeholder" aria-hidden="true" />
+                    <span className="min-w-0 truncate text-primary">
+                        <span className="text-tertiary">{issue.identifier}</span> {currentTitle}
+                    </span>
+                    <FavoriteStar target={{ kind: "issue", projectId: issue.projectId, issueId: issue.id }} />
+                    <IssueActionsMenu
+                        {...copyActions}
+                        onAddRelation={() => setRelationsOpen(true)}
+                        onSetParent={() => window.setTimeout(() => setOpenMenu("parent"), 0)}
+                        onDelete={() => setDeleteOpen(true)}
+                    />
+                </div>
+                <div className="flex shrink-0 items-center gap-3">
+                    {(saving || unsaved) && <span className="text-xs text-tertiary" role="status">{saving ? t("issue.savingIssue") : t("issue.unsavedIssue")}</span>}
+                    {projectIssues && projectIssues.length > 0 && <IssuePager issues={projectIssues} identifier={issue.identifier} onOpen={(next) => navigate(urls.issue(next))} />}
+                </div>
+            </header>
+
+            <div className="flex min-h-0 flex-1 overflow-hidden">
+                <div className="min-w-0 flex-1 overflow-y-auto">
+                    <div className="mx-auto w-full max-w-[48rem] px-6 pt-10 pb-24 lg:px-12">
                         <textarea
                             ref={titleRef}
                             rows={1}
                             value={title}
+                            placeholder={t("issue.issueTitle")}
                             onChange={(event) => {
                                 titleDirty.current = true;
                                 titleVersion.current += 1;
                                 setTitleSaveError(null);
                                 setTitle(event.target.value);
                             }}
-                            onBlur={() => {
-                                const nextTitle = title.trim();
-                                if (!nextTitle) {
-                                    setTitle(issue.title);
-                                    titleDirty.current = false;
-                                    return;
-                                }
-                                if (nextTitle !== issue.title) {
-                                    const saveVersion = titleVersion.current;
-                                    updateIssue.mutate(
-                                        { identifier: issue.identifier, input: { title: nextTitle } },
-                                        {
-                                            onSuccess: () => {
-                                                if (loadedIssueId.current === issue.id && titleVersion.current === saveVersion) titleDirty.current = false;
-                                            },
-                                            onError: (reason) => { if (loadedIssueId.current === issue.id) setTitleSaveError(errorMessage(reason, t("issue.couldNotSaveIssue"))); },
-                                        },
-                                    );
-                                } else {
-                                    titleDirty.current = false;
+                            onKeyDown={(event) => {
+                                if (event.key === "Enter") {
+                                    event.preventDefault();
+                                    event.currentTarget.blur();
                                 }
                             }}
-                            className={cx("w-full resize-none overflow-hidden border-0 bg-transparent font-semibold text-primary outline-none placeholder:text-tertiary focus-visible:ring-1 focus-visible:ring-accent-strong", mode === "page" ? "min-h-11 text-display-md leading-tight tracking-tight" : "min-h-7 text-xl leading-7")}
+                            onBlur={saveTitle}
+                            className="block w-full resize-none overflow-hidden bg-transparent text-[26px] leading-8 font-semibold tracking-tight text-primary outline-none placeholder:text-placeholder"
                             aria-label={t("issue.title")}
                         />
                         {titleSaveError && <p role="alert" className="mt-1 text-xs text-danger-primary">{titleSaveError}</p>}
 
-                        {mode === "page" && <div className="lg:hidden">
-                            <IssuePropertyList issue={issue} projectIssues={projectIssues} columns={columns} members={members} categories={categories} save={save} error={propertySaveError} isPending={updateIssue.isPending} />
-                        </div>}
+                        {!wide && <div className="mt-6 rounded-xl border border-subtle bg-layer-1 p-2">{properties}</div>}
 
-                        <section
-                            ref={mode === "peek" ? peekDescriptionRef : undefined}
-                            className={mode === "peek" ? cx("peek-description mt-2", !descriptionEditing && !descriptionExpanded && "is-clamped") : undefined}
-                        >
-                            <div onFocus={() => { setDescriptionEditing(true); setDescriptionExpanded(true); }}>
+                        <div className="issue-description mt-4">
                             <RichTextEditor
-                                toolbar={mode === "page" || descriptionEditing}
+                                toolbar={false}
                                 variant="description"
                                 content={description}
                                 onChange={(value) => {
@@ -571,34 +562,11 @@ export const IssueView = ({ identifier, projectId, mode = "page", onClose }: Iss
                                 mentionItems={(members ?? []).map((member) => ({ id: member.id, label: member.username, description: member.name }))}
                                 placeholder={t("issue.describeIssue")}
                             />
-                            </div>
-                            {mode === "peek" && !descriptionEditing && descriptionOverflows && !descriptionExpanded && (
-                                <button
-                                    type="button"
-                                    className="mt-1 text-sm font-medium text-accent-primary hover:underline"
-                                    onClick={() => setDescriptionExpanded(true)}
-                                >
-                                    {t("issue.readMore")}
-                                </button>
-                            )}
-                            {(mode === "page" || descriptionEditing) && <div className="mt-2 flex items-center justify-end gap-3">
-                                <span className="text-xs text-tertiary" role="status" aria-live="polite">
-                                    {descriptionStatus === "saving" ? t("issue.savingDescription")
-                                        : descriptionStatus === "saved" ? t("issue.descriptionSaved")
-                                            : descriptionStatus === "offline" ? t("issue.descriptionOffline")
-                                                : descriptionStatus === "conflict" ? t("issue.descriptionConflict")
-                                                    : descriptionStatus === "error" ? t("issue.descriptionSaveFailed")
-                                                        : descriptionDirty.current ? t("issue.descriptionUnsaved") : ""}
-                                </span>
-                                <Button size="sm" color="primary" isLoading={descriptionStatus === "saving"} isDisabled={!descriptionDirty.current || descriptionStatus === "conflict"} onClick={async () => {
-                                    await flushDescriptionRef.current();
-                                    if (!descriptionDirty.current) setDescriptionEditing(false);
-                                }}>
-                                    {t("issue.saveDescription")}
-                                </Button>
-                            </div>}
-                            {descriptionSaveError && <p role="alert" className="mt-2 text-right text-xs text-danger-primary">{descriptionSaveError}</p>}
-                    {descriptionStatus === "conflict" && <div className="mt-3 flex flex-wrap items-center justify-end gap-2 rounded-md border border-fg-warning-primary/40 bg-warning-primary/10 p-3">
+                        </div>
+                        {descriptionNotice && <p role="status" className="animate-enter mt-2 text-xs text-warning-primary">{descriptionNotice}</p>}
+                        {descriptionSaveError && descriptionStatus !== "conflict" && <p role="alert" className="mt-2 text-xs text-danger-primary">{descriptionSaveError}</p>}
+                        {descriptionStatus === "conflict" && (
+                            <div className="animate-enter mt-3 flex flex-wrap items-center justify-end gap-2 rounded-lg border border-fg-warning-primary/40 bg-warning-primary/10 p-3">
                                 <Button size="xs" color="tertiary" onClick={() => {
                                     const current = issue.descriptionJson ?? EMPTY_TIPTAP_DOCUMENT;
                                     descriptionDirty.current = false;
@@ -614,10 +582,9 @@ export const IssueView = ({ identifier, projectId, mode = "page", onClose }: Iss
                                 <Button size="xs" color="primary" isLoading={createIssue.isPending} onClick={async () => {
                                     try {
                                         const suffix = ` (${t("issue.draftCopySuffix")})`;
-                                        const baseTitle = title.trim() || issue.title;
                                         const created = await createIssue.mutateAsync({
                                             columnId: issue.columnId,
-                                            title: `${baseTitle.slice(0, 200 - suffix.length)}${suffix}`,
+                                            title: `${currentTitle.slice(0, 200 - suffix.length)}${suffix}`,
                                             descriptionJson: latestDescription.current,
                                             assigneeId: issue.assigneeId,
                                             categoryId: issue.categoryId,
@@ -627,259 +594,526 @@ export const IssueView = ({ identifier, projectId, mode = "page", onClose }: Iss
                                         const key = descriptionDraftKey.current;
                                         if (key) void issueDescriptionDrafts.clearDescription(key).catch(() => undefined);
                                         descriptionDirty.current = false;
-                                        navigate(`/projects/${created.projectId}/issues/${created.identifier}`);
+                                        navigate(urls.issue(created.identifier, created.title));
                                     } catch (reason) {
                                         setDescriptionSaveError(errorMessage(reason, t("issue.couldNotSaveIssue")));
                                     }
                                 }}>{t("issue.createIssueFromDraft")}</Button>
-                            </div>}
-                        </section>
+                            </div>
+                        )}
 
-                        {mode === "peek" && <>
-                            <div className="mt-5 flex justify-end gap-1 text-caption-md-regular text-tertiary"><HistoryOutline className="size-3.5" />{t("issue.updatedAgo", { time: formatDistanceToNow(issue.updatedAt, i18n.language) })}</div>
-                            <div className="mt-5 mb-6 flex flex-wrap items-center gap-2">
-                                <Button size="sm" color="secondary" iconLeading={Link2} onClick={() => setRelationsOpen(!relationsOpen)} aria-expanded={relationsOpen}>{t("issue.addRelation")}</Button>
-                                <Button size="sm" color="secondary" iconLeading={ParentOutline} onClick={() => document.querySelector<HTMLInputElement>(`.issue-peek-panel [aria-label='${t("issue.parent")}']`)?.focus()}>{t("issue.addParent")}</Button>
-                            </div>
-                        </>}
-                        <IssueSubIssues issue={issue} columns={columns ?? []} />
-                        {(mode === "page" || relationsOpen || !!relations?.length) && <IssueRelations
-                            projectId={issue.projectId}
-                            issueId={issue.id}
-                            projectIssues={projectIssues ?? []}
-                            relations={relations ?? []}
-                            isPending={createRelation.isPending || deleteRelation.isPending}
-                            onAdd={(targetIssueIdentifier, type) => createRelation.mutateAsync({ targetIssueIdentifier, type }).then(() => undefined)}
-                            onDelete={(relationId) => deleteRelation.mutate(relationId)}
-                        />}
-                        {mode === "peek" && <IssuePropertyList issue={issue} projectIssues={projectIssues} columns={columns} members={members} categories={categories} save={save} error={propertySaveError} isPending={updateIssue.isPending} />}
-                        <section className="mt-10">
-                            <div role="tablist" aria-label={t("issue.discussion")} className="flex items-center gap-4 border-b border-subtle">
-                                <button type="button" role="tab" id={`issue-discussion-${issue.id}-comments`} aria-controls={`issue-discussion-${issue.id}-panel`} data-discussion-tab="comments" tabIndex={discussionTab === "comments" ? 0 : -1} aria-selected={discussionTab === "comments"} onKeyDown={handleDiscussionTabKeyDown} className={cx("border-b-2 px-0.5 pb-2 text-[13px] font-medium", discussionTab === "comments" ? "border-accent-primary text-primary" : "border-transparent text-tertiary hover:text-secondary")} onClick={() => selectDiscussionTab("comments")}>{t("issue.comments")} <span className="ml-1 text-[11px] text-tertiary">{comments?.length ?? 0}</span></button>
-                                <button type="button" role="tab" id={`issue-discussion-${issue.id}-activity`} aria-controls={`issue-discussion-${issue.id}-panel`} data-discussion-tab="activity" tabIndex={discussionTab === "activity" ? 0 : -1} aria-selected={discussionTab === "activity"} onKeyDown={handleDiscussionTabKeyDown} className={cx("border-b-2 px-0.5 pb-2 text-[13px] font-medium", discussionTab === "activity" ? "border-accent-primary text-primary" : "border-transparent text-tertiary hover:text-secondary")} onClick={() => selectDiscussionTab("activity")}>{t("issue.activity")} <span className="ml-1 text-[11px] text-tertiary">{activity?.length ?? 0}</span></button>
-                            </div>
-                        </section>
-                        <div role="tabpanel" id={`issue-discussion-${issue.id}-panel`} aria-labelledby={`issue-discussion-${issue.id}-${discussionTab}`}>
-                        {discussionTab === "activity" ? <IssueActivity activity={activity ?? []} isLoading={activityLoading} isError={activityLoadFailed} columns={columns ?? []} members={members ?? []} categories={categories ?? []} projectIssues={projectIssues ?? []} /> : <IssueComments
-                            compact={mode === "peek"}
-                            comments={comments ?? []}
-                            isLoading={commentsLoading}
-                            loadFailed={commentsLoadFailed}
-                            currentUserId={user?.id}
-                            value={comment}
-                            onChange={(value) => {
-                                commentDraftOwner.current = issue.id;
-                                setComment(value);
-                            }}
-                            isSubmitting={createComment.isPending || updateComment.isPending || deleteComment.isPending}
-                            error={commentSaveError}
-                            onSubmit={async () => {
-                                if (!hasMeaningfulTiptapContent(comment)) return;
-                                const submittedIssueId = issue.id;
-                                setCommentSaveError(null);
-                                try {
-                                    await createComment.mutateAsync({ contentJson: comment });
-                                    if (loadedIssueId.current === submittedIssueId) setComment(EMPTY_TIPTAP_DOCUMENT);
-                                } catch (reason) {
-                                    if (loadedIssueId.current === submittedIssueId) setCommentSaveError(errorMessage(reason, t("issue.couldNotAddComment")));
-                                }
-                            }}
-                            onDelete={async (commentId) => {
-                                const actionIssueId = issue.id;
-                                setCommentSaveError(null);
-                                try {
-                                    await deleteComment.mutateAsync(commentId);
-                                } catch (reason) {
-                                    if (loadedIssueId.current === actionIssueId) setCommentSaveError(errorMessage(reason, t("issue.couldNotDeleteComment")));
-                                    throw reason;
-                                }
-                            }}
-                            onEdit={async (commentId, contentJson) => {
-                                const actionIssueId = issue.id;
-                                setCommentSaveError(null);
-                                try {
-                                    await updateComment.mutateAsync({ commentId, input: { contentJson } });
-                                } catch (reason) {
-                                    if (loadedIssueId.current === actionIssueId) setCommentSaveError(errorMessage(reason, t("issue.couldNotUpdateComment")));
-                                    throw reason;
-                                }
-                            }}
-                        />}
+                        <IssueSubIssues issue={issue} columns={columns ?? []} isCreating={createIssue.isPending} onCreate={createSubIssue} />
+
+                        <Collapse open={relationsOpen || !!relations?.length} lazy={false}>
+                            <IssueRelations
+                                projectId={issue.projectId}
+                                issueId={issue.id}
+                                projectIssues={projectIssues ?? []}
+                                relations={relations ?? []}
+                                formOpen={relationsOpen || !relations?.length}
+                                onFormOpenChange={setRelationsOpen}
+                                isPending={createRelation.isPending || deleteRelation.isPending}
+                                onAdd={(targetIssueIdentifier, type) => createRelation.mutateAsync({ targetIssueIdentifier, type }).then(() => undefined)}
+                                onDelete={(relationId) => deleteRelation.mutate(relationId)}
+                            />
+                        </Collapse>
+
+                        <div className="mt-10 border-t border-subtle pt-8">
+                            <IssueTimeline
+                                activity={activity ?? []}
+                                comments={comments ?? []}
+                                isLoading={activityLoading || commentsLoading}
+                                loadFailed={activityLoadFailed || commentsLoadFailed}
+                                lookups={{ columns: columns ?? [], members: members ?? [], categories: categories ?? [], projectIssues: projectIssues ?? [] }}
+                                currentUserId={user?.id}
+                                value={comment}
+                                onChange={(value) => {
+                                    commentDraftOwner.current = issue.id;
+                                    setComment(value);
+                                }}
+                                isSubmitting={createComment.isPending || updateComment.isPending || deleteComment.isPending}
+                                error={commentSaveError}
+                                onSubmit={async () => {
+                                    if (!hasMeaningfulTiptapContent(comment)) return;
+                                    const submittedIssueId = issue.id;
+                                    setCommentSaveError(null);
+                                    try {
+                                        await createComment.mutateAsync({ contentJson: comment });
+                                        if (loadedIssueId.current === submittedIssueId) setComment(EMPTY_TIPTAP_DOCUMENT);
+                                    } catch (reason) {
+                                        if (loadedIssueId.current === submittedIssueId) setCommentSaveError(errorMessage(reason, t("issue.couldNotAddComment")));
+                                    }
+                                }}
+                                onDelete={async (commentId) => {
+                                    const actionIssueId = issue.id;
+                                    setCommentSaveError(null);
+                                    try {
+                                        await deleteComment.mutateAsync(commentId);
+                                    } catch (reason) {
+                                        if (loadedIssueId.current === actionIssueId) setCommentSaveError(errorMessage(reason, t("issue.couldNotDeleteComment")));
+                                        throw reason;
+                                    }
+                                }}
+                                onEdit={async (commentId, contentJson) => {
+                                    const actionIssueId = issue.id;
+                                    setCommentSaveError(null);
+                                    try {
+                                        await updateComment.mutateAsync({ commentId, input: { contentJson } });
+                                    } catch (reason) {
+                                        if (loadedIssueId.current === actionIssueId) setCommentSaveError(errorMessage(reason, t("issue.couldNotUpdateComment")));
+                                        throw reason;
+                                    }
+                                }}
+                            />
                         </div>
-
                     </div>
                 </div>
-                    {mode === "page" && <aside className={issuePageRailClass}>
-                        <IssuePropertyList issue={issue} projectIssues={projectIssues} columns={columns} members={members} categories={categories} save={save} error={propertySaveError} isPending={updateIssue.isPending} />
-                    </aside>}
-            </div>
-        </div>
-    );
 
-    return mode === "peek" ? (
-        <Sheet open onOpenChange={(open) => !open && onClose?.()} title={`${t("issue.title")} ${issue.identifier}`}>
-            <div ref={peekRef} tabIndex={-1} className="flex h-full min-h-0 flex-col outline-none">{content}</div>
-        </Sheet>
-    ) : (
-        <main className="flex h-full min-h-0 overflow-hidden bg-surface-1">{content}</main>
+                {wide && (
+                    <aside aria-label={t("issue.properties")} className="w-[17.5rem] shrink-0 overflow-y-auto px-4 pt-3 pb-10">
+                        <IssueQuickActions {...copyActions} />
+                        <div className="mt-5">{properties}</div>
+                    </aside>
+                )}
+            </div>
+
+            <ConfirmDialog
+                open={deleteOpen}
+                onOpenChange={setDeleteOpen}
+                title={t("issue.deleteIssue")}
+                description={t("issue.deleteIssueDescription", { title: issue.title })}
+                confirmLabel={t("issue.deleteIssue")}
+                isPending={deleteIssue.isPending}
+                onConfirm={() => deleteIssue.mutate(issue.identifier, { onSuccess: () => navigate(urls.issues(issue.project.issueKey)) })}
+            />
+        </main>
     );
 };
 
-function PropertySelect({
+function IssuePager({ issues, identifier, onOpen }: { issues: Array<{ identifier: string }>; identifier: string; onOpen: (identifier: string) => void }) {
+    const { t } = useTranslation();
+    const index = issues.findIndex((item) => item.identifier === identifier);
+    if (index < 0) return null;
+    return (
+        <div className="flex items-center gap-0.5 text-[13px] text-tertiary">
+            <span className="px-1 tabular-nums">
+                {index + 1} <span className="text-placeholder">/ {issues.length}</span>
+            </span>
+            <ButtonUtility icon={ArrowDown} size="xs" color="tertiary" tooltip={t("common.next")} isDisabled={index === issues.length - 1} onClick={() => onOpen(issues[index + 1]!.identifier)} />
+            <ButtonUtility icon={ArrowUp} size="xs" color="tertiary" tooltip={t("common.previous")} isDisabled={index === 0} onClick={() => onOpen(issues[index - 1]!.identifier)} />
+        </div>
+    );
+}
+
+interface CopyActions {
+    onCopyLink: () => void;
+    onCopyId: () => void;
+    onCopyBranch: () => void;
+    onCopyPrompt: () => void;
+    isCopying: boolean;
+}
+
+function IssueActionsMenu({ onCopyLink, onCopyId, onCopyBranch, onCopyPrompt, isCopying, onAddRelation, onSetParent, onDelete }: CopyActions & { onAddRelation: () => void; onSetParent: () => void; onDelete: () => void }) {
+    const { t } = useTranslation();
+    return (
+        <Menu.Root>
+            <Menu.Trigger aria-label={t("issue.issueActions")} className="grid size-6 shrink-0 place-items-center rounded text-tertiary outline-none hover:bg-layer-transparent-hover hover:text-primary focus-visible:bg-layer-transparent-hover data-[popup-open]:bg-layer-transparent-hover">
+                <MoreHorizontalOutline className="size-4" />
+            </Menu.Trigger>
+            <Menu.Portal>
+                <Menu.Positioner sideOffset={6} align="start" className="z-50">
+                    <Menu.Popup className={cx("w-60", overlayChrome.menu, popupMotion)}>
+                        <Menu.Item className={menuItemClass} onClick={onCopyLink}><Link2 className="size-4 text-tertiary" />{t("issue.copyIssueLink")}</Menu.Item>
+                        <Menu.Item className={menuItemClass} onClick={onCopyId}><Copy className="size-4 text-tertiary" />{t("issue.copyIdentifier")}</Menu.Item>
+                        <Menu.Item className={menuItemClass} onClick={onCopyBranch}><GitBranch className="size-4 text-tertiary" />{t("issue.copyBranchName")}</Menu.Item>
+                        <Menu.Item className={menuItemClass} disabled={isCopying} onClick={onCopyPrompt}><Sparkles className="size-4 text-tertiary" />{t("issue.copyAsPrompt")}</Menu.Item>
+                        <Menu.Separator className="my-1 h-px bg-[var(--border-subtle)]" />
+                        <Menu.Item className={menuItemClass} onClick={onAddRelation}><Link2 className="size-4 text-tertiary" />{t("issue.addRelation")}</Menu.Item>
+                        <Menu.Item className={menuItemClass} onClick={onSetParent}><ParentOutline className="size-4 text-tertiary" />{t("issue.addParent")}</Menu.Item>
+                        <Menu.Separator className="my-1 h-px bg-[var(--border-subtle)]" />
+                        <Menu.Item className={cx(menuItemClass, "text-danger-primary data-highlighted:text-danger-primary")} onClick={onDelete}><Trash2 className="size-4" />{t("issue.deleteIssue")}</Menu.Item>
+                    </Menu.Popup>
+                </Menu.Positioner>
+            </Menu.Portal>
+        </Menu.Root>
+    );
+}
+
+/** Round copy shortcuts at the top of the properties rail. */
+function IssueQuickActions({ onCopyLink, onCopyId, onCopyBranch, onCopyPrompt, isCopying }: CopyActions) {
+    const { t } = useTranslation();
+    const actions: Array<[string, typeof Link2, () => void, boolean?]> = [
+        [t("issue.copyIssueLink"), Link2, onCopyLink],
+        [t("issue.copyIdentifier"), Copy, onCopyId],
+        [t("issue.copyBranchName"), GitBranch, onCopyBranch],
+        [t("issue.copyAsPrompt"), Sparkles, onCopyPrompt, isCopying],
+    ];
+    return (
+        <div className="flex items-center justify-end gap-1.5">
+            {actions.map(([label, Icon, onClick, disabled]) => (
+                <ButtonUtility key={label} icon={Icon} size="sm" color="tertiary" tooltip={label} tooltipPlacement="bottom" isDisabled={disabled} onClick={onClick} className="size-8 rounded-full border border-subtle" />
+            ))}
+        </div>
+    );
+}
+
+interface PropertyOption {
+    value: string;
+    label: string;
+    icon: ReactNode;
+}
+
+/**
+ * A property row that opens a searchable list. Arrow keys move, Enter picks, and 1–9 pick directly while the search is empty.
+ */
+function PropertyMenu({
+    open,
+    onOpenChange,
     label,
+    placeholder,
+    shortcut,
     value,
     options,
-    onChange,
-    className,
-    isDisabled,
-    searchable,
+    onSelect,
+    disabled,
+    children,
 }: {
+    open: boolean;
+    onOpenChange: (open: boolean) => void;
     label: string;
+    placeholder: string;
+    shortcut?: string;
     value: string;
-    options: Array<{ value: string; label: string; avatarUrl?: string | null; icon?: SelectItemType["icon"] }>;
-    onChange: (value: string) => void;
-    className?: string;
-    isDisabled?: boolean;
-    searchable?: boolean;
+    options: PropertyOption[];
+    onSelect: (value: string) => void;
+    disabled?: boolean;
+    children: ReactNode;
 }) {
     const { t } = useTranslation();
-    const items = options.map((option) => ({ id: option.value, label: option.label, avatarUrl: option.avatarUrl ?? undefined, icon: option.icon }));
-    if (searchable) {
-        return (
-            <ComboBox
-                className={`w-full ${className ?? ""}`}
-                items={items}
-                selectedKey={value || null}
-                onSelectionChange={(next) => onChange(String(next ?? ""))}
-                isDisabled={isDisabled}
-                label={label}
-                placeholder={options.find((option) => option.value === value)?.label ?? t("issue.select")}
-                size="sm"
-            >
-                {(item) => <ComboBoxItem item={item}>{item.label}</ComboBoxItem>}
-            </ComboBox>
-        );
+    const [query, setQuery] = useState("");
+    const [active, setActive] = useState(0);
+    const normalized = query.trim().toLowerCase();
+    const filtered = normalized ? options.filter((option) => option.label.toLowerCase().includes(normalized)) : options;
+    useEffect(() => {
+        if (!open) return;
+        setQuery("");
+        setActive(Math.max(0, options.findIndex((option) => option.value === value)));
+        // Only reset when the menu opens; option identity changes on every render.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [open]);
+
+    function choose(option: PropertyOption | undefined) {
+        if (!option) return;
+        if (option.value !== value) onSelect(option.value);
+        onOpenChange(false);
     }
 
     return (
-        <Select
-            className={`w-full ${className ?? ""}`}
-            items={items}
-            selectedKey={value}
-            onSelectionChange={(next) => onChange(String(next ?? ""))}
-            isDisabled={isDisabled}
-            label={label}
-            size="sm"
-        >
-            {(item) => <Select.Item id={item.id} icon={item.icon} avatarUrl={item.avatarUrl}>{item.label}</Select.Item>}
-        </Select>
+        <Popover.Root open={open} onOpenChange={onOpenChange}>
+            <Popover.Trigger aria-label={label} disabled={disabled} className={propertyButton}>
+                {children}
+            </Popover.Trigger>
+            <Popover.Portal>
+                <Popover.Positioner side="bottom" align="start" sideOffset={4} collisionPadding={12} className="z-50">
+                    <Popover.Popup className={cx("w-64 p-1", overlayChrome.popup, popupMotion)}>
+                        <Popover.Title className="sr-only">{label}</Popover.Title>
+                        <div className="mb-1 flex items-center gap-2 border-b border-subtle px-2 pb-1">
+                            <input
+                                autoFocus
+                                value={query}
+                                placeholder={placeholder}
+                                aria-label={placeholder}
+                                onChange={(event) => {
+                                    setQuery(event.target.value);
+                                    setActive(0);
+                                }}
+                                onKeyDown={(event) => {
+                                    if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+                                        event.preventDefault();
+                                        const step = event.key === "ArrowDown" ? 1 : -1;
+                                        setActive((current) => (current + step + filtered.length) % Math.max(filtered.length, 1));
+                                    } else if (event.key === "Enter") {
+                                        event.preventDefault();
+                                        choose(filtered[active]);
+                                    } else if (!query && /^[1-9]$/.test(event.key)) {
+                                        event.preventDefault();
+                                        choose(options[Number(event.key) - 1]);
+                                    }
+                                }}
+                                className="h-8 min-w-0 flex-1 bg-transparent text-[13px] text-primary outline-none placeholder:text-placeholder"
+                            />
+                            {shortcut && <kbd className="rounded border border-subtle px-1.5 font-sans text-[11px] text-tertiary">{shortcut}</kbd>}
+                        </div>
+                        <div role="listbox" aria-label={label} className="max-h-72 overflow-y-auto">
+                            {filtered.map((option, index) => (
+                                <button
+                                    key={option.value || "none"}
+                                    type="button"
+                                    role="option"
+                                    aria-selected={option.value === value}
+                                    onMouseEnter={() => setActive(index)}
+                                    onClick={() => choose(option)}
+                                    className={cx("flex h-8 w-full items-center gap-2.5 rounded px-2 text-left text-[13px] text-secondary transition-colors duration-100", index === active && "bg-layer-2-hover text-primary")}
+                                >
+                                    <span className="grid size-4 shrink-0 place-items-center">{option.icon}</span>
+                                    <span className="min-w-0 flex-1 truncate">{option.label}</span>
+                                    {option.value === value && <Check className="size-3.5 shrink-0 text-secondary" />}
+                                    <span className="w-3 shrink-0 text-right text-[11px] text-placeholder tabular-nums">{!query && index < 9 ? index + 1 : ""}</span>
+                                </button>
+                            ))}
+                            {filtered.length === 0 && <p className="px-2 py-2 text-[13px] text-placeholder">{t("common.noResults")}</p>}
+                        </div>
+                    </Popover.Popup>
+                </Popover.Positioner>
+            </Popover.Portal>
+        </Popover.Root>
     );
 }
 
-function IssuePropertyList({
-    issue,
-    projectIssues,
-    columns,
-    members,
-    categories,
-    save,
-    error,
-    isPending,
-}: {
-    issue: IssueDetail;
-    projectIssues?: Array<{ id: string; identifier: string; title: string }>;
-    columns?: Array<{ id: string; name: string; color?: string | null }>;
-    members?: Array<{ id: string; name: string; avatarUrl?: string | null }>;
-    categories?: Array<{ id: string; name: string; color?: string | null }>;
-    save: (input: UpdateIssueInput) => void;
-    error?: string | null;
-    isPending: boolean;
-}) {
-    const { t } = useTranslation();
-    const rows = [
-        { label: t("issue.status"), displayLabel: t("issue.state"), Icon: StateOutline, value: issue.columnId, options: (columns ?? []).map((c) => ({ value: c.id, label: translateStatusName(c.name, t), icon: <StateIcon name={c.name} color={c.color} /> })), change: (value: string) => save({ columnId: value }) },
-        { label: t("issue.assignee"), Icon: AssigneeOutline, value: issue.assigneeId ?? "", options: [{ value: "", label: t("issue.unassigned"), icon: AssigneeOutline }, ...(members ?? []).map((member) => ({ value: member.id, label: member.name, avatarUrl: member.avatarUrl }))], change: (value: string) => save({ assigneeId: value || null }), searchable: true },
-        { label: t("issue.priority"), Icon: PriorityOutline, value: issue.priority, options: (["low", "medium", "high"] as const).map((value) => ({ value, label: t(`issue.${value}`), icon: <PriorityIcon priority={value} /> })), change: (value: string) => save({ priority: value as "low" | "medium" | "high" }) },
-        { label: t("issue.createdBy"), Icon: AssigneeOutline, readonly: issue.createdBy.name, decoration: issue.createdBy.avatarUrl ? <Avatar size="xs" src={issue.createdBy.avatarUrl} alt={issue.createdBy.name} /> : <IssueAvatar name={issue.createdBy.name} avatarUrl={issue.createdBy.avatarUrl} /> },
-        { label: t("issue.estimate"), Icon: EstimateOutline, value: String(issue.estimate ?? ""), options: [{ value: "", label: t("issue.noEstimate"), icon: EstimateOutline }, ...[1, 2, 3, 5, 8].map((n) => ({ value: String(n), label: t("projects.points", { count: n }), icon: EstimateOutline }))], change: (value: string) => save({ estimate: value ? Number(value) : null }) },
-        { label: t("issue.parent"), Icon: ParentOutline, value: issue.parent?.id ?? "", options: [{ value: "", label: t("issue.addParentIssue"), icon: ParentOutline }, ...(projectIssues ?? []).filter((i) => i.id !== issue.id).map((i) => ({ value: i.id, label: `${i.identifier} · ${i.title}`, icon: ParentOutline }))], change: (value: string) => save({ parentIssueId: value || null }), searchable: true },
-        { label: t("issue.label"), Icon: LabelsOutline, value: issue.categoryId ?? "", options: [{ value: "", label: t("issue.addLabel"), icon: LabelsOutline }, ...(categories ?? []).map((c) => ({ value: c.id, label: c.name, icon: <LabelsOutline className="size-3.5" style={{ color: c.color ?? "#7a5af8" }} /> }))], change: (value: string) => save({ categoryId: value || null }), searchable: true },
-    ];
-    return <section aria-label={t("issue.properties")}>
-        <h2 className="mb-3 text-body-xs-medium text-primary">{t("issue.properties")}</h2>
-        <div className="space-y-3">
-            {rows.map((row) => <div key={row.label} className="peek-property-row flex min-h-[30px] items-center gap-3">
-                <span className="flex w-[122px] shrink-0 items-center gap-1.5 text-body-xs-regular text-tertiary"><row.Icon className="size-4" />{row.displayLabel ?? row.label}</span>
-                <div className="peek-property-value relative min-w-0 flex-1">
-                    {row.readonly ? (
-                        <div className="peek-property-control w-full">
-                            <div className="flex items-center gap-2">
-                                {row.decoration}
-                                <span className="min-w-0 truncate">{row.readonly}</span>
-                            </div>
-                        </div>
-                    ) : <PropertySelect label={row.label} value={row.value!} options={row.options!} onChange={row.change!} searchable={row.searchable} isDisabled={isPending} className="peek-property-control" />}
-                </div>
-            </div>)}
-        </div>
-        {error && <p role="alert" className="mt-2 text-xs text-danger-primary">{error}</p>}
-    </section>;
-}
-
-function IssueSubIssues({ issue, columns }: { issue: NonNullable<ReturnType<typeof useIssue>["data"]>; columns: Array<{ id: string; name: string }> }) {
-    const { t } = useTranslation();
-    if (!issue.children?.length) return null;
-    const statusCounts = issue.children.reduce((counts, child) => {
-        const status = columns.find((column) => column.id === child.columnId)?.name ?? t("issue.unknownStatus");
-        counts.set(status, (counts.get(status) ?? 0) + 1);
-        return counts;
-    }, new Map<string, number>());
+function PropertyGroup({ title, children }: { title: string; children: ReactNode }) {
     return (
         <section>
-            <SectionTitle title={`${t("issue.subIssues")} · ${issue.children.length}`} icon={CheckCircle} />
-            <div className="mb-3 flex flex-wrap gap-2">
-                {[...statusCounts.entries()].map(([status, count]) => (
-                    <span key={status} className="rounded-full border border-subtle bg-surface-2 px-2 py-1 text-[11px] text-tertiary">
-                        {status} · {count}
-                    </span>
-                ))}
-            </div>
-            <div className="divide-y divide-subtle rounded-lg border border-subtle">
-                {issue.children.map((child) => (
-                    <div
-                        key={child.id}
-                        className="flex min-w-0 items-center"
-                        data-issue-id={child.id}
-                        data-issue-context="true"
-                        data-project-id={issue.projectId}
-                        data-issue-identifier={`${issue.project.issueKey}-${child.number}`}
-                        data-issue-title={child.title}
-                    >
-                        <Link
-                            to={`/projects/${issue.projectId}/issues/${issue.project.issueKey}-${child.number}`}
-                            className="flex min-w-0 flex-1 items-center gap-3 px-3 py-2 text-sm hover:bg-surface-2"
-                        >
-                            <span className="font-mono text-xs text-accent-primary">
-                                {issue.project.issueKey}-{child.number}
-                            </span>
-                            <span className="truncate text-primary">{child.title}</span>
-                        </Link>
-                        <ContextMenuButton
-                            entity={{ type: "issue", projectId: issue.projectId, identifier: `${issue.project.issueKey}-${child.number}`, title: child.title }}
-                            className="mr-1"
-                        />
-                    </div>
-                ))}
-            </div>
+            <h3 className="mb-1 px-2 text-[12px] font-medium text-tertiary">{title}</h3>
+            <div className="flex flex-col gap-px">{children}</div>
         </section>
     );
 }
+
+function PropertyIcon({ children }: { children: ReactNode }) {
+    return <span className="grid size-4 shrink-0 place-items-center">{children}</span>;
+}
+
+function EmptyAvatar() {
+    return <span className="size-3.5 rounded-full border border-dashed border-[var(--border-strong-1)]" />;
+}
+
+function IssueProperties({
+    issue,
+    projectIcon,
+    columns,
+    members,
+    categories,
+    projectIssues,
+    save,
+    isPending,
+    error,
+    openMenu,
+    onOpenMenuChange,
+}: {
+    issue: IssueDetail;
+    projectIcon: EntityIcon | string | null | undefined;
+    columns: Array<{ id: string; name: string; color: string | null }>;
+    members: Array<{ id: string; name: string; avatarUrl: string | null }>;
+    categories: Array<{ id: string; name: string; color: string | null }>;
+    projectIssues: Array<{ id: string; identifier: string; title: string }>;
+    save: (input: UpdateIssueInput) => void;
+    isPending: boolean;
+    error: string | null;
+    openMenu: PropertyMenuId | null;
+    onOpenMenuChange: (menu: PropertyMenuId | null) => void;
+}) {
+    const { t, i18n } = useTranslation();
+    const column = columns.find((candidate) => candidate.id === issue.columnId);
+    const assignee = members.find((member) => member.id === issue.assigneeId);
+    const category = categories.find((candidate) => candidate.id === issue.categoryId);
+    const parent = projectIssues.find((candidate) => candidate.id === issue.parent?.id);
+    const menu = (id: PropertyMenuId) => ({ open: openMenu === id, onOpenChange: (open: boolean) => onOpenMenuChange(open ? id : null), disabled: isPending });
+    const avatar = (person: { name: string; avatarUrl: string | null }) => <IssueAvatar name={person.name} avatarUrl={person.avatarUrl} className="size-4 text-[9px]" />;
+    const created = new Intl.DateTimeFormat(i18n.language, { dateStyle: "medium" }).format(new Date(issue.createdAt));
+
+    return (
+        <div className="flex flex-col gap-6">
+            <PropertyGroup title={t("issue.properties")}>
+                <PropertyMenu
+                    {...menu("state")}
+                    label={t("issue.status")}
+                    placeholder={t("issue.changeStatus")}
+                    shortcut="S"
+                    value={issue.columnId}
+                    options={columns.map((candidate) => ({ value: candidate.id, label: translateStatusName(candidate.name, t), icon: <StateIcon name={candidate.name} color={candidate.color} /> }))}
+                    onSelect={(value) => save({ columnId: value })}
+                >
+                    <PropertyIcon><StateIcon name={column?.name ?? ""} color={column?.color} /></PropertyIcon>
+                    <span className="truncate">{column ? translateStatusName(column.name, t) : t("issue.unknownStatus")}</span>
+                </PropertyMenu>
+                <PropertyMenu
+                    {...menu("priority")}
+                    label={t("issue.priority")}
+                    placeholder={t("issue.setPriority")}
+                    shortcut="P"
+                    value={issue.priority}
+                    options={PRIORITY_OPTIONS.map((priority) => ({ value: priority, label: t(priorityLabelKey(priority)), icon: <PriorityIcon priority={priority} /> }))}
+                    onSelect={(value) => save({ priority: value as UpdateIssueInput["priority"] })}
+                >
+                    <PropertyIcon><PriorityIcon priority={issue.priority} /></PropertyIcon>
+                    <span className={cx("truncate", issue.priority === "none" && "text-tertiary")}>{issue.priority === "none" ? t("issue.setPriorityAction") : t(priorityLabelKey(issue.priority))}</span>
+                </PropertyMenu>
+                <PropertyMenu
+                    {...menu("assignee")}
+                    label={t("issue.assignee")}
+                    placeholder={t("issue.assignTo")}
+                    shortcut="A"
+                    value={issue.assigneeId ?? ""}
+                    options={[{ value: "", label: t("issue.unassigned"), icon: <EmptyAvatar /> }, ...members.map((member) => ({ value: member.id, label: member.name, icon: avatar(member) }))]}
+                    onSelect={(value) => save({ assigneeId: value || null })}
+                >
+                    <PropertyIcon>{assignee ? avatar(assignee) : <EmptyAvatar />}</PropertyIcon>
+                    <span className={cx("truncate", !assignee && "text-tertiary")}>{assignee?.name ?? t("issue.assign")}</span>
+                </PropertyMenu>
+                <PropertyMenu
+                    {...menu("estimate")}
+                    label={t("issue.estimate")}
+                    placeholder={t("issue.setEstimate")}
+                    value={String(issue.estimate ?? "")}
+                    options={[{ value: "", label: t("issue.noEstimate"), icon: <EstimateOutline className="size-3.5 text-tertiary" /> }, ...[1, 2, 3, 5, 8].map((points) => ({ value: String(points), label: t("projects.points", { count: points }), icon: <EstimateOutline className="size-3.5 text-tertiary" /> }))]}
+                    onSelect={(value) => save({ estimate: value ? Number(value) : null })}
+                >
+                    <PropertyIcon><EstimateOutline className="size-3.5 text-tertiary" /></PropertyIcon>
+                    <span className={cx("truncate", issue.estimate == null && "text-tertiary")}>{issue.estimate != null ? t("projects.points", { count: issue.estimate }) : t("issue.estimateAction")}</span>
+                </PropertyMenu>
+                <PropertyMenu
+                    {...menu("parent")}
+                    label={t("issue.parent")}
+                    placeholder={t("issue.setParent")}
+                    value={issue.parent?.id ?? ""}
+                    options={[{ value: "", label: t("issue.noParent"), icon: <ParentOutline className="size-3.5 text-tertiary" /> }, ...projectIssues.filter((candidate) => candidate.id !== issue.id).map((candidate) => ({ value: candidate.id, label: `${candidate.identifier} ${candidate.title}`, icon: <ParentOutline className="size-3.5 text-tertiary" /> }))]}
+                    onSelect={(value) => save({ parentIssueId: value || null })}
+                >
+                    <PropertyIcon><ParentOutline className="size-3.5 text-tertiary" /></PropertyIcon>
+                    <span className={cx("truncate", !issue.parent && "text-tertiary")}>{parent ? <><span className="text-tertiary">{parent.identifier}</span> {parent.title}</> : issue.parent ? issue.parent.title : t("issue.addParentIssue")}</span>
+                </PropertyMenu>
+            </PropertyGroup>
+
+            <PropertyGroup title={t("issue.labels")}>
+                <PropertyMenu
+                    {...menu("label")}
+                    label={t("issue.label")}
+                    placeholder={t("issue.addLabelPlaceholder")}
+                    shortcut="L"
+                    value={issue.categoryId ?? ""}
+                    options={[{ value: "", label: t("issue.noLabel"), icon: <LabelsOutline className="size-3.5 text-tertiary" /> }, ...categories.map((candidate) => ({ value: candidate.id, label: candidate.name, icon: <span className="size-2 rounded-full" style={{ backgroundColor: candidate.color ?? "#7a5af8" }} /> }))]}
+                    onSelect={(value) => save({ categoryId: value || null })}
+                >
+                    {category ? (
+                        <span className="flex h-6 min-w-0 items-center gap-1.5 rounded-full border border-subtle px-2 text-[12px]">
+                            <span className="size-2 shrink-0 rounded-full" style={{ backgroundColor: category.color ?? "#7a5af8" }} />
+                            <span className="truncate">{category.name}</span>
+                        </span>
+                    ) : (
+                        <>
+                            <PropertyIcon><LabelsOutline className="size-3.5 text-tertiary" /></PropertyIcon>
+                            <span className="truncate text-tertiary">{t("issue.addLabel")}</span>
+                        </>
+                    )}
+                </PropertyMenu>
+            </PropertyGroup>
+
+            <PropertyGroup title={t("issue.project")}>
+                <Link to={urls.project(issue.project.issueKey)} className={propertyButton}>
+                    <ProjectIcon icon={projectIcon} className="size-4 shrink-0" />
+                    <span className="truncate">{issue.project.name}</span>
+                </Link>
+            </PropertyGroup>
+
+            <p className="px-2 text-[12px] text-placeholder">{t("issue.createdByOn", { name: issue.createdBy.name, date: created })}</p>
+            {error && <p role="alert" className="animate-enter px-2 text-xs text-danger-primary">{error}</p>}
+        </div>
+    );
+}
+
+function IssueSubIssues({ issue, columns, isCreating, onCreate }: { issue: IssueDetail; columns: Array<{ id: string; name: string; color: string | null }>; isCreating: boolean; onCreate: (title: string) => Promise<void> }) {
+    const { t } = useTranslation();
+    const [adding, setAdding] = useState(false);
+    const [draft, setDraft] = useState("");
+    const [error, setError] = useState<string | null>(null);
+    const inputRef = useRef<HTMLInputElement>(null);
+    const children = issue.children ?? [];
+    const columnOf = (columnId: string) => columns.find((column) => column.id === columnId);
+    const done = children.filter((child) => /done|complete|conclu/i.test(columnOf(child.columnId)?.name ?? "")).length;
+    useEffect(() => {
+        if (adding) inputRef.current?.focus();
+    }, [adding]);
+
+    async function submit(event: React.FormEvent<HTMLFormElement>) {
+        event.preventDefault();
+        const value = draft.trim();
+        if (!value) return;
+        setError(null);
+        try {
+            await onCreate(value);
+            setDraft("");
+        } catch (reason) {
+            setError(errorMessage(reason, t("issue.couldNotCreateSubIssue")));
+        }
+    }
+
+    return (
+        <section className="mt-8" aria-label={t("issue.subIssues")}>
+            {children.length > 0 && (
+                <>
+                    <div className="mb-1 flex items-center gap-2 px-2 text-[13px]">
+                        <span className="font-medium text-secondary">{t("issue.subIssues")}</span>
+                        <span className="text-tertiary tabular-nums">{done}/{children.length}</span>
+                    </div>
+                    <ul className="flex flex-col">
+                        {children.map((child) => {
+                            const identifier = `${issue.project.issueKey}-${child.number}`;
+                            const column = columnOf(child.columnId);
+                            return (
+                                <li key={child.id} className="animate-enter" data-issue-id={child.id} data-issue-context="true" data-project-id={issue.projectId} data-issue-identifier={identifier} data-issue-title={child.title}>
+                                    <Link to={urls.issue(identifier, child.title)} className="flex h-9 items-center gap-2.5 rounded-md px-2 text-[13px] transition-colors duration-150 hover:bg-layer-transparent-hover">
+                                        <StateIcon name={column?.name ?? ""} color={column?.color} />
+                                        <span className="w-16 shrink-0 text-tertiary">{identifier}</span>
+                                        <span className="min-w-0 truncate text-primary">{child.title}</span>
+                                    </Link>
+                                </li>
+                            );
+                        })}
+                    </ul>
+                </>
+            )}
+            <Collapse open={adding} lazy={false}>
+                <form onSubmit={submit} className="mt-1 flex h-10 items-center gap-2.5 rounded-lg border border-subtle bg-layer-1 pr-1.5 pl-2.5">
+                    <StateIcon name={columns[0]?.name ?? ""} color={columns[0]?.color} />
+                    <input
+                        ref={inputRef}
+                        value={draft}
+                        disabled={isCreating}
+                        placeholder={t("issue.subIssueTitle")}
+                        aria-label={t("issue.subIssueTitle")}
+                        onChange={(event) => setDraft(event.target.value)}
+                        onKeyDown={(event) => {
+                            if (event.key === "Escape") {
+                                setAdding(false);
+                                setDraft("");
+                            }
+                        }}
+                        className="min-w-0 flex-1 bg-transparent text-[13px] text-primary outline-none placeholder:text-placeholder"
+                    />
+                    <Button type="button" size="xs" color="tertiary" onClick={() => { setAdding(false); setDraft(""); }}>{t("common.cancel")}</Button>
+                    <Button type="submit" size="xs" isDisabled={!draft.trim()} isLoading={isCreating}>{t("common.add")}</Button>
+                </form>
+            </Collapse>
+            {error && <p role="alert" className="animate-enter mt-1 px-2 text-xs text-danger-primary">{error}</p>}
+            {!adding && (
+                <button type="button" onClick={() => setAdding(true)} className="mt-1 flex h-8 items-center gap-2 rounded-md px-2 text-[13px] text-tertiary transition-colors duration-150 hover:bg-layer-transparent-hover hover:text-primary">
+                    <Plus className="size-3.5" />
+                    {t("issue.addSubIssue")}
+                </button>
+            )}
+        </section>
+    );
+}
+
+type RelationType = "blocks" | "blocked_by" | "related" | "duplicate";
 
 function IssueRelations({
     projectId,
     issueId,
     projectIssues,
     relations,
+    formOpen,
+    onFormOpenChange,
     isPending,
     onAdd,
     onDelete,
@@ -888,14 +1122,17 @@ function IssueRelations({
     issueId: string;
     projectIssues: Array<{ id: string; identifier: string; title: string }>;
     relations: Array<{ id: string; type: string; target: { id: string; number: number; title: string; projectId: string; project: { issueKey: string } } }>;
+    formOpen: boolean;
+    onFormOpenChange: (open: boolean) => void;
     isPending: boolean;
-    onAdd: (targetIssueIdentifier: string, type: "blocks" | "blocked_by" | "related" | "duplicate") => Promise<void>;
+    onAdd: (targetIssueIdentifier: string, type: RelationType) => Promise<void>;
     onDelete: (relationId: string) => void;
 }) {
     const { t } = useTranslation();
     const [targetIssueIdentifier, setTargetIssueIdentifier] = useState("");
-    const [type, setType] = useState<"blocks" | "blocked_by" | "related" | "duplicate">("related");
+    const [type, setType] = useState<RelationType>("related");
     const [error, setError] = useState<string | null>(null);
+    const typeLabels: Record<RelationType, string> = { related: t("issue.relatedTo"), blocks: t("issue.blocks"), blocked_by: t("issue.blockedBy"), duplicate: t("issue.duplicateOf") };
 
     async function addRelation(event: React.FormEvent<HTMLFormElement>) {
         event.preventDefault();
@@ -912,45 +1149,58 @@ function IssueRelations({
         try {
             await onAdd(target, type);
             setTargetIssueIdentifier("");
+            onFormOpenChange(false);
         } catch (reason) {
             setError(reason instanceof ApiError ? reason.message : t("issue.couldNotAddRelation"));
         }
     }
 
     return (
-        <section>
-            <SectionTitle title={t("issue.relations")} icon={Link2} />
-            <div className="divide-y divide-subtle rounded-lg border border-subtle">
-                {relations.map((relation) => (
-                    <div
-                        key={relation.id}
-                        className="flex items-center gap-3 px-3 py-2 text-sm"
-                    >
-                        <span className="shrink-0 text-xs text-tertiary">{relation.type.replace("_", " ")}</span>
-                        <Link
-                            to={`/projects/${relation.target.projectId || projectId}/issues/${relation.target.project.issueKey}-${relation.target.number}`}
-                            className="flex min-w-0 flex-1 items-center gap-2 hover:text-accent-primary"
-                            data-issue-id={relation.target.id}
-                            data-issue-context="true"
-                            data-project-id={relation.target.projectId || projectId}
-                            data-issue-identifier={`${relation.target.project.issueKey}-${relation.target.number}`}
-                            data-issue-title={relation.target.title}
-                        >
-                            <span className="font-mono text-xs text-accent-primary">
-                                {relation.target.project.issueKey}-{relation.target.number}
+        <section className="mt-8" aria-label={t("issue.relations")}>
+            <div className="mb-1 flex items-center justify-between gap-2 px-2">
+                <span className="text-[13px] font-medium text-secondary">{t("issue.relations")}</span>
+                {relations.length > 0 && <ButtonUtility icon={Plus} size="xs" color="tertiary" tooltip={t("issue.addRelation")} onClick={() => onFormOpenChange(!formOpen)} />}
+            </div>
+            <ul className="flex flex-col">
+                {relations.map((relation) => {
+                    const identifier = `${relation.target.project.issueKey}-${relation.target.number}`;
+                    const targetProjectId = relation.target.projectId || projectId;
+                    return (
+                        <li key={relation.id} className="group/relation animate-enter flex h-9 items-center gap-2.5 rounded-md px-2 text-[13px] transition-colors duration-150 hover:bg-layer-transparent-hover">
+                            <span className="w-24 shrink-0 truncate text-tertiary">{typeLabels[relation.type as RelationType] ?? relation.type}</span>
+                            <Link
+                                to={urls.issue(identifier, relation.target.title)}
+                                className="flex min-w-0 flex-1 items-center gap-2"
+                                data-issue-id={relation.target.id}
+                                data-issue-context="true"
+                                data-project-id={targetProjectId}
+                                data-issue-identifier={identifier}
+                                data-issue-title={relation.target.title}
+                            >
+                                <span className="shrink-0 text-tertiary">{identifier}</span>
+                                <span className="truncate text-primary">{relation.target.title}</span>
+                            </Link>
+                            <span className="opacity-0 transition-opacity group-hover/relation:opacity-100 focus-within:opacity-100">
+                                <ButtonUtility icon={Trash2} size="xs" color="tertiary" tooltip={t("issue.removeRelation")} onClick={() => onDelete(relation.id)} isDisabled={isPending} />
                             </span>
-                            <span className="truncate text-primary">{relation.target.title}</span>
-                        </Link>
-                        <ContextMenuButton
-                            entity={{ type: "issue", projectId: relation.target.projectId || projectId, identifier: `${relation.target.project.issueKey}-${relation.target.number}`, title: relation.target.title }}
-                            className="mr-1"
-                        />
-                        <ButtonUtility icon={Trash2} size="xs" color="tertiary" className="text-danger-primary hover:text-danger-secondary" tooltip={t("issue.removeRelation")} onClick={() => onDelete(relation.id)} isDisabled={isPending} />
-                    </div>
-                ))}
-                <form className="flex flex-col gap-2 p-2 sm:flex-row" onSubmit={addRelation}>
+                        </li>
+                    );
+                })}
+            </ul>
+            <Collapse open={formOpen} lazy={false}>
+                <form className="mt-1 flex flex-col gap-2 rounded-lg border border-subtle bg-layer-1 p-2 sm:flex-row sm:items-center" onSubmit={addRelation}>
+                    <Select
+                        className="sm:w-40"
+                        aria-label={t("issue.relationType")}
+                        items={(Object.keys(typeLabels) as RelationType[]).map((id) => ({ id, label: typeLabels[id], icon: id === "blocks" ? Ban : id === "blocked_by" ? ShieldOff : id === "duplicate" ? Copy : Link2 }))}
+                        selectedKey={type}
+                        onSelectionChange={(next) => setType((next ?? "related") as RelationType)}
+                        size="sm"
+                    >
+                        {(item) => <Select.Item id={item.id} icon={item.icon}>{item.label}</Select.Item>}
+                    </Select>
                     <ComboBox
-                        className="min-w-0 flex-1 sm:min-w-48"
+                        className="min-w-0 flex-1"
                         items={projectIssues.filter((projectIssue) => projectIssue.id !== issueId).map((projectIssue) => ({ id: projectIssue.identifier, label: `${projectIssue.identifier} · ${projectIssue.title}`, icon: ParentOutline }))}
                         selectedKey={targetIssueIdentifier || null}
                         onSelectionChange={(next) => setTargetIssueIdentifier(String(next ?? ""))}
@@ -959,55 +1209,195 @@ function IssueRelations({
                     >
                         {(item) => <ComboBoxItem item={item}>{item.label}</ComboBoxItem>}
                     </ComboBox>
-                    <Select
-                        className="sm:w-44"
-                        aria-label={t("issue.relationType")}
-                        items={[
-                            { id: "related", label: t("issue.relatedTo"), icon: Link2 },
-                            { id: "blocks", label: t("issue.blocks"), icon: Ban },
-                            { id: "blocked_by", label: t("issue.blockedBy"), icon: ShieldOff },
-                            { id: "duplicate", label: t("issue.duplicateOf"), icon: Copy },
-                        ]}
-                        selectedKey={type}
-                        onSelectionChange={(next) => setType((next ?? "related") as typeof type)}
-                        size="sm"
-                    >
-                        {(item) => <Select.Item id={item.id} icon={item.icon}>{item.label}</Select.Item>}
-                    </Select>
-                    <Button type="submit" size="xs" iconLeading={Plus} isLoading={isPending}>
-                        {t("common.add")}
-                    </Button>
+                    <Button type="submit" size="xs" iconLeading={Plus} isLoading={isPending}>{t("common.add")}</Button>
                 </form>
-            </div>
-            {error && <p role="alert" className="mt-2 text-xs text-danger-primary">{error}</p>}
+            </Collapse>
+            {error && <p role="alert" className="animate-enter mt-1 px-2 text-xs text-danger-primary">{error}</p>}
         </section>
     );
 }
 
-function IssueActivity({ activity, isLoading, isError, columns, members, categories, projectIssues }: {
-    activity: Array<{ id: string; type: string; createdAt: string; actor: { name: string; avatarUrl: string | null }; payload: Record<string, unknown> }>;
-    isLoading: boolean;
-    isError: boolean;
-    columns: Array<{ id: string; name: string }>;
+type ActivityEntry = { id: string; type: string; createdAt: string; actor: { name: string; avatarUrl: string | null }; payload: Record<string, unknown> };
+type CommentEntry = { id: string; contentJson: TiptapDocument; authorId: string; author: { name: string; username?: string; avatarUrl: string | null }; createdAt: string; updatedAt: string };
+interface TimelineLookups {
+    columns: Array<{ id: string; name: string; color?: string | null }>;
     members: Array<{ id: string; name: string }>;
     categories: Array<{ id: string; name: string }>;
     projectIssues: Array<{ id: string; identifier: string; title: string }>;
+}
+
+/** Activity and comments in one chronological feed, followed by the comment composer. */
+function IssueTimeline({
+    activity,
+    comments,
+    isLoading,
+    loadFailed,
+    lookups,
+    currentUserId,
+    value,
+    onChange,
+    isSubmitting,
+    error,
+    onSubmit,
+    onDelete,
+    onEdit,
+}: {
+    activity: ActivityEntry[];
+    comments: CommentEntry[];
+    isLoading: boolean;
+    loadFailed: boolean;
+    lookups: TimelineLookups;
+    currentUserId?: string;
+    value: TiptapDocument;
+    onChange: (value: TiptapDocument) => void;
+    isSubmitting: boolean;
+    error?: string | null;
+    onSubmit: () => void | Promise<void>;
+    onDelete: (id: string) => void | Promise<void>;
+    onEdit: (id: string, contentJson: TiptapDocument) => void | Promise<void>;
 }) {
-    const { t, i18n } = useTranslation();
+    const { t } = useTranslation();
+    const entries = [
+        ...activity.map((entry) => ({ kind: "activity" as const, at: entry.createdAt, entry })),
+        ...comments.map((entry) => ({ kind: "comment" as const, at: entry.createdAt, entry })),
+    ].sort((a, b) => new Date(a.at).getTime() - new Date(b.at).getTime());
+    const canSend = hasMeaningfulTiptapContent(value) && !isSubmitting;
+
     return (
-        <section className="pt-4">
-            {isLoading ? <div className="space-y-3 py-3" role="status" aria-label={t("issue.loadingActivity")}><Skeleton className="h-10 w-full" /><Skeleton className="h-10 w-4/5" /></div>
-                : isError ? <p className="py-6 text-center text-sm text-danger-primary" role="alert">{t("issue.couldNotLoadActivity")}</p>
-                    : activity.length === 0 ? <p className="py-8 text-center text-sm text-tertiary">{t("issue.noActivity")}</p> : <div className="divide-y divide-subtle">
-                {activity.map((entry) => (
-                    <div key={entry.id} className="flex items-start gap-3 py-3 text-sm text-tertiary">
-                        <IssueAvatar name={entry.actor.name} avatarUrl={entry.actor.avatarUrl} className="mt-0.5 size-6 text-xs" />
-                        <div className="min-w-0 flex-1"><span className="font-medium text-secondary">{entry.actor.name}</span> <span>{activityLabelKeys[entry.type] ? t(activityLabelKeys[entry.type]) : entry.type}{formatActivityChange(entry.payload, { columns, members, categories, projectIssues }, t)}</span></div>
-                        <time className="shrink-0 text-xs" title={formatFullIssueDate(entry.createdAt, i18n.language)} dateTime={entry.createdAt}>{formatDistanceToNow(entry.createdAt, i18n.language)}</time>
-                    </div>
-                ))}
-            </div>}
+        <section aria-labelledby="issue-activity-heading">
+            <h2 id="issue-activity-heading" className="text-[15px] font-medium text-primary">{t("issue.activity")}</h2>
+            {isLoading ? (
+                <div className="mt-4 space-y-3" role="status" aria-label={t("issue.loadingActivity")}><Skeleton className="h-5 w-3/5" /><Skeleton className="h-5 w-2/5" /><Skeleton className="h-20 w-full" /></div>
+            ) : loadFailed ? (
+                <p className="mt-4 text-sm text-danger-primary" role="alert">{t("issue.couldNotLoadActivity")}</p>
+            ) : (
+                <ol className="mt-3 flex flex-col">
+                    {entries.map((item) =>
+                        item.kind === "comment" ? (
+                            <TimelineComment key={`c-${item.entry.id}`} entry={item.entry} mine={item.entry.authorId === currentUserId} isSubmitting={isSubmitting} onDelete={onDelete} onEdit={onEdit} />
+                        ) : (
+                            <TimelineActivity key={`a-${item.entry.id}`} entry={item.entry} lookups={lookups} />
+                        ),
+                    )}
+                </ol>
+            )}
+            <div className="mt-4 rounded-xl border border-subtle bg-layer-1 transition-colors duration-150 focus-within:border-[var(--border-strong-1)]">
+                <RichTextEditor toolbar={false} variant="comment" content={value} onChange={onChange} onSubmitShortcut={onSubmit} placeholder={t("issue.leaveComment")} className="issue-comment-composer" />
+                <div className="flex items-center justify-end gap-2 px-3 pb-3">
+                    <button
+                        type="button"
+                        aria-label={t("issue.commentAction")}
+                        title={t("issue.commentAction")}
+                        disabled={!canSend}
+                        onClick={() => void onSubmit()}
+                        className="grid size-7 place-items-center rounded-full bg-layer-2 text-tertiary transition-colors duration-150 enabled:bg-accent-primary enabled:text-white enabled:hover:opacity-90 disabled:cursor-not-allowed"
+                    >
+                        <ArrowUp className="size-3.5" />
+                    </button>
+                </div>
+            </div>
+            {error && <p role="alert" className="animate-enter mt-2 text-xs text-danger-primary">{error}</p>}
         </section>
+    );
+}
+
+function TimelineActivity({ entry, lookups }: { entry: ActivityEntry; lookups: TimelineLookups }) {
+    const { t, i18n } = useTranslation();
+    const statusTo = entry.type === "status_changed" ? lookups.columns.find((column) => column.id === entry.payload.to) : undefined;
+    return (
+        <li className="animate-enter flex items-center gap-2.5 py-1.5 pl-1 text-[13px] text-tertiary">
+            <span className="grid size-5 shrink-0 place-items-center">
+                {statusTo ? <StateIcon name={statusTo.name} color={statusTo.color} /> : <IssueAvatar name={entry.actor.name} avatarUrl={entry.actor.avatarUrl} className="size-4 text-[9px]" />}
+            </span>
+            <p className="min-w-0 flex-1">
+                <span className="font-medium text-secondary">{entry.actor.name}</span> {activityLabelKeys[entry.type] ? t(activityLabelKeys[entry.type]) : entry.type}
+                {formatActivityChange(entry.payload, { ...lookups, columns: lookups.columns.map((column) => ({ ...column, name: translateStatusName(column.name, t) })) }, t("issue.noneValue"))}
+                <span className="text-placeholder"> · </span>
+                <time className="text-placeholder" title={formatFullIssueDate(entry.createdAt, i18n.language)} dateTime={entry.createdAt}>{formatDistanceToNow(entry.createdAt, i18n.language)}</time>
+            </p>
+        </li>
+    );
+}
+
+function TimelineComment({ entry, mine, isSubmitting, onDelete, onEdit }: { entry: CommentEntry; mine: boolean; isSubmitting: boolean; onDelete: (id: string) => void | Promise<void>; onEdit: (id: string, contentJson: TiptapDocument) => void | Promise<void> }) {
+    const { t, i18n } = useTranslation();
+    const [editing, setEditing] = useState(false);
+    const [draft, setDraft] = useState<TiptapDocument>(entry.contentJson);
+    const edited = new Date(entry.updatedAt).getTime() > new Date(entry.createdAt).getTime();
+    return (
+        <li className="group/comment animate-enter my-2 rounded-xl border border-subtle bg-layer-1 px-4 py-3">
+            <div className="mb-1.5 flex items-center gap-2 text-[13px]">
+                <IssueAvatar name={entry.author.name} avatarUrl={entry.author.avatarUrl} className="size-5 text-[10px]" />
+                <span className="font-medium text-primary">{entry.author.name}</span>
+                <time className="text-tertiary" title={formatFullIssueDate(entry.createdAt, i18n.language)} dateTime={entry.createdAt}>
+                    {formatDistanceToNow(entry.createdAt, i18n.language)}{edited ? ` · ${t("issue.edited")}` : ""}
+                </time>
+                {mine && !editing && (
+                    <div className="ml-auto flex items-center gap-0.5 opacity-0 transition-opacity duration-150 group-hover/comment:opacity-100 focus-within:opacity-100">
+                        <ButtonUtility icon={Pencil} size="xs" color="tertiary" tooltip={t("common.edit")} onClick={() => { setDraft(entry.contentJson); setEditing(true); }} />
+                        <ButtonUtility icon={Trash2} size="xs" color="tertiary" tooltip={t("common.delete")} isDisabled={isSubmitting} onClick={() => void Promise.resolve(onDelete(entry.id)).catch(() => undefined)} />
+                    </div>
+                )}
+            </div>
+            {editing ? (
+                <>
+                    <RichTextEditor toolbar={false} variant="comment" content={draft} onChange={setDraft} className="issue-comment-composer" />
+                    <div className="mt-2 flex justify-end gap-2">
+                        <Button size="xs" color="tertiary" onClick={() => setEditing(false)}>{t("common.cancel")}</Button>
+                        <Button size="xs" isLoading={isSubmitting} onClick={async () => {
+                            try {
+                                await onEdit(entry.id, draft);
+                                setEditing(false);
+                            } catch {
+                                // The timeline shows the error and keeps the editor open.
+                            }
+                        }}>{t("common.save")}</Button>
+                    </div>
+                </>
+            ) : (
+                <RichTextEditor variant="comment" content={entry.contentJson} editable={false} className="issue-comment-body" />
+            )}
+        </li>
+    );
+}
+
+/** Same shape as Linear's branch names: `user/key-12-short-title`. */
+function gitBranchName(username: string | undefined, identifier: string, title: string) {
+    const slug = title
+        .normalize("NFD")
+        .replace(/[̀-ͯ]/g, "")
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-+|-+$/g, "")
+        .slice(0, 48)
+        .replace(/-+$/g, "");
+    const branch = [identifier.toLowerCase(), slug].filter(Boolean).join("-");
+    return username ? `${username.toLowerCase()}/${branch}` : branch;
+}
+
+function IssueLoadingSkeleton() {
+    const { t } = useTranslation();
+    return (
+        <main className="flex h-full min-h-0 flex-col bg-surface-1" role="status" aria-label={t("issue.loadingIssueDetails")} aria-live="polite">
+            <div className="flex h-11 shrink-0 items-center border-b border-subtle px-4">
+                <Skeleton className="h-4 w-64" />
+            </div>
+            <div className="flex min-h-0 flex-1">
+                <div className="mx-auto w-full max-w-[48rem] space-y-5 px-6 pt-10 lg:px-12">
+                    <Skeleton className="h-8 w-3/5" />
+                    <Skeleton className="h-4 w-full" />
+                    <Skeleton className="h-4 w-4/5" />
+                    <Skeleton className="mt-10 h-5 w-24" />
+                    <Skeleton className="h-16 w-full" />
+                </div>
+                <div className="hidden w-[17.5rem] shrink-0 space-y-3 px-5 pt-16 lg:block">
+                    <Skeleton className="h-4 w-20" />
+                    <Skeleton className="h-8 w-full" />
+                    <Skeleton className="h-8 w-full" />
+                    <Skeleton className="h-8 w-full" />
+                </div>
+            </div>
+        </main>
     );
 }
 
@@ -1020,11 +1410,11 @@ function formatActivityChange(payload: Record<string, unknown>, lookups: {
     members: Array<{ id: string; name: string }>;
     categories: Array<{ id: string; name: string }>;
     projectIssues: Array<{ id: string; identifier: string; title: string }>;
-}, t: ReturnType<typeof useTranslation>["t"]) {
+}, noneLabel: string) {
     if (!("from" in payload) && !("to" in payload)) return "";
     const field = String(payload.field ?? "");
     const resolve = (value: unknown) => {
-        if (value === null || value === undefined || value === "") return t("issue.noneValue");
+        if (value === null || value === undefined || value === "") return noneLabel;
         const options = field === "columnId" ? lookups.columns : field === "assigneeId" ? lookups.members : field === "categoryId" ? lookups.categories : field === "parentIssueId" ? lookups.projectIssues : [];
         const match = options.find((option) => option.id === value);
         if (match && "identifier" in match) return match.identifier;
@@ -1032,129 +1422,6 @@ function formatActivityChange(payload: Record<string, unknown>, lookups: {
         return String(value);
     };
     return ` · ${resolve(payload.from)} → ${resolve(payload.to)}`;
-}
-
-function IssueComments({
-    compact = false,
-    comments,
-    isLoading,
-    loadFailed,
-    currentUserId,
-    value,
-    onChange,
-    isSubmitting,
-    error,
-    onSubmit,
-    onDelete,
-    onEdit,
-}: {
-    compact?: boolean;
-    comments: Array<{ id: string; contentJson: TiptapDocument; authorId: string; author: { name: string; username?: string; avatarUrl: string | null }; createdAt: string; updatedAt: string }>;
-    isLoading: boolean;
-    loadFailed: boolean;
-    currentUserId?: string;
-    value: TiptapDocument;
-    onChange: (value: TiptapDocument) => void;
-    isSubmitting: boolean;
-    error?: string | null;
-    onSubmit: () => void | Promise<void>;
-    onDelete: (id: string) => void | Promise<void>;
-    onEdit: (id: string, contentJson: TiptapDocument) => void | Promise<void>;
-}) {
-    const { t, i18n } = useTranslation();
-    const [editingId, setEditingId] = useState<string | null>(null);
-    const [editingContent, setEditingContent] = useState<TiptapDocument>(EMPTY_TIPTAP_DOCUMENT);
-    return (
-        <section className={cx("pt-4", compact && "peek-comments")}>
-            <div className="flex flex-col gap-4">
-                {isLoading ? <div className="space-y-3" role="status" aria-label={t("issue.loadingComments")}><Skeleton className="h-20 w-full" /><Skeleton className="h-20 w-full" /></div>
-                    : loadFailed ? <p className="py-5 text-center text-sm text-danger-primary" role="alert">{t("issue.couldNotLoadComments")}</p>
-                        : comments.length === 0 ? <p className="py-3 text-sm text-tertiary">{t("issue.noComments")}</p> : comments.map((entry) => (
-                    <article key={entry.id} className="rounded-lg border border-subtle bg-layer-1/50 p-4">
-                        <div className="mb-3 flex items-center gap-3 text-xs text-tertiary">
-                            <IssueAvatar name={entry.author.name} avatarUrl={entry.author.avatarUrl} className="size-8 text-xs" />
-                            <div className="flex min-w-0 flex-1 flex-col">
-                                <span className="truncate font-medium text-secondary">{entry.author.name}{entry.author.username ? <span className="ml-1 font-normal text-tertiary">@{entry.author.username}</span> : null}</span>
-                                <time title={formatFullIssueDate(entry.createdAt, i18n.language)} dateTime={entry.createdAt}>{formatDistanceToNow(entry.createdAt, i18n.language)}{new Date(entry.updatedAt).getTime() > new Date(entry.createdAt).getTime() ? ` · ${t("issue.edited")}` : ""}</time>
-                            </div>
-                        </div>
-                        {editingId === entry.id ? (
-                            <>
-                                <RichTextEditor variant="comment" content={editingContent} onChange={setEditingContent} />
-                                <div className="mt-2 flex justify-end gap-2">
-                                    <Button size="xs" color="tertiary" onClick={() => setEditingId(null)}>
-                                        {t("common.cancel")}
-                                    </Button>
-                                    <Button
-                                        size="xs"
-                                        isLoading={isSubmitting}
-                                        onClick={async () => {
-                                            try {
-                                                await onEdit(entry.id, editingContent);
-                                                setEditingId(null);
-                                            } catch {
-                                                // The parent displays the mutation error and preserves the editor.
-                                            }
-                                        }}
-                                    >
-                                        {t("common.save")}
-                                    </Button>
-                                </div>
-                            </>
-                        ) : (
-                            <RichTextEditor variant="comment" content={entry.contentJson} editable={false} />
-                        )}
-                        {entry.authorId === currentUserId && editingId !== entry.id && (
-                            <div className="mt-2 flex gap-3">
-                                <button
-                                    type="button"
-                                    className="text-xs text-secondary hover:text-primary"
-                                    onClick={() => {
-                                        setEditingId(entry.id);
-                                        setEditingContent(entry.contentJson);
-                                    }}
-                                >
-                                    {t("common.edit")}
-                                </button>
-                                <button
-                                    type="button"
-                                    disabled={isSubmitting}
-                                    className="text-xs text-danger-primary disabled:cursor-not-allowed disabled:opacity-50"
-                                    onClick={async () => {
-                                        try {
-                                            await onDelete(entry.id);
-                                        } catch {
-                                            // The parent displays the mutation error.
-                                        }
-                                    }}
-                                >
-                                    {t("common.delete")}
-                                </button>
-                            </div>
-                        )}
-                    </article>
-                ))}
-                <div className="rounded-lg border border-subtle bg-layer-1/50">
-                    <RichTextEditor toolbar={!compact} variant="comment" content={value} onChange={onChange} onSubmitShortcut={onSubmit} placeholder={t("issue.leaveComment")} />
-                    <div className="flex justify-end border-t border-subtle p-2">
-                        <Button size="sm" iconLeading={Plus} isDisabled={!hasMeaningfulTiptapContent(value) || isSubmitting} isLoading={isSubmitting} onClick={onSubmit}>
-                            {t("issue.commentAction")}
-                        </Button>
-                    </div>
-                </div>
-            </div>
-            {error && <p role="alert" className="mt-2 text-xs text-danger-primary">{error}</p>}
-        </section>
-    );
-}
-
-function SectionTitle({ title, icon: Icon }: { title: string; icon: typeof CheckCircle }) {
-    return (
-        <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold text-primary">
-            <Icon className="size-4 text-placeholder" />
-            {title}
-        </h2>
-    );
 }
 
 function formatDistanceToNow(value: string, locale: string) {
@@ -1175,61 +1442,6 @@ function hasMeaningfulTiptapContent(document: TiptapDocument) {
         return Array.isArray(node.content) && visit(node.content);
     });
     return visit(document.content ?? []);
-}
-
-function IssuePeekState({ children, onClose }: { children: React.ReactNode; onClose?: () => void }) {
-    const { t } = useTranslation();
-    return <Sheet open onOpenChange={(open) => !open && onClose?.()} title={t("issue.issuePanel")}><div className="flex h-full min-h-0 flex-col">{children}</div></Sheet>;
-}
-
-function IssueLoadingSkeleton({ mode }: { mode: "page" | "peek" }) {
-    const { t } = useTranslation();
-    return (
-        <div
-            className="flex h-full min-h-0 flex-col"
-            role="status"
-            aria-label={mode === "peek" ? t("issue.loadingIssue") : t("issue.loadingIssueDetails")}
-            aria-live="polite"
-        >
-            {mode === "page" && (
-                <div className="flex h-12 shrink-0 items-center border-b border-subtle px-4">
-                    <Skeleton className="h-4 w-52" />
-                </div>
-            )}
-            <div className={mode === "page" ? issuePageBodyClass : "min-h-0 flex-1 overflow-y-auto"}>
-                <div className={mode === "peek" ? "issue-peek-body flex-1 space-y-4 overflow-y-auto px-6 py-4" : issuePageMainClass}>
-                    <div className="min-w-0 flex-1 space-y-5">
-                        {mode === "peek" && <Skeleton className="h-3 w-16" />}
-                        <Skeleton className="h-8 w-4/5" />
-                        <Skeleton className="h-24 w-full" />
-                        <div className="space-y-3">
-                            <Skeleton className="h-4 w-28" />
-                            <Skeleton className="h-20 w-full" />
-                        </div>
-                    </div>
-                    {mode === "peek" && (
-                        <div className="space-y-4">
-                            <Skeleton className="h-5 w-24" />
-                            <Skeleton className="h-9 w-full" />
-                            <Skeleton className="h-9 w-full" />
-                            <Skeleton className="h-9 w-full" />
-                        </div>
-                    )}
-                </div>
-                {mode === "page" && (
-                    <aside className={issuePageRailClass}>
-                        <Skeleton className="h-5 w-24" />
-                        <div className="mt-4 space-y-3">
-                            <Skeleton className="h-8 w-full" />
-                            <Skeleton className="h-8 w-full" />
-                            <Skeleton className="h-8 w-full" />
-                            <Skeleton className="h-8 w-full" />
-                        </div>
-                    </aside>
-                )}
-            </div>
-        </div>
-    );
 }
 
 function errorMessage(reason: unknown, fallback: string) {

@@ -1,7 +1,7 @@
 import { parseProjectCover, resolveLocale, suggestProjectKey, type CreateProjectInput, type Locale, type UpdateProjectInput, type UpdateProjectPageInput } from "@rinia/shared";
-import { and, count, desc, eq, inArray, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { db } from "../../db";
-import { boardColumns, issues, projectMembers, projects, users } from "../../db/schema";
+import { boardColumns, projectKeyAliases, projectMembers, projects, users } from "../../db/schema";
 import { HttpError } from "../../lib/http-error";
 import { isProjectKeyConflict } from "./project-key";
 
@@ -50,9 +50,18 @@ function withParsedCover<T extends { cover: unknown }>(project: T) {
     return { ...project, cover: parseProjectCover(project.cover) };
 }
 
+/** Another project's former key stays reserved so its old issue links never point somewhere else. */
+async function isReservedKey(issueKey: string, projectId?: string) {
+    const alias = await db.query.projectKeyAliases.findFirst({ where: eq(projectKeyAliases.key, issueKey), columns: { projectId: true } });
+    return !!alias && alias.projectId !== projectId;
+}
+
 async function resolveProjectKey(name: string) {
-    const existing = await db.query.projects.findMany({ columns: { issueKey: true } });
-    const taken = new Set(existing.map((project) => project.issueKey));
+    const [existing, aliases] = await Promise.all([
+        db.query.projects.findMany({ columns: { issueKey: true } }),
+        db.query.projectKeyAliases.findMany({ columns: { key: true } }),
+    ]);
+    const taken = new Set([...existing.map((project) => project.issueKey), ...aliases.map((alias) => alias.key)]);
 
     const base = suggestProjectKey(name);
     let candidate = base;
@@ -67,6 +76,7 @@ async function resolveProjectKey(name: string) {
 export async function createProject(input: CreateProjectInput, creatorId: string) {
     const creator = await db.query.users.findFirst({ where: eq(users.id, creatorId), columns: { locale: true } });
     const locale: Locale = resolveLocale(creator?.locale);
+    if (input.issueKey && await isReservedKey(input.issueKey)) throw new HttpError(409, "Project key is already in use");
     for (let attempt = 0; attempt < 5; attempt += 1) {
         const issueKey = input.issueKey ?? await resolveProjectKey(input.name);
 
@@ -141,27 +151,46 @@ export async function getProjectById(projectId: string) {
     return withParsedCover(project);
 }
 
+/** Finds a project by its current key or a key it used before, so old URLs keep resolving. */
+export async function getProjectByKey(key: string) {
+    const issueKey = key.trim().toUpperCase();
+    const current = await db.query.projects.findFirst({ where: eq(projects.issueKey, issueKey) });
+    if (current) return withParsedCover(current);
+    const alias = await db.query.projectKeyAliases.findFirst({ where: eq(projectKeyAliases.key, issueKey), columns: { projectId: true } });
+    if (!alias) throw new HttpError(404, "Project not found");
+    return getProjectById(alias.projectId);
+}
+
 export async function updateProject(projectId: string, input: UpdateProjectInput) {
-    if (input.issueKey) {
-        const current = await getProjectById(projectId);
-        const [{ value: issueCount }] = await db.select({ value: count() }).from(issues).where(eq(issues.projectId, projectId));
-        if (issueCount > 0 && current.issueKey !== input.issueKey) {
-            throw new HttpError(409, "Project key cannot change after the first issue is created");
-        }
-        const duplicate = await db.query.projects.findFirst({ where: and(eq(projects.issueKey, input.issueKey), sql`${projects.id} <> ${projectId}`), columns: { id: true } });
-        if (duplicate) throw new HttpError(409, "Project key is already in use");
+    const current = await getProjectById(projectId);
+    const renamedKey = input.issueKey && input.issueKey !== current.issueKey ? input.issueKey : null;
+    if (renamedKey) {
+        const duplicate = await db.query.projects.findFirst({ where: and(eq(projects.issueKey, renamedKey), sql`${projects.id} <> ${projectId}`), columns: { id: true } });
+        if (duplicate || await isReservedKey(renamedKey, projectId)) throw new HttpError(409, "Project key is already in use");
     }
     const { icon: _icon, iconAppearance: _iconAppearance, cover: _cover, ...projectInput } = input;
-    const [project] = await db
-        .update(projects)
-        .set({
-            ...projectInput,
-            ...(input.cover === undefined ? {} : { cover: input.cover }),
-            ...projectAppearance(input),
-            updatedAt: new Date(),
+    const project = await db
+        .transaction(async (tx) => {
+            if (renamedKey) {
+                // Issue identifiers are derived from the key, so renaming it renames every issue at once.
+                // The old key becomes an alias only when issues already carry it in links.
+                await tx.delete(projectKeyAliases).where(and(eq(projectKeyAliases.key, renamedKey), eq(projectKeyAliases.projectId, projectId)));
+                if (current.nextIssueNumber > 1) {
+                    await tx.insert(projectKeyAliases).values({ key: current.issueKey, projectId }).onConflictDoNothing();
+                }
+            }
+            const [updated] = await tx
+                .update(projects)
+                .set({
+                    ...projectInput,
+                    ...(input.cover === undefined ? {} : { cover: input.cover }),
+                    ...projectAppearance(input),
+                    updatedAt: new Date(),
+                })
+                .where(eq(projects.id, projectId))
+                .returning();
+            return updated;
         })
-        .where(eq(projects.id, projectId))
-        .returning()
         .catch((error: unknown) => {
             if (isProjectKeyConflict(error)) throw new HttpError(409, "Project key is already in use");
             throw error;

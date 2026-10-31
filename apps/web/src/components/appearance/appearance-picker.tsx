@@ -4,7 +4,7 @@ import { ImagePlus, Smile, Sparkles, X } from "lucide-react";
 import { Button } from "@/components/base/buttons/button";
 import { Input } from "@/components/base/input/input";
 import { ProjectIconPicker } from "@/features/projects/components/project-icon-picker";
-import { ProjectIcon } from "@/features/projects/components/project-icon";
+import { DEFAULT_PROJECT_ICON, ProjectIcon } from "@/features/projects/components/project-icon";
 import { overlayChrome } from "@/components/overlay/overlay-chrome";
 import { cx } from "@/utils/cx";
 import { useTranslation } from "react-i18next";
@@ -62,7 +62,17 @@ export function AppearancePicker({ value, onChange, onComplete }: AppearancePick
                 ))}
                 {value && <button type="button" className="ml-auto flex size-7 shrink-0 items-center justify-center rounded-md text-tertiary hover:bg-layer-1-hover hover:text-danger-primary" onClick={() => select(null)} aria-label={t("appearance.removeIcon")}><X className="size-3.5" /></button>}
             </div>
-            {tab === "icons" && <ProjectIconPicker value={value?.type === "icon" ? value.key : null} onChange={(key) => select({ type: "icon", key })} />}
+            {tab === "icons" && (
+                <ProjectIconPicker
+                    value={value?.type === "icon" ? value.key : null}
+                    color={value?.type === "icon" ? value.color : null}
+                    onChange={(key) => {
+                        const color = value?.type === "icon" ? value.color : undefined;
+                        select({ type: "icon", key, ...(color ? { color } : {}) });
+                    }}
+                    onColorChange={(color) => onChange({ type: "icon", key: value?.type === "icon" ? value.key : DEFAULT_PROJECT_ICON, ...(color ? { color } : {}) })}
+                />
+            )}
             {tab === "emoji" && (
                 <div className="flex min-w-0 flex-col gap-3">
                     <Input className={fieldClass} size="sm" label={t("appearance.emojiLabel")} value={emoji} onChange={setEmoji} placeholder={t("appearance.pasteEmoji")} />

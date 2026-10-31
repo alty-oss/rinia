@@ -12,6 +12,24 @@ export function StateIcon({ name, color, className = "size-3.5" }: { name: strin
 }
 
 export function PriorityIcon({ priority, withContainer = false }: { priority: string; withContainer?: boolean }) {
+    if (priority === "none") {
+        return (
+            <svg viewBox="0 0 16 16" className="size-3.5 shrink-0 text-tertiary" aria-hidden="true">
+                <rect x="1.5" y="7.25" width="3" height="1.5" rx="0.5" fill="currentColor" />
+                <rect x="6.5" y="7.25" width="3" height="1.5" rx="0.5" fill="currentColor" />
+                <rect x="11.5" y="7.25" width="3" height="1.5" rx="0.5" fill="currentColor" />
+            </svg>
+        );
+    }
+    if (priority === "urgent") {
+        return (
+            <svg viewBox="0 0 16 16" className="size-3.5 shrink-0" aria-hidden="true">
+                <rect x="1" y="1" width="14" height="14" rx="3" fill="#f2994a" />
+                <rect x="7.1" y="3.75" width="1.8" height="5.5" rx="0.9" fill="#fff" />
+                <circle cx="8" cy="11.6" r="1.05" fill="#fff" />
+            </svg>
+        );
+    }
     const Icon = priority === "high" ? SignalHigh : priority === "medium" ? SignalMedium : SignalLow;
     const icon = <Icon size={14} aria-hidden="true" style={{ color: `var(--priority-${priority})`, transform: withContainer ? `translateX(${priority === "high" ? 1 : priority === "medium" ? 2 : 4}px)` : undefined }} />;
     return withContainer ? <span title={`${priority} priority`} className="flex size-5 shrink-0 items-center justify-center rounded-sm border bg-layer-2 p-0.5" style={{ borderColor: `var(--priority-${priority})` }}>{icon}</span> : icon;

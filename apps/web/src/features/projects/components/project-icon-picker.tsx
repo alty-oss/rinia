@@ -3,13 +3,16 @@ import type { ProjectIconKey } from "@rinia/shared";
 import { Search } from "lucide-react";
 import { Input } from "@/components/base/input/input";
 import { cx } from "@/utils/cx";
+import { IconColorPicker } from "@/components/appearance/icon-color-picker";
 import { DEFAULT_PROJECT_ICON, resolveProjectIcon } from "./project-icon";
 import { useTranslation } from "react-i18next";
 import { useLanguage } from "@/i18n/language-provider";
 
 interface ProjectIconPickerProps {
     value: string | null | undefined;
+    color?: string | null;
     onChange: (icon: string) => void;
+    onColorChange: (color: string | null) => void;
 }
 
 const iconLabels: Record<ProjectIconKey, { en: string; pt: string }> = {
@@ -51,7 +54,7 @@ const iconGroups: Array<{ id: string; keys: ProjectIconKey[] }> = [
 ];
 
 /** Searchable icon catalog that keeps persisted semantic keys independent from Lucide names. */
-export const ProjectIconPicker = ({ value, onChange }: ProjectIconPickerProps) => {
+export const ProjectIconPicker = ({ value, color, onChange, onColorChange }: ProjectIconPickerProps) => {
     const { t } = useTranslation();
     const { locale } = useLanguage();
     const localizedIconLabel = (key: ProjectIconKey) => iconLabels[key][locale === "pt-BR" ? "pt" : "en"];
@@ -63,6 +66,8 @@ export const ProjectIconPicker = ({ value, onChange }: ProjectIconPickerProps) =
     };
     const selected = value ?? DEFAULT_PROJECT_ICON;
     const [query, setQuery] = useState("");
+    const [preview, setPreview] = useState<string | null>(null);
+    const tint = preview ?? color;
     const normalizedQuery = query.trim().toLowerCase();
     const filteredGroups = useMemo(
         () =>
@@ -83,6 +88,7 @@ export const ProjectIconPicker = ({ value, onChange }: ProjectIconPickerProps) =
 
     return (
         <div data-project-icon-picker className="flex min-h-0 min-w-0 flex-col gap-3">
+            <IconColorPicker color={color ?? null} onPreview={setPreview} onChange={(next) => { setPreview(null); onColorChange(next); }} />
             <Input
                 className="min-w-0 !items-stretch"
                 aria-label={t("projectIcons.search")}
@@ -128,7 +134,7 @@ export const ProjectIconPicker = ({ value, onChange }: ProjectIconPickerProps) =
                                             isSelected && "bg-brand-primary_alt text-accent-primary ring-2 ring-accent-strong hover:text-accent-primary",
                                         )}
                                     >
-                                        <Icon className="size-4" aria-hidden="true" />
+                                        <Icon className="size-4" aria-hidden="true" style={tint ? { color: tint } : undefined} />
                                     </button>
                                 );
                             })}

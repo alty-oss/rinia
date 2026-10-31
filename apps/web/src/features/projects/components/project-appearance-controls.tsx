@@ -37,7 +37,7 @@ export function ProjectIconControl({
     if (!isProjectOwner) {
         return (
             <span className={className}>
-                <ProjectIcon icon={appearance} className={iconClassName} />
+                <ProjectIcon icon={appearance} className={iconClassName} tile />
             </span>
         );
     }
@@ -45,7 +45,7 @@ export function ProjectIconControl({
     return (
         <Popover.Root open={open} onOpenChange={setOpen}>
             <Popover.Trigger disabled={disabled} aria-label={t("settings.changeProjectIcon")} className={className}>
-                <ProjectIcon icon={appearance} className={iconClassName} />
+                <ProjectIcon icon={appearance} className={iconClassName} tile />
             </Popover.Trigger>
             <Popover.Portal>
                 <Popover.Positioner side="bottom" align="start" sideOffset={8} collisionPadding={12} className="z-[60]">

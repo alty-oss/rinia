@@ -7,7 +7,9 @@ export const tiptapDocumentSchema = z.object({
 });
 export type TiptapDocument = z.infer<typeof tiptapDocumentSchema>;
 
-export const issuePriorityValues = ["low", "medium", "high"] as const;
+/** Linear's five levels. "none" is the default for new issues. */
+export const issuePriorityValues = ["none", "low", "medium", "high", "urgent"] as const;
+export type IssuePriority = (typeof issuePriorityValues)[number];
 export const issueRelationValues = ["blocks", "blocked_by", "related", "duplicate"] as const;
 export const issueEstimateValues = [1, 2, 3, 5, 8] as const;
 const estimateSchema = z.number().int().refine((value) => issueEstimateValues.includes(value as (typeof issueEstimateValues)[number]), "Estimate must be 1, 2, 3, 5, or 8");
@@ -18,7 +20,7 @@ export const createIssueSchema = z.object({
     descriptionJson: tiptapDocumentSchema.optional(),
     categoryId: z.string().uuid().nullable().optional(),
     assigneeId: z.string().uuid().nullable().optional(),
-    priority: z.enum(issuePriorityValues).default("medium"),
+    priority: z.enum(issuePriorityValues).default("none"),
     parentIssueId: z.string().uuid().nullable().optional(),
     estimate: estimateSchema.nullable().optional(),
 });

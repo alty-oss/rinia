@@ -1,101 +1,100 @@
-# Rinia
+<br /><br />
 
-Rinia is a dark workspace for organizing projects and tracking issues. Each project includes an issue list, Kanban board, documents, members, labels, comments, and activity history.
+<p align="center">
+  <img src="apps/web/public/brand/rinia-icon-dark.svg" alt="Rinia" width="96">
+</p>
+<h1 align="center">Rinia</h1>
+<p align="center"><b>A calm workspace for projects, issues, and docs</b></p>
 
-## Stack
+<p align="center">
+    <a href="#-getting-started"><b>Getting started</b></a> •
+    <a href="#-features"><b>Features</b></a> •
+    <a href="https://github.com/alty-oss/rinia/issues"><b>Issues</b></a>
+</p>
 
-- React, Vite, TypeScript, and Tailwind CSS for the frontend.
-- Express, TypeScript, Drizzle ORM, and Zod for the backend.
-- Tiptap for rich-text descriptions, comments, and documents.
-- PostgreSQL for data storage.
+<br />
 
-## Requirements
+Rinia keeps each project in one place: an issue tracker with list and board views, a document editor, and the people working on it. No setup rituals, just a dark, fast interface that stays out of the way.
 
-- Node.js 22+
-- pnpm 10+
-- An accessible PostgreSQL instance
+## 🌟 Features
 
-## Development
+- **Issues**
+  Track work with project-scoped IDs such as `TK-184`. Switch between a list and a Kanban board, filter by assignee or label, and open any issue in a side peek without losing your place.
 
-Install dependencies:
+- **Documents**
+  Write project pages in a block editor with slash commands, tables, and images. Changes save as you type, and drafts survive a refresh.
 
-```bash
-pnpm install
-```
+- **Projects**
+  Give every project an icon, color, and banner. Invite members, manage labels, and follow the activity history.
 
-Create `apps/api/.env` from `.env.example`. To start a local PostgreSQL instance:
+- **Made to feel at home**
+  Dark and light themes, keyboard shortcuts, and an interface in English and Portuguese.
 
-```bash
-docker run --name rinia-db \
-  -e POSTGRES_PASSWORD=postgres \
-  -e POSTGRES_DB=rinia \
-  -p 5432:5432 -d postgres:16
-```
+## 🚀 Getting started
 
-Apply migrations:
+### Docker
 
-```bash
-pnpm db:migrate
-```
-
-Start the API and frontend in separate terminals:
-
-```bash
-pnpm dev:api   # http://localhost:3000
-pnpm dev:web   # http://localhost:5173
-```
-
-## Main routes
-
-- `/` — project list.
-- `/projects/:projectId` — project overview.
-- `/projects/:projectId/issues` — issue list.
-- `/projects/:projectId/board` — Kanban board.
-- `/projects/:projectId/documents` — project pages, search, and creation.
-- `/projects/:projectId/documents/:documentId` — full-width block editor.
-- `/projects/:projectId/issues/:issueIdentifier` — issue page.
-- `/projects/:projectId/page` — compatibility redirect to Documents.
-
-Documents support multiple pages per project, editable titles, slash commands, draggable blocks, URL images, and tables. Changes save after one second of inactivity; Ctrl/Cmd+S saves immediately. Local drafts persist in IndexedDB, and revision conflicts require an explicit choice before replacing a draft. Members can create and edit pages; the author, project owner, and admin can delete them.
-
-Issues use project-specific identifiers such as `TK-184`. Opening an issue from the list or board displays a Peek panel while preserving the source screen. Direct navigation or a refresh displays the full issue page.
-
-Project issue keys are generated automatically from the project name (for example, `Todo Kanban` becomes `TK`). If the key is already in use, Rinia adds a numeric suffix.
-
-## Useful commands
-
-```bash
-pnpm -r typecheck
-pnpm build
-pnpm db:generate
-pnpm db:migrate
-```
-
-## Environment variables
-
-| Variable | Description |
-|---|---|
-| `DATABASE_URL` | PostgreSQL connection string |
-| `JWT_SECRET` | Secret used to sign sessions |
-| `JWT_EXPIRES_IN` | Session lifetime, for example `7d` |
-| `SPECIAL_REGISTRATION_CODE` | Code required to create accounts |
-| `ADMIN_USERNAMES` | Comma-separated admin usernames |
-| `PORT` | API port, default `3000` |
-| `NODE_ENV` | `development` or `production` |
-
-## Deployment
-
-The `Dockerfile` builds the frontend and backend into a single image. On startup, pending migrations are applied before the API starts.
+The `Dockerfile` builds the web app and the API into a single image and applies pending migrations on startup.
 
 ```bash
 docker build -t rinia .
 docker run -p 3000:3000 \
   -e DATABASE_URL=postgres://... \
   -e JWT_SECRET=... \
-  -e JWT_EXPIRES_IN=7d \
   -e SPECIAL_REGISTRATION_CODE=... \
-  -e ADMIN_USERNAMES=... \
   rinia
 ```
 
-Migrations preserve existing data and convert `cards` into `issues`. Migration `0008_document_pages` turns existing project documents into pages named `Overview notes`, preserving their IDs and JSON content. Apply it before starting the updated application.
+### Local development
+
+You need Node.js 22+, pnpm 10+, and PostgreSQL.
+
+```bash
+pnpm install
+docker run --name rinia-db -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=rinia -p 5432:5432 -d postgres:16
+pnpm db:migrate
+pnpm db:seed
+```
+
+The seed creates three projects with issues, labels, and documents, plus the accounts `admin`, `ana`, and `bruno`, all with the password `rinia1234`. Run `pnpm db:reset` to drop the database and seed it again. Both commands refuse to run with `NODE_ENV=production` or against a database that is not on your machine.
+
+Then start the API and the web app in separate terminals:
+
+```bash
+pnpm dev:api   # http://localhost:3000
+pnpm dev:web   # http://localhost:5173
+```
+
+### Environment variables
+
+Set these in `apps/api/.env`, or pass them to the container.
+
+| Variable | Description |
+| --- | --- |
+| `DATABASE_URL` | PostgreSQL connection string |
+| `JWT_SECRET` | Secret used to sign sessions |
+| `JWT_EXPIRES_IN` | Session lifetime, for example `7d` |
+| `SPECIAL_REGISTRATION_CODE` | Code required to create an account |
+| `ADMIN_USERNAMES` | Comma-separated admin usernames |
+| `PORT` | API port, default `3000` |
+
+## ⚙️ Built with
+
+[![React](https://img.shields.io/badge/React-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)](https://react.dev/)
+[![Vite](https://img.shields.io/badge/Vite-646CFF?style=for-the-badge&logo=vite&logoColor=white)](https://vite.dev/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-06B6D4?style=for-the-badge&logo=tailwindcss&logoColor=white)](https://tailwindcss.com/)
+[![Express](https://img.shields.io/badge/Express-000000?style=for-the-badge&logo=express&logoColor=white)](https://expressjs.com/)
+[![Drizzle](https://img.shields.io/badge/Drizzle-C5F74F?style=for-the-badge&logo=drizzle&logoColor=black)](https://orm.drizzle.team/)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-4169E1?style=for-the-badge&logo=postgresql&logoColor=white)](https://www.postgresql.org/)
+
+## 🤝 Contributing
+
+Found a bug or have an idea? [Open an issue](https://github.com/alty-oss/rinia/issues). Commits and pull requests follow Conventional Commits; see [AGENTS.md](./AGENTS.md).
+
+Before opening a pull request, run:
+
+```bash
+pnpm typecheck
+pnpm build
+```

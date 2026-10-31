@@ -1,5 +1,5 @@
 const issue = {
-        newIssue: "New issue", genericIssue: "Issue", title: "Issue title", description: "Description", status: "Status", priority: "Priority", assignee: "Assignee",
+        newIssue: "New issue", active: "Active", genericIssue: "Issue", title: "Issue title", description: "Description", status: "Status", priority: "Priority", assignee: "Assignee",
         category: "Category", estimate: "Estimate", createdBy: "Created by", created: "Created", updated: "Updated",
         parent: "Parent", none: "None", unassigned: "Unassigned", noIssues: "No issues yet", createFirst: "Create an issue to start tracking work in this project.",
         low: "Low", medium: "Medium", high: "High", urgent: "Urgent", backlog: "Backlog", inProgress: "In progress", done: "Done",
@@ -14,8 +14,17 @@ const issue = {
         chooseIssueToRelate: "Choose an issue to relate.", chooseIssueFromProject: "Choose an issue from this project.", couldNotAddRelation: "Could not add the relation.", relations: "Relations", removeRelation: "Remove relation", issueIdentifier: "Issue identifier", relationType: "Relation type", relatedTo: "Related to", blocks: "Blocks", blockedBy: "Blocked by", duplicateOf: "Duplicate of", add: "Add",
         createdThisIssue: "created this issue", changedStatus: "changed the status", changedPriority: "changed the priority", changedAssignee: "changed the assignee", changedCategory: "changed the label", changedCycle: "changed the cycle", changedEstimate: "changed the estimate", changedParent: "changed the parent issue", addedRelation: "added a relation", removedRelation: "removed a relation", activity: "Activity", noneValue: "None", comments: "Comments", leaveComment: "Leave a comment…", commentAction: "Comment", couldNotAddComment: "Could not add the comment.", couldNotDeleteComment: "Could not delete the comment.", couldNotUpdateComment: "Could not update the comment.", loadingIssue: "Loading issue", loadingIssueDetails: "Loading issue details", issuePanel: "Issue panel", couldNotLoadIssue: "Could not load this issue.", couldNotSaveIssue: "Could not save the issue.",
         copyContent: "Copy all issue content", copyIdentifier: "Copy issue identifier", copyIssueLink: "Copy issue link",
-        openIssue: "Open issue", deleteIssue: "Delete issue", filter: "Filter", sort: "Sort", searchIssues: "Search issues", issues: "Issue layout", list: "List", layout: "layout",
+        openIssue: "Open issue", deleteIssue: "Delete issue", filter: "Filter", sort: "Sort", searchIssues: "Search issues", issues: "Issue layout", list: "List", layout: "layout", view: "View",
         descriptionPlaceholder: "Add a description…", comment: "Comment", addComment: "Add a comment…",
+        couldNotCopy: "Could not copy to the clipboard", linkCopied: "Issue link copied", idCopied: "{{id}} copied",
+        branchCopied: "Branch name copied. Paste it into your git client.", promptCopied: "Issue copied as a prompt",
+        copyBranchName: "Copy git branch name", copyAsPrompt: "Copy as prompt",
+        titleRequired: "Title cannot be empty", titleReverted: "Reverted the title to its previous value",
+        changeStatus: "Change status…", setPriority: "Set priority…", assignTo: "Assign to…", setEstimate: "Estimate…",
+        setParent: "Set parent issue…", addLabelPlaceholder: "Add label…", assign: "Assign", estimateAction: "Estimate",
+        addSubIssue: "Add sub-issue", subIssueTitle: "Sub-issue title", couldNotCreateSubIssue: "Could not create the sub-issue.",
+        createdByOn: "Created by {{name}} on {{date}}", labels: "Labels",
+        noPriority: "No priority", setPriorityAction: "Set priority",
     } as const;
 
 export default issue;

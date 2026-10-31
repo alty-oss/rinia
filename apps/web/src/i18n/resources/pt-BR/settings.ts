@@ -11,9 +11,17 @@ const settings = {
         noMembersFound: "Nenhum membro encontrado", noMembers: "Nenhum membro ainda", tryMemberSearch: "Tente outro nome, usuário ou e-mail.", inviteTeammates: "Adicione pessoas para colaborar neste projeto.",
         name: "Nome", role: "Função", joinedOn: "Entrou em", actions: "Ações", owner: "Proprietário", member: "Membro", removeMember: "Remover membro", removeMemberDescription: "{{name}} (@{{username}}) perderá o acesso a este projeto. Você poderá adicioná-lo novamente depois.",
         couldNotRemoveMember: "Não foi possível remover o membro.", couldNotAddMember: "Não foi possível adicionar o membro.", projectDetailsSaved: "Dados do projeto salvos.", couldNotSaveProject: "Não foi possível salvar o projeto.",
-        loadingProject: "Carregando projeto…", couldNotLoadProject: "Não foi possível carregar o projeto.", changeProjectIcon: "Alterar ícone do projeto", projectIcon: "Ícone do projeto", loadingIcons: "Carregando ícones…", projectIdLocked: "Bloqueado após a criação da primeira tarefa.",
+        loadingProject: "Carregando projeto…", couldNotLoadProject: "Não foi possível carregar o projeto.", changeProjectIcon: "Alterar ícone do projeto", projectIcon: "Ícone do projeto", loadingIcons: "Carregando ícones…", projectIdRename: "Alterar o ID renomeia o identificador de todas as tarefas. Links antigos continuam funcionando.",
         deleteProjectDescription: "Exclua permanentemente este projeto e todos os seus dados e recursos. Não será possível recuperar projetos excluídos.",
         newColumn: "Nova coluna", columnName: "Nome da coluna", color: "Cor", colorValue: "Cor {{color}}", customColor: "Cor personalizada", chooseColor: "Escolher cor",
+        projectAccess: "Visível para os membros do projeto", projectOverview: "Visão geral do projeto", none: "Nenhum",
+        generalSummary: "Nome, identificador, ícone, banner e descrição", membersSummary: "Gerencie quem trabalha neste projeto",
+        memberCount_one: "{{count}} membro", memberCount_other: "{{count}} membros", issuesSection: "Tarefas",
+        statesSummary: "Etapas do fluxo das tarefas e do quadro", stateCount_one: "{{count}} estado", stateCount_other: "{{count}} estados",
+        labelsSummary: "Etiquetas disponíveis para as tarefas deste projeto", labelCount_one: "{{count}} etiqueta", labelCount_other: "{{count}} etiquetas",
+        identifier: "Identificador", identifierHint: "Usado nos IDs das tarefas", repositoryHint: "Aparece no cabeçalho do projeto", bannerHint: "Exibido no card do projeto",
+        descriptionHint: "Um resumo curto exibido na página do projeto", descriptionPlaceholder: "ex.: App web para clientes e sua API",
+        dangerZone: "Zona de perigo", administrationDescription: "Configurações que valem para toda a instância.", data: "Dados", interfaceAndLanguage: "Interface e idioma",
     } as const;
 
 export default settings;

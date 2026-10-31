@@ -1,4 +1,4 @@
-import { Contrast, Monitor, Moon, Sun, SunMedium } from "lucide-react";
+import { Moon, Sun } from "lucide-react";
 import type { FC } from "react";
 import { useTranslation } from "react-i18next";
 import { Select } from "@/components/base/select/select";
@@ -6,22 +6,16 @@ import { themePreferences, type ThemePreference } from "./theme";
 import { useTheme } from "./theme-provider";
 
 const themeIcons: Record<ThemePreference, FC> = {
-    system: Monitor,
     light: Sun,
     dark: Moon,
-    "light-contrast": SunMedium,
-    "dark-contrast": Contrast,
 };
 
 export function ThemeSelector() {
     const { t } = useTranslation();
     const { preference, setPreference } = useTheme();
     const labels: Record<ThemePreference, string> = {
-        system: t("profile.themeSystem"),
         light: t("profile.themeLight"),
         dark: t("profile.themeDark"),
-        "light-contrast": t("profile.themeLightContrast"),
-        "dark-contrast": t("profile.themeDarkContrast"),
     };
 
     return (

@@ -1,9 +1,6 @@
-import { Fragment, useEffect, useState, type Dispatch, type SetStateAction } from "react";
-import { AddOutline, ChevronRightOutline, LabelsOutline, MembersOutline, StateOutline } from "@makeplane/propel/icons";
+import { useEffect, useState, type Dispatch, type ReactNode, type SetStateAction } from "react";
+import { ChevronDown, Circle, House, Search, ShieldCheck, SlidersHorizontal, SquarePen, UserRound, X } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router";
-import { Avatar } from "@/components/base/avatar/avatar";
-import { Button } from "@/components/base/buttons/button";
-import { ButtonUtility } from "@/components/base/buttons/button-utility";
 import { AppIcons } from "@/components/foundations/icons";
 import type { AppIcon } from "@/components/foundations/icons";
 import { ContextMenuButton } from "@/components/overlay/context-menu-provider";
@@ -12,20 +9,37 @@ import { useAuth } from "@/features/auth/hooks/use-auth";
 import { useColumns } from "@/features/board/hooks/use-board";
 import { useDocuments } from "@/features/documents/hooks/use-documents";
 import { IssueQuickCreateModal } from "@/features/issues/components/issue-quick-create-modal";
+import type { Favorite } from "@/features/favorites/api";
+import { useFavorites, useMigrateLegacyFavorites, useRemoveFavorite } from "@/features/favorites/hooks/use-favorites";
+import { Collapse } from "@/components/base/collapse";
 import { ProjectIcon } from "@/features/projects/components/project-icon";
 import type { ProjectCardSummary } from "@/features/projects/api";
 import { useProjects } from "@/features/projects/hooks/use-projects";
+import { useCurrentProject } from "@/features/projects/hooks/use-current-project";
+import { urls } from "@/lib/urls";
 import { useTranslation } from "react-i18next";
 
 const OPEN_PROJECTS_KEY = "rinia-open-projects";
+const LAST_PROJECT_KEY = "rinia-last-project";
 const OPEN_DOCS_KEY = "rinia-open-project-docs";
-const NAV_CLASS = "flex h-7 items-center gap-2 rounded-md px-2 text-[13px] text-secondary hover:bg-layer-transparent-hover";
-const NEST_CLASS = "ml-[18px] border-l border-subtle py-0.5 pl-1.5";
-const PROJECT_VIEWS: Array<[string, "overview" | "issues" | "documents", AppIcon]> = [
-    ["", "overview", AppIcons.Overview],
-    ["/issues", "issues", AppIcons.Issues],
-    ["/documents", "documents", AppIcons.Documents],
-];
+const SECTIONS_KEY = "rinia-sidebar-sections";
+const ITEM = "flex h-7 w-full min-w-0 items-center gap-2.5 rounded-md px-2 text-left text-[13px] font-medium transition-colors duration-150";
+const IDLE = "text-tertiary hover:bg-layer-transparent-hover hover:text-primary";
+const ACTIVE = "bg-layer-1-selected text-primary [&_svg]:text-primary";
+
+/**
+ * Only one sidebar row is active at a time. A favorite and a project row can point at the same page,
+ * so the row the user actually clicked wins: favorite links tag their navigation, and the project tree
+ * stays quiet while that tag is present.
+ */
+function useViaFavorite() {
+    const location = useLocation();
+    return (location.state as { via?: string } | null)?.via === "favorite";
+}
+
+function itemClass(active: boolean, extra = "") {
+    return `${ITEM} ${active ? ACTIVE : IDLE} ${extra}`;
+}
 
 function readIdSet(key: string): Set<string> {
     try {
@@ -41,12 +55,9 @@ function persistIdSet(key: string, ids: Set<string>) {
     localStorage.setItem(key, JSON.stringify([...ids]));
 }
 
+/** The project the user was last in, used when leaving settings and as the default for new issues. */
 function readOpenProjectId(): string | null {
-    return [...readIdSet(OPEN_PROJECTS_KEY)].at(-1) ?? null;
-}
-
-function storeOpenProject(id: string) {
-    localStorage.setItem(OPEN_PROJECTS_KEY, JSON.stringify([id]));
+    return localStorage.getItem(LAST_PROJECT_KEY) || ([...readIdSet(OPEN_PROJECTS_KEY)].at(-1) ?? null);
 }
 
 function toggleStoredId(key: string, setter: Dispatch<SetStateAction<Set<string>>>, id: string) {
@@ -69,138 +80,219 @@ function openStoredId(key: string, setter: Dispatch<SetStateAction<Set<string>>>
     });
 }
 
-export function Sidebar({ onCollapse }: { onCollapse: () => void }) {
+type SidebarSections = { projects: boolean; favorites: boolean };
+
+function readSections(): SidebarSections {
+    const sections = { projects: true, favorites: true };
+    try {
+        const stored = JSON.parse(localStorage.getItem(SECTIONS_KEY) ?? "null") as { projects?: boolean; teams?: boolean; favorites?: boolean } | null;
+        if (stored && typeof stored === "object") {
+            if (typeof stored.projects === "boolean") sections.projects = stored.projects;
+            else if (typeof stored.teams === "boolean") sections.projects = stored.teams;
+            if (typeof stored.favorites === "boolean") sections.favorites = stored.favorites;
+        }
+    } catch {
+        /* ignore invalid storage */
+    }
+    return sections;
+}
+
+export function Sidebar({ onSearch, onNavigate }: { onSearch: () => void; onNavigate?: () => void }) {
     const location = useLocation();
-    const { user } = useAuth();
     const navigate = useNavigate();
     const { t } = useTranslation();
     const { data: projects } = useProjects();
-    const projectId = location.pathname.match(/^\/projects\/([^/]+)/)?.[1] ?? "";
-    const { data: columns } = useColumns(projectId);
+    const currentProject = useCurrentProject();
+    const routeProjectId = currentProject?.id ?? "";
+    const projectId = routeProjectId || readOpenProjectId() || "";
+    const { data: columns } = useColumns(routeProjectId);
     const [creatingProjectId, setCreatingProjectId] = useState<string | null>(null);
-    const [openProjectId, setOpenProjectId] = useState<string | null>(() => projectId || readOpenProjectId());
-    const [openDocs, setOpenDocs] = useState(() => {
-        const stored = readIdSet(OPEN_DOCS_KEY);
-        if (projectId && location.pathname.includes("/documents")) stored.add(projectId);
-        return stored;
+    const [openProjects, setOpenProjects] = useState(() => {
+        const ids = readIdSet(OPEN_PROJECTS_KEY);
+        if (routeProjectId) ids.add(routeProjectId);
+        return ids;
     });
-    const settings = location.pathname === "/settings/profile";
-    const projectSettings = location.pathname.includes("/settings/");
-    useEffect(() => setCreatingProjectId(null), [projectId]);
+    const [openDocs, setOpenDocs] = useState(() => readIdSet(OPEN_DOCS_KEY));
+    const [sections, setSections] = useState(readSections);
+    const settings = location.pathname.includes("/settings");
+    useEffect(() => setCreatingProjectId(null), [routeProjectId]);
     useEffect(() => {
-        if (!projectId) return;
-        setOpenProjectId(projectId);
-        storeOpenProject(projectId);
-    }, [projectId]);
-    useEffect(() => {
-        if (projectId && location.pathname.includes("/documents")) openStoredId(OPEN_DOCS_KEY, setOpenDocs, projectId);
-    }, [projectId, location.pathname]);
+        if (!routeProjectId) return;
+        // Visiting a project expands it without closing the others.
+        openStoredId(OPEN_PROJECTS_KEY, setOpenProjects, routeProjectId);
+        localStorage.setItem(LAST_PROJECT_KEY, routeProjectId);
+    }, [routeProjectId]);
+
+    useMigrateLegacyFavorites();
+
+    function toggleSection(section: keyof SidebarSections) {
+        setSections((current) => {
+            const next = { ...current, [section]: !current[section] };
+            localStorage.setItem(SECTIONS_KEY, JSON.stringify(next));
+            return next;
+        });
+    }
+
+    function go(path: string) {
+        onNavigate?.();
+        navigate(path);
+    }
+
+    const createTarget = routeProjectId || readOpenProjectId() || projects?.[0]?.id || "";
 
     return (
         <div className="flex h-full flex-col">
-            <div className="flex h-11 shrink-0 items-center justify-between px-3">
-                <span className="truncate text-sm font-medium">{settings ? t("nav.settings") : projectSettings ? t("nav.projectSettings") : t("nav.projects")}</span>
-                <ButtonUtility icon={AppIcons.Menu} tooltip={t("nav.collapse")} color="tertiary" onClick={onCollapse} />
-            </div>
-            <div className="min-h-0 flex-1 overflow-y-auto px-2">
-                {settings ? (
-                    <>
-                        <div className="mb-6 flex min-w-0 items-center gap-3 px-2 py-2">
-                            <Avatar key={user?.avatarUrl} size="md" src={user?.avatarUrl} initials={user?.name.slice(0, 2).toUpperCase()} />
-                            <div className="min-w-0">
-                                <p className="truncate text-body-sm-medium text-secondary">{user?.name}</p>
-                                <p className="truncate text-caption-md-regular text-tertiary">{user?.email}</p>
-                            </div>
-                        </div>
-                        <p className="px-2 py-2 text-caption-md-medium text-tertiary">{t("nav.account")}</p>
-                        <Link to="/settings/profile" className={`${NAV_CLASS} bg-layer-1`} aria-current="page">
-                            <AppIcons.General className="size-4" />
-                            {t("settings.general")}
-                        </Link>
-                    </>
-                ) : projectSettings ? (
-                    <>
-                        <Link to={`/projects/${projectId}`} className={`${NAV_CLASS} mb-4`}>
-                            <AppIcons.Back className="size-4" />
-                            {t("common.back")}
-                        </Link>
-                        {[
-                            { section: "general", label: t("settings.general"), Icon: AppIcons.General },
-                            { section: "states", label: t("settings.states"), Icon: StateOutline },
-                            { section: "members", label: t("settings.members"), Icon: MembersOutline },
-                            { section: "labels", label: t("settings.labels"), Icon: LabelsOutline },
-                        ].map(({ section, label, Icon }) => (
-                            <Link
-                                key={section}
-                                to={`/projects/${projectId}/settings/${section}`}
-                                className={`${NAV_CLASS} ${location.pathname.endsWith(`/${section}`) ? "bg-layer-1 text-primary" : ""}`}
-                                aria-current={location.pathname.endsWith(`/${section}`) ? "page" : undefined}
-                            >
-                                <Icon className="size-4 shrink-0" />
-                                {label}
-                            </Link>
-                        ))}
-                    </>
-                ) : (
-                    <>
-                        <div className={`grid transition-[grid-template-rows,opacity,margin] duration-200 ease-out motion-reduce:transition-none ${projectId ? "mb-2 grid-rows-[1fr] opacity-100" : "mb-0 grid-rows-[0fr] opacity-0"}`}>
-                            <div className="overflow-hidden">
-                                <Button
-                                    size="sm"
-                                    color="secondary"
-                                    className="w-full justify-start"
-                                    iconLeading={AddOutline}
-                                    isDisabled={!projectId}
-                                    tabIndex={projectId ? 0 : -1}
-                                    aria-hidden={!projectId}
-                                    onClick={() => projectId && setCreatingProjectId(projectId)}
-                                >
-                                    {t("nav.newIssue")}
-                                </Button>
-                            </div>
-                        </div>
-                        <Link
-                            to="/"
-                            className={`${NAV_CLASS} ${location.pathname === "/" ? "bg-layer-1 text-primary" : ""}`}
-                            aria-current={location.pathname === "/" ? "page" : undefined}
+            {settings ? (
+                <SettingsNav projectId={projectId} projects={projects} />
+            ) : (
+                <>
+                    <div className="flex h-12 shrink-0 items-center gap-1 px-3">
+                        <SidebarAccount variant="header" />
+                        <button type="button" aria-label={t("nav.search")} className="flex size-7 items-center justify-center rounded-md text-tertiary hover:bg-layer-transparent-hover hover:text-primary" onClick={(event) => { event.stopPropagation(); onSearch(); }}>
+                            <Search className="size-4" />
+                        </button>
+                        <button
+                            type="button"
+                            aria-label={t("nav.newIssue")}
+                            className="flex size-7 items-center justify-center rounded-lg bg-layer-1 text-tertiary hover:bg-layer-1-hover hover:text-primary"
+                            onClick={(event) => {
+                                event.stopPropagation();
+                                if (createTarget) setCreatingProjectId(createTarget);
+                            }}
                         >
-                            <AppIcons.Projects className="size-4" />
-                            {t("nav.allProjects")}
+                            <SquarePen className="size-4" />
+                        </button>
+                    </div>
+                    <div className="min-h-0 flex-1 overflow-y-auto px-3 pt-1 pb-2">
+                        <Link to="/" className={itemClass(location.pathname === "/")} aria-current={location.pathname === "/" ? "page" : undefined}>
+                            <AppIcons.Projects className="size-4 shrink-0" />
+                            <span className="truncate">{t("nav.allProjects")}</span>
                         </Link>
-                        <p className="mt-4 mb-1 px-2 text-[11px] font-medium tracking-wide text-placeholder uppercase">{t("nav.projects")}</p>
+                        <FavoritesNav open={sections.favorites} onToggle={() => toggleSection("favorites")} />
+                        <SectionLabel label={t("nav.yourProjects")} open={sections.projects} onToggle={() => toggleSection("projects")} />
+                        <Collapse open={sections.projects}>
                         {(projects ?? []).map((project) => (
                             <ProjectNavItem
                                 key={project.id}
                                 project={project}
-                                currentProjectId={projectId}
-                                open={openProjectId === project.id}
+                                currentProjectId={routeProjectId}
+                                open={openProjects.has(project.id)}
                                 docsOpen={openDocs.has(project.id)}
-                                onOpen={() => {
-                                    setOpenProjectId(project.id);
-                                    storeOpenProject(project.id);
-                                }}
+                                onToggle={() => toggleStoredId(OPEN_PROJECTS_KEY, setOpenProjects, project.id)}
                                 onToggleDocs={() => toggleStoredId(OPEN_DOCS_KEY, setOpenDocs, project.id)}
+                                onOpenDocs={() => openStoredId(OPEN_DOCS_KEY, setOpenDocs, project.id)}
                             />
                         ))}
-                    </>
-                )}
-            </div>
-            <div className="shrink-0 border-t border-subtle px-2 py-2">
-                <SidebarAccount variant="row" />
-            </div>
-            {creatingProjectId === projectId && projectId && columns?.[0] && (
+                        </Collapse>
+                    </div>
+                </>
+            )}
+            {creatingProjectId && columns?.[0] && creatingProjectId === routeProjectId && (
                 <IssueQuickCreateModal
-                    projectId={projectId}
+                    projectId={creatingProjectId}
                     columnId={columns[0].id}
                     onClose={() => setCreatingProjectId(null)}
                     onCreated={(identifier) => {
                         setCreatingProjectId(null);
-                        navigate(`/projects/${projectId}/issues/${identifier}`);
+                        go(urls.issue(identifier));
                     }}
                 />
             )}
+            {creatingProjectId && creatingProjectId !== routeProjectId && (
+                <CreateElsewhere projectId={creatingProjectId} onClose={() => setCreatingProjectId(null)} onCreated={(identifier) => go(urls.issue(identifier))} />
+            )}
         </div>
     );
+}
+
+function CreateElsewhere({ projectId, onClose, onCreated }: { projectId: string; onClose: () => void; onCreated: (identifier: string) => void }) {
+    const { data: columns } = useColumns(projectId);
+    if (!columns?.[0]) return null;
+    return <IssueQuickCreateModal projectId={projectId} columnId={columns[0].id} onClose={onClose} onCreated={onCreated} />;
+}
+
+function SettingsNav({ projectId, projects }: { projectId: string; projects: ProjectCardSummary[] | undefined }) {
+    const { t } = useTranslation();
+    const location = useLocation();
+    const { user } = useAuth();
+    const [query, setQuery] = useState("");
+    const matches = (label: string) => label.toLowerCase().includes(query.trim().toLowerCase());
+    const link = (path: string, label: string, Icon: AppIcon, active = location.pathname === path) =>
+        matches(label) && (
+            <Link key={path} to={path} className={itemClass(active)} aria-current={active ? "page" : undefined}>
+                <Icon className="size-4 shrink-0" />
+                <span className="truncate">{label}</span>
+            </Link>
+        );
+    const personal = [link("/settings/preferences", t("nav.preferences"), SlidersHorizontal), link("/settings/profile", t("nav.profile"), UserRound)].filter(Boolean);
+    const projectLinks = (projects ?? []).filter((project) => matches(project.name));
+    const admin = user?.isAdmin ? [link("/settings/admin", t("nav.administration"), ShieldCheck)].filter(Boolean) : [];
+    const backProject = projects?.find((project) => project.id === projectId);
+
+    return (
+        <div className="min-h-0 flex-1 overflow-y-auto px-3 pt-3 pb-4">
+            <Link to={backProject ? urls.project(backProject.issueKey) : "/"} className={`${itemClass(false)} mb-3`}>
+                <AppIcons.Back className="size-4" />
+                {t("nav.backToApp")}
+            </Link>
+            <label className="mb-2 flex h-8 w-full items-center gap-2 rounded-md border border-subtle bg-layer-1 px-2 text-[13px] focus-within:border-accent-strong">
+                <Search className="size-3.5 shrink-0 text-placeholder" />
+                <input
+                    type="search"
+                    value={query}
+                    onChange={(event) => setQuery(event.target.value)}
+                    placeholder={t("nav.searchSettings")}
+                    aria-label={t("nav.searchSettings")}
+                    className="min-w-0 flex-1 bg-transparent text-primary outline-none placeholder:text-placeholder"
+                />
+            </label>
+            {personal.length > 0 && <SettingsNavSection label={t("nav.personal")}>{personal}</SettingsNavSection>}
+            {projectLinks.length > 0 && (
+                <SettingsNavSection label={t("nav.yourProjects")}>
+                    {projectLinks.map((project) => {
+                        const path = urls.projectSettings(project.issueKey);
+                        const active = location.pathname === path || location.pathname.startsWith(`${path}/`);
+                        return (
+                            <Link key={project.id} to={path} className={itemClass(active)} aria-current={active ? "page" : undefined}>
+                                <ProjectIcon icon={project.iconAppearance ?? project.icon} className="size-4 shrink-0" />
+                                <span className="truncate">{project.name}</span>
+                            </Link>
+                        );
+                    })}
+                </SettingsNavSection>
+            )}
+            {admin.length > 0 && <SettingsNavSection label={t("nav.administration")}>{admin}</SettingsNavSection>}
+            {query && personal.length + projectLinks.length + admin.length === 0 && <p className="px-2 py-3 text-[13px] text-placeholder">{t("nav.noSettingsFound")}</p>}
+        </div>
+    );
+}
+
+function SettingsNavSection({ label, children }: { label: string; children: ReactNode }) {
+    return (
+        <div className="mt-4">
+            <p className="px-2 pb-1.5 text-[12px] text-tertiary">{label}</p>
+            <div className="flex flex-col gap-px">{children}</div>
+        </div>
+    );
+}
+
+function SectionLabel({ label, open, onToggle }: { label: string; open: boolean; onToggle: () => void }) {
+    return (
+        <button
+            type="button"
+            aria-expanded={open}
+            onClick={onToggle}
+            className="group/section mt-5 mb-0.5 flex h-6 items-center gap-1 rounded-md px-2 text-[12px] font-medium text-tertiary hover:text-secondary"
+        >
+            {label}
+            <span className="text-placeholder group-hover/section:text-tertiary"><Caret open={open} /></span>
+        </button>
+    );
+}
+
+/** Thin chevron after a label; points down when its group is open. */
+function Caret({ open }: { open: boolean }) {
+    return <ChevronDown strokeWidth={2.5} className={`size-3 shrink-0 transition-transform duration-200 ease-out ${open ? "" : "-rotate-90"}`} aria-hidden="true" />;
 }
 
 function ProjectNavItem({
@@ -208,135 +300,206 @@ function ProjectNavItem({
     currentProjectId,
     open,
     docsOpen,
-    onOpen,
+    onToggle,
     onToggleDocs,
+    onOpenDocs,
 }: {
     project: ProjectCardSummary;
     currentProjectId: string;
     open: boolean;
     docsOpen: boolean;
-    onOpen: () => void;
+    onToggle: () => void;
     onToggleDocs: () => void;
+    onOpenDocs: () => void;
 }) {
     const location = useLocation();
     const { t } = useTranslation();
     const current = currentProjectId === project.id;
+    const viaFavorite = useViaFavorite();
+    const key = project.issueKey;
+    const home = !viaFavorite && location.pathname === urls.project(key);
+    const issues = !viaFavorite && current && (location.pathname.startsWith(urls.issues(key)) || location.pathname.startsWith("/issue/"));
+    const documentsIndex = !viaFavorite && location.pathname === urls.documents(key);
 
     return (
         <div className="group/project">
-            <div
-                className="flex min-w-0 items-center"
+            <button
+                type="button"
+                aria-expanded={open}
+                onClick={onToggle}
+                className={`${ITEM} ${IDLE}`}
                 data-project-context="true"
                 data-project-id={project.id}
                 data-project-name={project.name}
                 data-project-issue-key={project.issueKey}
             >
-                <Link
-                    to={`/projects/${project.id}`}
-                    aria-expanded={open}
-                    onClick={onOpen}
-                    className={`${NAV_CLASS} min-w-0 flex-1 font-medium ${open ? "text-primary" : ""}`}
-                >
-                    <ProjectIcon icon={project.iconAppearance ?? project.icon} className={`size-4 shrink-0 ${open ? "text-primary" : "text-tertiary"}`} />
-                    <span className="truncate">{project.name}</span>
-                </Link>
-                <ContextMenuButton
-                    entity={{ type: "project", projectId: project.id, name: project.name, issueKey: project.issueKey }}
-                    className="opacity-100 md:opacity-0 md:group-hover/project:opacity-100 md:group-focus-within/project:opacity-100"
-                />
-            </div>
-            {open && (
-                <nav aria-label={`${project.name} views`} className={NEST_CLASS}>
-                    {PROJECT_VIEWS.map(([suffix, key, Icon]) => {
-                        const label = t(`nav.${key}`);
-                        const active =
-                            suffix === "/issues"
-                                ? current && /\/(issues|board)(\/|$)/.test(location.pathname)
-                                : suffix === "/documents"
-                                  ? current && location.pathname.includes("/documents")
-                                  : location.pathname === `/projects/${project.id}${suffix}`;
-                        if (suffix === "/documents") {
-                            return (
-                                <Fragment key={label}>
-                                    <div className="flex min-w-0 items-center">
-                                        <Link
-                                            to={`/projects/${project.id}/documents`}
-                                            className={`${NAV_CLASS} min-w-0 flex-1 ${location.pathname === `/projects/${project.id}/documents` ? "bg-layer-1 text-primary" : active ? "text-primary" : ""}`}
-                                            aria-current={location.pathname === `/projects/${project.id}/documents` ? "page" : undefined}
-                                        >
-                                            <Icon className="size-4 shrink-0" />
-                                            {label}
-                                        </Link>
-                                        <button
-                                            type="button"
-                                            aria-expanded={docsOpen}
-                                            aria-label={docsOpen ? t("nav.collapsePages") : t("nav.expandPages")}
-                                            className="flex size-7 shrink-0 items-center justify-center rounded-md text-tertiary hover:bg-layer-transparent-hover hover:text-primary"
-                                            onClick={onToggleDocs}
-                                        >
-                                            <ChevronRightOutline className={`size-3 transition-transform ${docsOpen ? "rotate-90" : ""}`} />
-                                        </button>
-                                    </div>
-                                    {docsOpen && (
-                                        <div className={NEST_CLASS}>
-                                            <ProjectDocumentsNav projectId={project.id} />
-                                        </div>
-                                    )}
-                                </Fragment>
-                            );
-                        }
-                        return (
-                            <Link
-                                key={label}
-                                to={`/projects/${project.id}${suffix}`}
-                                className={`${NAV_CLASS} ${active ? "bg-layer-1 text-primary" : ""}`}
-                                aria-current={active ? "page" : undefined}
-                            >
-                                <Icon className="size-4 shrink-0" />
-                                {label}
-                            </Link>
-                        );
-                    })}
-                    <Link to={`/projects/${project.id}/settings/general`} className={NAV_CLASS}>
-                        <AppIcons.Settings className="size-4" />
-                        {t("nav.settings")}
-                    </Link>
+                <ProjectIcon icon={project.iconAppearance ?? project.icon} className="size-4 shrink-0" />
+                <span className="truncate">{project.name}</span>
+                <span className="text-placeholder"><Caret open={open} /></span>
+            </button>
+            <Collapse open={open}>
+                <nav aria-label={project.name} className="ml-4 flex flex-col gap-px pt-px">
+                    <ChildLink to={urls.project(key)} icon={House} label={t("nav.home")} active={home} />
+                    <ChildLink to={urls.issues(key)} icon={Circle} label={t("nav.issues")} active={issues} />
+                    <div className={`${ITEM} ${documentsIndex ? ACTIVE : IDLE} pr-1`}>
+                        <Link to={urls.documents(key)} onClick={onOpenDocs} className="flex min-w-0 items-center gap-2.5 self-stretch" aria-current={documentsIndex ? "page" : undefined}>
+                            <AppIcons.Documents className="size-4 shrink-0" />
+                            <span className="truncate">{t("nav.documents")}</span>
+                        </Link>
+                        <button
+                            type="button"
+                            aria-expanded={docsOpen}
+                            aria-label={docsOpen ? t("nav.collapsePages") : t("nav.expandPages")}
+                            className="grid size-5 shrink-0 place-items-center rounded text-placeholder hover:text-primary"
+                            onClick={onToggleDocs}
+                        >
+                            <Caret open={docsOpen} />
+                        </button>
+                        <Link to={urls.documents(key)} onClick={onOpenDocs} tabIndex={-1} aria-hidden="true" className="flex-1 self-stretch" />
+                    </div>
+                    <Collapse open={docsOpen}>
+                        <ProjectDocumentsNav projectId={project.id} projectKey={key} />
+                    </Collapse>
                 </nav>
-            )}
+            </Collapse>
         </div>
     );
 }
 
-function ProjectDocumentsNav({ projectId }: { projectId: string }) {
+function ChildLink({ to, icon: Icon, label, active }: { to: string; icon: AppIcon; label: string; active: boolean }) {
+    return (
+        <Link to={to} className={itemClass(active)} aria-current={active ? "page" : undefined}>
+            <Icon className="size-4 shrink-0" />
+            <span className="truncate">{label}</span>
+        </Link>
+    );
+}
+
+function ProjectDocumentsNav({ projectId, projectKey }: { projectId: string; projectKey: string }) {
     const location = useLocation();
+    const viaFavorite = useViaFavorite();
     const { data: documents } = useDocuments(projectId);
 
     return (
-        <>
-            {documents?.map((page) => (
-                <div
-                    key={page.id}
-                    className="flex min-w-0 items-center"
-                    data-document-context="true"
-                    data-project-id={projectId}
-                    data-document-id={page.id}
-                    data-document-title={page.title}
-                    data-document-author-id={page.createdBy}
-                >
-                    <Link
-                        to={`/projects/${projectId}/documents/${page.id}`}
-                        className={`${NAV_CLASS} min-w-0 flex-1 text-[12px] ${location.pathname.endsWith(`/documents/${page.id}`) ? "bg-layer-1 text-primary" : "text-tertiary"}`}
-                        aria-current={location.pathname.endsWith(`/documents/${page.id}`) ? "page" : undefined}
-                    >
-                        {page.iconAppearance ? <ProjectIcon icon={page.iconAppearance} className="size-3 shrink-0" /> : <AppIcons.Documents className="size-3 shrink-0" />}
-                        <span className="truncate">{page.title}</span>
-                    </Link>
-                    <ContextMenuButton
-                        entity={{ type: "document", projectId, documentId: page.id, title: page.title, authorId: page.createdBy }}
-                        className="size-7 opacity-100 md:opacity-0 md:group-hover/project:opacity-100 md:group-focus-within/project:opacity-100"
-                    />
-                </div>
-            ))}
-        </>
+        <div className="ml-4 flex flex-col gap-px">
+            {documents?.map((page) => {
+                const to = urls.document(projectKey, page);
+                const active = !viaFavorite && location.pathname.startsWith(`${urls.documents(projectKey)}/`) && location.pathname.endsWith(page.id.replace(/-/g, "").slice(0, 12));
+                return (
+                    <div key={page.id} className="group/doc relative flex min-w-0 items-center" data-document-context="true" data-project-id={projectId} data-document-id={page.id} data-document-title={page.title} data-document-author-id={page.createdBy}>
+                        <Link to={to} className={itemClass(active, "pr-7 font-normal")} aria-current={active ? "page" : undefined}>
+                            {page.iconAppearance ? <ProjectIcon icon={page.iconAppearance} className="size-3.5 shrink-0" /> : <AppIcons.Documents className="size-3.5 shrink-0" />}
+                            <span className="truncate">{page.title}</span>
+                        </Link>
+                        <ContextMenuButton
+                            entity={{ type: "document", projectId, documentId: page.id, title: page.title, authorId: page.createdBy }}
+                            className="absolute right-0.5 size-6 opacity-100 md:opacity-0 md:group-hover/doc:opacity-100 md:group-focus-within/doc:opacity-100"
+                        />
+                    </div>
+                );
+            })}
+        </div>
     );
+}
+
+type FavoriteRowState = { favorite: Favorite; leaving: boolean; animateIn: boolean };
+
+/**
+ * Favorites slide in when added and out when removed, and the section itself grows or shrinks as it
+ * gains its first or loses its last item. The first load renders in place without animating.
+ */
+function FavoritesNav({ open, onToggle }: { open: boolean; onToggle: () => void }) {
+    const { t } = useTranslation();
+    const { data: favorites } = useFavorites();
+    const [rows, setRows] = useState<FavoriteRowState[]>([]);
+    const [ready, setReady] = useState(false);
+
+    useEffect(() => {
+        if (!favorites) return;
+        setRows((current) => {
+            const known = new Set(current.map((row) => row.favorite.id));
+            const next: FavoriteRowState[] = favorites.map((favorite) => ({ favorite, leaving: false, animateIn: ready && !known.has(favorite.id) }));
+            const present = new Set(favorites.map((favorite) => favorite.id));
+            current.forEach((row, index) => {
+                if (!present.has(row.favorite.id)) next.splice(Math.min(index, next.length), 0, { ...row, leaving: true, animateIn: false });
+            });
+            return next;
+        });
+        if (!ready) requestAnimationFrame(() => setReady(true));
+    }, [favorites, ready]);
+
+    const leaving = rows.some((row) => row.leaving);
+    useEffect(() => {
+        if (!leaving) return;
+        const timer = window.setTimeout(() => setRows((current) => current.filter((row) => !row.leaving)), 220);
+        return () => window.clearTimeout(timer);
+    }, [leaving]);
+
+    return (
+        <Collapse open={rows.some((row) => !row.leaving)} lazy={false} animate={ready}>
+            <SectionLabel label={t("nav.favorites")} open={open} onToggle={onToggle} />
+            <Collapse open={open} lazy={false}>
+                <div className="flex flex-col">
+                    {rows.map((row) => (
+                        <FavoriteRow key={row.favorite.id} favorite={row.favorite} leaving={row.leaving} animateIn={row.animateIn} />
+                    ))}
+                </div>
+            </Collapse>
+        </Collapse>
+    );
+}
+
+function FavoriteRow({ favorite, leaving, animateIn }: { favorite: Favorite; leaving: boolean; animateIn: boolean }) {
+    const { t } = useTranslation();
+    const location = useLocation();
+    const remove = useRemoveFavorite();
+    const [entered, setEntered] = useState(!animateIn);
+    useEffect(() => {
+        if (entered) return;
+        const frame = requestAnimationFrame(() => setEntered(true));
+        return () => cancelAnimationFrame(frame);
+    }, [entered]);
+    const { to, icon, label, context } = describeFavorite(favorite, t("nav.issues"));
+    const active = useViaFavorite() && location.pathname === to;
+
+    return (
+        <Collapse open={entered && !leaving} lazy={false}>
+            <div className="group/favorite relative pb-px">
+                <Link to={to} state={{ via: "favorite" }} className={itemClass(active, "pr-7")} aria-current={active ? "page" : undefined}>
+                    {icon}
+                    <span className="truncate">{label}</span>
+                    {context && <span className="min-w-0 shrink-[2] truncate font-normal text-placeholder">{context}</span>}
+                </Link>
+                <button
+                    type="button"
+                    aria-label={`${t("nav.removeFavorite")}: ${label}`}
+                    title={t("nav.removeFavorite")}
+                    disabled={remove.isPending || leaving}
+                    onClick={() => remove.mutate(favorite.id)}
+                    className="absolute top-1/2 right-1 grid size-5 -translate-y-1/2 place-items-center rounded text-tertiary opacity-0 transition-opacity duration-150 group-hover/favorite:opacity-100 hover:bg-layer-transparent-hover hover:text-primary focus-visible:opacity-100"
+                >
+                    <X className="size-3.5" />
+                </button>
+            </div>
+        </Collapse>
+    );
+}
+
+/** Link, icon, and labels for a favorite. The muted context names the project, or the issue's identifier. */
+function describeFavorite(favorite: Favorite, issuesLabel: string): { to: string; icon: ReactNode; label: string; context?: string } {
+    const key = favorite.project.issueKey;
+    const projectIcon = <ProjectIcon icon={favorite.project.iconAppearance ?? favorite.project.icon} className="size-4 shrink-0" />;
+    if (favorite.kind === "document" && favorite.document) {
+        return {
+            to: urls.document(key, favorite.document),
+            icon: favorite.document.iconAppearance ? <ProjectIcon icon={favorite.document.iconAppearance} className="size-4 shrink-0" /> : <AppIcons.Documents className="size-4 shrink-0" />,
+            label: favorite.document.title,
+            context: favorite.project.name,
+        };
+    }
+    if (favorite.kind === "issue" && favorite.issue) {
+        return { to: urls.issue(favorite.issue.identifier, favorite.issue.title), icon: <Circle className="size-4 shrink-0" />, label: favorite.issue.title, context: favorite.issue.identifier };
+    }
+    if (favorite.kind === "issues") return { to: urls.issues(key), icon: <AppIcons.Issues className="size-4 shrink-0" />, label: issuesLabel, context: favorite.project.name };
+    return { to: urls.project(key), icon: projectIcon, label: favorite.project.name };
 }

@@ -1,10 +1,10 @@
 export const THEME_STORAGE_KEY = "rinia-theme";
 
-export const themePreferences = ["system", "light", "dark", "light-contrast", "dark-contrast"] as const;
+export const themePreferences = ["light", "dark"] as const;
 
 export type ThemePreference = (typeof themePreferences)[number];
 
-export type ResolvedTheme = Exclude<ThemePreference, "system">;
+export type ResolvedTheme = ThemePreference;
 
 const themePreferenceSet = new Set<string>(themePreferences);
 
@@ -12,10 +12,14 @@ export function isThemePreference(value: string | null): value is ThemePreferenc
     return value !== null && themePreferenceSet.has(value);
 }
 
+/** Older builds also offered "system" and high-contrast themes; those map to their light or dark base. */
 export function readThemePreference(): ThemePreference {
     try {
         const stored = localStorage.getItem(THEME_STORAGE_KEY);
         if (isThemePreference(stored)) return stored;
+        if (stored === "light-contrast") return "light";
+        if (stored === "dark-contrast") return "dark";
+        if (stored === "system") return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
     } catch {
         // Storage can be blocked; the default keeps the current dark interface.
     }
@@ -23,8 +27,7 @@ export function readThemePreference(): ThemePreference {
 }
 
 export function resolveTheme(preference: ThemePreference): ResolvedTheme {
-    if (preference !== "system") return preference;
-    return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+    return preference;
 }
 
 export function applyTheme(preference: ThemePreference) {
@@ -34,5 +37,5 @@ export function applyTheme(preference: ThemePreference) {
     root.dataset.themePreference = preference;
     root.style.colorScheme = resolved.includes("dark") ? "dark" : "light";
     root.classList.toggle("dark-mode", resolved.includes("dark"));
-    document.querySelector('meta[name="theme-color"]')?.setAttribute("content", resolved.includes("dark") ? "#0f1011" : "#f4f4f5");
+    document.querySelector('meta[name="theme-color"]')?.setAttribute("content", resolved.includes("dark") ? "#090909" : "#f4f4f5");
 }

@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { emojiIconSchema, imageIconSchema, projectCoverSchema } from "./appearance";
+import { emojiIconSchema, iconColorSchema, imageIconSchema, projectCoverSchema } from "./appearance";
 
 const repositoryUrlSchema = z
     .union([z.string().trim().url("Invalid URL"), z.literal("")])
@@ -82,7 +82,7 @@ export type ProjectIconKey = (typeof projectIconKeys)[number];
 
 const iconSchema = z.enum(projectIconKeys).nullable().optional();
 const projectIconAppearanceSchema = z.union([
-    z.object({ type: z.literal("icon"), key: z.enum(projectIconKeys) }),
+    z.object({ type: z.literal("icon"), key: z.enum(projectIconKeys), color: iconColorSchema.optional() }),
     emojiIconSchema,
     imageIconSchema,
 ]);

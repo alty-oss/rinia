@@ -3,7 +3,9 @@ import { Dialog } from "@base-ui/react/dialog";
 import { Popover } from "@base-ui/react/popover";
 import { useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, FileText, Plus, Search, Sparkles, Trash2 } from "lucide-react";
-import { Link, useNavigate, useParams } from "react-router";
+import { Link, useLocation, useNavigate, useParams } from "react-router";
+import { useRouteProject } from "@/features/projects/route-project";
+import { matchDocumentSlug, urls } from "@/lib/urls";
 import { Button } from "@/components/base/buttons/button";
 import { Skeleton } from "@/components/base/feedback/skeleton";
 import { Input } from "@/components/base/input/input";
@@ -15,6 +17,7 @@ import { type DocumentPage, deleteDocument, getDocument } from "@/features/docum
 import { DocumentEditor } from "@/features/documents/components/document-editor";
 import { documentKey, documentsKey, useCreateDocument, useDocument, useDocuments } from "@/features/documents/hooks/use-documents";
 import { clearDocumentSession, getDocumentSession } from "@/features/documents/sessions";
+import { ProjectHomeTabs } from "@/features/projects/components/project-home-tabs";
 import { ProjectWorkspaceHeader } from "@/features/projects/components/project-workspace-header";
 import { ProjectIcon } from "@/features/projects/components/project-icon";
 import { useProjectMembers } from "@/features/projects/hooks/use-project-members";
@@ -23,11 +26,11 @@ import { ApiError } from "@/lib/api-client";
 import { useTranslation } from "react-i18next";
 
 export function ProjectDocumentsPage() {
-    const { projectId = "" } = useParams();
-    return <DocumentList key={projectId} projectId={projectId} />;
+    const { projectId, projectKey } = useRouteProject();
+    return <DocumentList key={projectId} projectId={projectId} projectKey={projectKey} />;
 }
 
-function DocumentList({ projectId }: { projectId: string }) {
+function DocumentList({ projectId, projectKey }: { projectId: string; projectKey: string }) {
     const { t, i18n } = useTranslation();
     const { data: pages, isError } = useDocuments(projectId);
     const create = useCreateDocument(projectId);
@@ -37,15 +40,16 @@ function DocumentList({ projectId }: { projectId: string }) {
     async function addPage() {
         try {
             const page = await create.mutateAsync({});
-            navigate(`/projects/${projectId}/documents/${page.id}`);
+            navigate(urls.document(projectKey, page));
         } catch {
             /* The mutation error is displayed below. */
         }
     }
     return (
         <div className="flex h-full min-h-0 flex-col bg-surface-1">
-            <ProjectWorkspaceHeader projectId={projectId} activeView="documents" />
-            <main className="min-h-0 flex-1 overflow-y-auto px-4 py-3 lg:px-5">
+            <ProjectWorkspaceHeader projectId={projectId} activeView="documents" hideSection favorite={null} />
+            <ProjectHomeTabs projectKey={projectKey} current="documents" />
+            <main className="min-h-0 flex-1 overflow-y-auto px-4 pb-3 lg:px-5">
                 <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
                     <div className="w-64 max-w-full">
                         <Input size="sm" aria-label={t("documents.searchPages")} icon={Search} placeholder={`${t("documents.searchPages")}…`} value={search} onChange={setSearch} />
@@ -71,7 +75,7 @@ function DocumentList({ projectId }: { projectId: string }) {
                                 data-document-author-id={page.createdBy}
                             >
                                 <Link
-                                    to={`/projects/${projectId}/documents/${page.id}`}
+                                    to={urls.document(projectKey, page)}
                                     className="flex min-w-0 flex-1 items-center gap-2.5 px-2 py-2"
                                 >
                                     {page.iconAppearance ? <ProjectIcon icon={page.iconAppearance} className="size-4 shrink-0 text-tertiary" /> : <FileText className="size-4 shrink-0 text-tertiary" />}
@@ -109,19 +113,30 @@ function DocumentList({ projectId }: { projectId: string }) {
 }
 
 export function ProjectDocumentPage() {
-    const { projectId = "", documentId = "" } = useParams();
+    const { documentSlug = "" } = useParams();
+    const { projectId, projectKey } = useRouteProject();
     const { t } = useTranslation();
-    const { data: page, isError } = useDocument(projectId, documentId);
+    const location = useLocation();
+    const navigate = useNavigate();
+    const { data: documents, isError: listFailed } = useDocuments(projectId);
+    const documentId = matchDocumentSlug(documentSlug, documents)?.id ?? "";
+    const { data: page, isError: pageFailed } = useDocument(projectId, documentId);
+    const isError = pageFailed || listFailed || (!!documents && !documentId);
     const { user } = useAuth();
+    // The slug follows the title, so renaming a page updates the address bar without reloading the editor.
+    const canonicalUrl = page ? urls.document(projectKey, page) : null;
+    useEffect(() => {
+        if (canonicalUrl && location.pathname !== canonicalUrl) navigate(`${canonicalUrl}${location.search}`, { replace: true });
+    }, [canonicalUrl, location.pathname, location.search, navigate]);
     return (
         <div className="flex h-full min-h-0 flex-col bg-surface-1">
-            <ProjectWorkspaceHeader projectId={projectId} activeView="documents" />
+            <ProjectWorkspaceHeader projectId={projectId} activeView="documents" favorite={documentId ? { kind: "document", projectId, documentId } : null} />
             {isError && page && <ErrorMessage message={t("documents.couldNotRefresh")} />}
             {page && user ? (
                 <DocumentWorkspace key={`${user.id}:${projectId}:${documentId}`} page={page} userId={user.id} />
             ) : (
                 <main className="flex-1 px-5 py-6 lg:px-8">
-                    <Link to={`/projects/${projectId}/documents`} className="mb-5 inline-flex items-center gap-2 text-sm text-tertiary">
+                    <Link to={urls.documents(projectKey)} className="mb-5 inline-flex items-center gap-2 text-sm text-tertiary">
                         <ArrowLeft className="size-4" />
                         {t("documents.allPages")}
                     </Link>
@@ -138,6 +153,7 @@ export function ProjectDocumentPage() {
 
 function DocumentWorkspace({ page, userId }: { page: DocumentPage; userId: string }) {
     const { t } = useTranslation();
+    const { projectKey } = useRouteProject();
     const client = useQueryClient();
     const navigate = useNavigate();
     const { isProjectOwner } = useProjectPermissions(page.projectId);
@@ -192,7 +208,7 @@ function DocumentWorkspace({ page, userId }: { page: DocumentPage; userId: strin
                 await client.cancelQueries({ queryKey: documentKey(page.projectId, page.id) });
                 client.removeQueries({ queryKey: documentKey(page.projectId, page.id) });
                 void client.invalidateQueries({ queryKey: documentsKey(page.projectId), exact: true });
-                navigate(`/projects/${page.projectId}/documents`, { replace: true });
+                navigate(urls.documents(projectKey), { replace: true });
             } else {
                 const saved = await getDocument(page.projectId, page.id);
                 await session.discard(saved);
@@ -212,7 +228,7 @@ function DocumentWorkspace({ page, userId }: { page: DocumentPage; userId: strin
             const draft = session.getSnapshot();
             const copy = await create.mutateAsync({ title: `${draft.title || t("documents.untitled")} ${t("documents.localCopy")}`.slice(0, 200), contentJson: draft.contentJson, iconAppearance: draft.iconAppearance });
             // The source draft remains intact until the user explicitly opens the saved version.
-            navigate(`/projects/${page.projectId}/documents/${copy.id}`);
+            navigate(urls.document(projectKey, copy));
         } catch (error) {
             setActionError(error instanceof ApiError ? error.message : t("documents.couldNotCopy"));
         }
@@ -230,7 +246,7 @@ function DocumentWorkspace({ page, userId }: { page: DocumentPage; userId: strin
     return (
         <>
             <div className="flex h-[45px] shrink-0 items-center justify-between gap-3 border-b border-subtle px-4 lg:px-5">
-                <Link to={`/projects/${page.projectId}/documents`} className="inline-flex items-center gap-2 text-sm text-tertiary hover:text-primary">
+                <Link to={urls.documents(projectKey)} className="inline-flex items-center gap-2 text-sm text-tertiary hover:text-primary">
                     <ArrowLeft className="size-4" />
                     {t("documents.allPages")}
                 </Link>

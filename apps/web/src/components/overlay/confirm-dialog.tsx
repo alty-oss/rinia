@@ -5,8 +5,10 @@ import { Button } from "@/components/base/buttons/button";
 import { useTranslation } from "react-i18next";
 
 interface ConfirmDialogProps {
-    /** Element that opens the dialog (usually the destructive action's button). */
-    trigger: ReactNode;
+    /** Element that opens the dialog (usually the destructive action's button). Omit it and pass `open` to control the dialog from a menu. */
+    trigger?: ReactNode;
+    open?: boolean;
+    onOpenChange?: (open: boolean) => void;
     title: string;
     description: string;
     /** Text for the confirmation button. It should name the action instead of using a generic "OK". */
@@ -20,12 +22,11 @@ interface ConfirmDialogProps {
  * pattern), so callers only need to replace the button's `onClick` with this wrapper without
  * managing state.
  */
-export const ConfirmDialog = ({ trigger, title, description, confirmLabel, isPending, onConfirm }: ConfirmDialogProps) => {
+export const ConfirmDialog = ({ trigger, open, onOpenChange, title, description, confirmLabel, isPending, onConfirm }: ConfirmDialogProps) => {
     const { t } = useTranslation();
-    return (
-        <DialogTrigger>
-            {trigger}
-            <ModalOverlay>
+    const controlled = open !== undefined;
+    const overlay = (
+            <ModalOverlay {...(controlled ? { isOpen: open, onOpenChange } : {})}>
                 <Modal className="max-w-md">
                     <Dialog>
                         {({ close }) => (
@@ -61,6 +62,12 @@ export const ConfirmDialog = ({ trigger, title, description, confirmLabel, isPen
                     </Dialog>
                 </Modal>
             </ModalOverlay>
+    );
+    if (controlled) return overlay;
+    return (
+        <DialogTrigger>
+            {trigger}
+            {overlay}
         </DialogTrigger>
     );
 };

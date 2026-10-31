@@ -4,6 +4,7 @@ import express from "express";
 import helmet from "helmet";
 import { adminRouter } from "./features/admin/admin.routes";
 import { authRouter } from "./features/auth/auth.routes";
+import { favoritesRouter } from "./features/favorites/favorites.routes";
 import { issueCommentsRouter, issueRelationsRouter, issuesRouter } from "./features/issues/issues.routes";
 import { projectsRouter } from "./features/projects/projects.routes";
 import { usersRouter } from "./features/users/users.routes";
@@ -35,6 +36,7 @@ app.use("/api/issues", issuesRouter);
 app.use("/api/comments", issueCommentsRouter);
 app.use("/api/relations", issueRelationsRouter);
 app.use("/api/users", usersRouter);
+app.use("/api/favorites", favoritesRouter);
 app.use("/api/admin", adminRouter);
 
 // Any /api/* route not mapped above -> JSON 404, before the static fallback below

@@ -4,8 +4,9 @@ import { Avatar } from "@/components/base/avatar/avatar";
 import { GradientCover } from "@/components/appearance/gradient-cover";
 import { ContextMenuButton } from "@/components/overlay/context-menu-provider";
 import type { ProjectCardSummary } from "../api";
-import { ProjectIcon } from "./project-icon";
+import { ProjectIcon, projectIconColor } from "./project-icon";
 import { useTranslation } from "react-i18next";
+import { urls } from "@/lib/urls";
 
 export const ProjectCard = ({ project }: { project: ProjectCardSummary }) => {
     const { t, i18n } = useTranslation();
@@ -21,13 +22,13 @@ export const ProjectCard = ({ project }: { project: ProjectCardSummary }) => {
             data-project-name={project.name}
             data-project-issue-key={project.issueKey}
         >
-            <Link to={`/projects/${project.id}`} className="flex min-h-0 flex-1 flex-col outline-none focus-visible:ring-2 focus-visible:ring-accent-strong focus-visible:ring-inset">
+            <Link to={urls.project(project.issueKey)} className="flex min-h-0 flex-1 flex-col outline-none focus-visible:ring-2 focus-visible:ring-accent-strong focus-visible:ring-inset">
                 <div className="relative h-24 shrink-0">
                     <GradientCover cover={project.cover} className="absolute inset-0" />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/55 to-transparent" />
                     <div className="absolute inset-x-0 bottom-2.5 flex h-8 items-center gap-2 px-3">
-                        <span className="grid size-7 shrink-0 place-items-center rounded-sm bg-white/10 text-white">
-                            <ProjectIcon icon={project.iconAppearance ?? project.icon} className="size-4" />
+                        <span className={projectIconColor(project.iconAppearance ?? project.icon) ? "grid size-7 shrink-0 place-items-center" : "grid size-7 shrink-0 place-items-center rounded-sm bg-white/10 text-white"}>
+                            <ProjectIcon icon={project.iconAppearance ?? project.icon} className={projectIconColor(project.iconAppearance ?? project.icon) ? "size-7" : "size-4"} tile />
                         </span>
                         <span className="min-w-0 flex-1">
                             <span className="block truncate text-[13px] font-semibold text-white">{project.name}</span>
@@ -40,9 +41,9 @@ export const ProjectCard = ({ project }: { project: ProjectCardSummary }) => {
                     <div className="flex items-center justify-between gap-2">
                         <div className="flex min-w-0 -space-x-1.5">
                             {memberPreview.map((member) => (
-                                <Avatar key={member.id} src={member.avatarUrl ?? undefined} initials={member.name.slice(0, 2).toUpperCase()} size="xs" className="ring-2 ring-layer-2" />
+                                <Avatar key={member.id} src={member.avatarUrl ?? undefined} initials={member.name.slice(0, 2).toUpperCase()} size="xs" className="ring-2 ring-[var(--bg-layer-2)]" />
                             ))}
-                            {hiddenMembers > 0 && <span className="grid size-5 place-items-center rounded-full bg-surface-2 text-[10px] text-tertiary ring-2 ring-layer-2">+{hiddenMembers}</span>}
+                            {hiddenMembers > 0 && <span className="grid size-5 place-items-center rounded-full bg-surface-2 text-[10px] text-tertiary ring-2 ring-[var(--bg-layer-2)]">+{hiddenMembers}</span>}
                             {memberCount === 0 && <span className="text-[13px] italic text-placeholder">{t("projects.noMembers")}</span>}
                         </div>
                         <SettingsOutline className="size-3.5 text-placeholder transition-colors duration-200 group-hover/project-card:text-secondary" aria-hidden="true" />
