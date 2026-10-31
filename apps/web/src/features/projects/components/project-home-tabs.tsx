@@ -20,7 +20,7 @@ export function ProjectHomeTabs({ projectId, current, actions }: { projectId: st
                     to={to}
                     aria-current={current === id ? "page" : undefined}
                     className={`flex h-7 items-center rounded-lg border px-2.5 text-[13px] font-medium transition-colors ${
-                        current === id ? "border-transparent bg-layer-1-selected text-white" : "border-subtle text-tertiary hover:bg-layer-transparent-hover hover:text-primary"
+                        current === id ? "border-transparent bg-layer-1-selected text-primary" : "border-subtle text-tertiary hover:bg-layer-transparent-hover hover:text-primary"
                     }`}
                 >
                     {label}

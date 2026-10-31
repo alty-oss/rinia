@@ -23,7 +23,7 @@ const OPEN_DOCS_KEY = "rinia-open-project-docs";
 const SECTIONS_KEY = "rinia-sidebar-sections";
 const ITEM = "flex h-7 w-full min-w-0 items-center gap-2.5 rounded-md px-2 text-left text-[13px] font-medium transition-colors duration-150";
 const IDLE = "text-tertiary hover:bg-layer-transparent-hover hover:text-primary";
-const ACTIVE = "bg-layer-1-selected text-white [&_svg]:text-white";
+const ACTIVE = "bg-layer-1-selected text-primary [&_svg]:text-primary";
 
 /**
  * Only one sidebar row is active at a time. A favorite and a project row can point at the same page,
@@ -231,7 +231,7 @@ function SettingsNav({ projectId, projects }: { projectId: string; projects: Pro
                 <AppIcons.Back className="size-4" />
                 {t("nav.backToApp")}
             </Link>
-            <label className="mb-2 flex h-8 w-full items-center gap-2 rounded-md border border-subtle px-2 text-[13px] focus-within:border-accent-strong">
+            <label className="mb-2 flex h-8 w-full items-center gap-2 rounded-md border border-subtle bg-layer-1 px-2 text-[13px] focus-within:border-accent-strong">
                 <Search className="size-3.5 shrink-0 text-placeholder" />
                 <input
                     type="search"

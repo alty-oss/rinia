@@ -188,7 +188,7 @@ export const ProjectIssuesPage = () => {
 
     const pill = "flex h-6 items-center rounded-md px-2 text-[13px]";
     const pillOff = "text-tertiary hover:bg-layer-transparent-hover hover:text-primary";
-    const pillOn = "bg-layer-1-selected text-white";
+    const pillOn = "bg-layer-1-selected text-primary";
 
     return (
         <div className="flex h-full min-h-0 flex-col bg-surface-1">
@@ -264,7 +264,7 @@ export const ProjectIssuesPage = () => {
                                 return (
                                 <section key={group.key} aria-label={group.label ?? t("issue.allIssues")}>
                                     {group.label && (
-                                        <h2 className="bg-layer-1">
+                                        <h2 className="bg-layer-transparent-hover">
                                             <div className="flex h-9 items-center gap-2 px-3 text-[13px] text-secondary">
                                                 <button
                                                     type="button"
@@ -348,11 +348,11 @@ function ViewSwitch({ view, onChange }: { view: "list" | "board"; onChange: (vie
     const button = "flex h-6 items-center gap-1 rounded px-2 text-[13px]";
     return (
         <div role="group" aria-label={t("issue.view")} className="flex items-center gap-0.5 rounded-md bg-layer-1 p-0.5">
-            <button type="button" aria-pressed={view === "list"} className={`${button} ${view === "list" ? "bg-layer-1-selected text-white" : "text-tertiary hover:text-primary"}`} onClick={() => onChange("list")}>
+            <button type="button" aria-pressed={view === "list"} className={`${button} ${view === "list" ? "bg-layer-1-selected text-primary" : "text-tertiary hover:text-primary"}`} onClick={() => onChange("list")}>
                 <List className="size-3.5" />
                 {t("issue.list")}
             </button>
-            <button type="button" aria-pressed={view === "board"} className={`${button} ${view === "board" ? "bg-layer-1-selected text-white" : "text-tertiary hover:text-primary"}`} onClick={() => onChange("board")}>
+            <button type="button" aria-pressed={view === "board"} className={`${button} ${view === "board" ? "bg-layer-1-selected text-primary" : "text-tertiary hover:text-primary"}`} onClick={() => onChange("board")}>
                 <LayoutGrid className="size-3.5" />
                 {t("projects.board")}
             </button>

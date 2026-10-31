@@ -13,11 +13,6 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
     useEffect(() => {
         applyTheme(preference);
-        if (preference !== "system") return;
-        const media = window.matchMedia("(prefers-color-scheme: dark)");
-        const onChange = () => applyTheme("system");
-        media.addEventListener("change", onChange);
-        return () => media.removeEventListener("change", onChange);
     }, [preference]);
 
     const setPreference = (next: ThemePreference) => {

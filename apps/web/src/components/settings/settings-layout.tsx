@@ -93,7 +93,7 @@ export function SettingsControl({ title, description, children }: { title: strin
 export function SettingsLinkRow({ to, icon: Icon, title, description, value }: { to: string; icon: ComponentType<SVGProps<SVGSVGElement>>; title: string; description: string; value?: ReactNode }) {
     return (
         <Link to={to} className="group -mx-4 flex items-center gap-3.5 px-4 py-3.5 first:rounded-t-xl last:rounded-b-xl hover:bg-layer-transparent-hover">
-            <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-layer-2 text-secondary">
+            <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-layer-3 text-secondary">
                 <Icon className="size-4" />
             </span>
             <span className="min-w-0 flex-1">

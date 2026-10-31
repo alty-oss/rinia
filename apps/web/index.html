@@ -8,9 +8,10 @@
                 var preference = "dark";
                 try {
                     var stored = localStorage.getItem(key);
-                    if (stored === "system" || stored === "light" || stored === "dark" || stored === "light-contrast" || stored === "dark-contrast") preference = stored;
+                    if (stored === "light" || stored === "light-contrast") preference = "light";
+                    else if (stored === "system") preference = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
                 } catch (e) {}
-                var resolved = preference === "system" ? (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light") : preference;
+                var resolved = preference;
                 var root = document.documentElement;
                 root.setAttribute("data-theme", resolved);
                 root.setAttribute("data-theme-preference", preference);
