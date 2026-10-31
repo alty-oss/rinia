@@ -46,7 +46,8 @@ export const AppShell = () => {
     const openNavigation = () => setMobileOpen(true);
     return (
         <NavigationContext.Provider value={{ openNavigation }}>
-            <div className="relative flex h-dvh min-h-0 overflow-hidden bg-canvas text-primary">
+            {/* While resizing, nothing on the page can be selected and the resize cursor holds wherever the pointer goes. */}
+            <div className={`relative flex h-dvh min-h-0 overflow-hidden bg-canvas text-primary ${resizing ? "cursor-ew-resize select-none" : ""}`}>
                 <aside
                     className={`relative hidden h-full shrink-0 overflow-hidden md:flex ${resizing ? "" : "transition-[width] duration-200 ease-[cubic-bezier(0.2,0,0,1)]"}`}
                     style={{ width }}
@@ -125,6 +126,11 @@ function SidebarResizeHandle({
         }
     }
 
+    function finishDrag() {
+        if (drag.current?.moved) onResizeEnd();
+        drag.current = null;
+    }
+
     function hideHint() {
         window.clearTimeout(hintTimer.current);
         setHint(null);
@@ -149,12 +155,17 @@ function SidebarResizeHandle({
                 className="group absolute top-2 bottom-2 left-1 z-20 hidden w-2 cursor-ew-resize touch-none outline-none md:block"
                 onPointerDown={(event) => {
                     if (event.button !== 0) return;
+                    // No text selection may start from here, and any selection left on the page is cleared.
+                    event.preventDefault();
+                    document.getSelection()?.removeAllRanges();
                     drag.current = { x: event.clientX, width, moved: false };
                     event.currentTarget.setPointerCapture(event.pointerId);
                     hideHint();
                 }}
                 onPointerMove={(event) => {
                     const current = drag.current;
+                    // A release the handle never heard about (outside the window) leaves no button pressed.
+                    if (current && event.buttons === 0) return finishDrag();
                     if (!current) return showHint(event);
                     const delta = event.clientX - current.x;
                     if (!current.moved && Math.abs(delta) < 3) return;
@@ -164,14 +175,10 @@ function SidebarResizeHandle({
                     }
                     onResize(current.width + delta);
                 }}
-                onPointerUp={() => {
-                    if (drag.current?.moved) onResizeEnd();
-                    drag.current = null;
-                }}
-                onPointerCancel={() => {
-                    if (drag.current?.moved) onResizeEnd();
-                    drag.current = null;
-                }}
+                onPointerUp={finishDrag}
+                onPointerCancel={finishDrag}
+                // Capture is lost on every release, including one far away or outside the window, so this always ends the drag.
+                onLostPointerCapture={finishDrag}
                 onPointerLeave={hideHint}
                 onKeyDown={onKeyDown}
             >

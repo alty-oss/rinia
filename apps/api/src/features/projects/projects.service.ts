@@ -3,21 +3,8 @@ import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { db } from "../../db";
 import { boardColumns, projectKeyAliases, projectMembers, projects, users } from "../../db/schema";
 import { HttpError } from "../../lib/http-error";
+import { DEFAULT_COLUMNS } from "./default-columns";
 import { isProjectKeyConflict } from "./project-key";
-
-/** Initial colors for the default columns. The same hexes are used by migration 0005, which backfilled projects created before this field existed. */
-const DEFAULT_COLUMNS: Record<Locale, Array<{ name: string; color: string }>> = {
-    en: [
-        { name: "To Do", color: "#eaaa08" },
-        { name: "In Progress", color: "#7a5af8" },
-        { name: "Done", color: "#17b26a" },
-    ],
-    "pt-BR": [
-        { name: "A fazer", color: "#eaaa08" },
-        { name: "Em andamento", color: "#7a5af8" },
-        { name: "Concluído", color: "#17b26a" },
-    ],
-};
 
 const PROJECT_LIST_COLUMNS = {
     id: true,

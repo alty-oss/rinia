@@ -2,7 +2,7 @@ const issue = {
         newIssue: "New issue", active: "Active", genericIssue: "Issue", title: "Issue title", description: "Description", status: "Status", priority: "Priority", assignee: "Assignee",
         category: "Category", estimate: "Estimate", createdBy: "Created by", created: "Created", updated: "Updated",
         parent: "Parent", none: "None", unassigned: "Unassigned", noIssues: "No issues yet", createFirst: "Create an issue to start tracking work in this project.",
-        low: "Low", medium: "Medium", high: "High", urgent: "Urgent", backlog: "Backlog", inProgress: "In progress", done: "Done",
+        low: "Low", medium: "Medium", high: "High", urgent: "Urgent", backlog: "Backlog", inProgress: "In progress", done: "Done", inReview: "In review", canceled: "Canceled",
         todo: "To do", unknownStatus: "Unknown status", unknown: "Unknown", clearFilters: "Clear filters", clearFilter: "Clear {{filter}} filter", allIssues: "All issues",
         issueTitle: "Issue title", createStatusFirst: "Create a status before adding an issue.", couldNotLoadIssues: "Could not load the project issues.",
         noIssuesMatch: "No issues match these filters", clearOrSearch: "Try clearing a filter or changing your search.", createFirstIssue: "Create your first issue to start tracking work in this project.",

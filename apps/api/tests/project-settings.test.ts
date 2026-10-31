@@ -56,7 +56,8 @@ test("custom key is persisted verbatim without querying automatic suggestions", 
     assert.equal(result.issueKey, "CUSTOM");
     assert.equal(inserts[0].table, projects);
     assert.deepEqual(inserts[1].values, { projectId: "new-project", userId: creatorId, role: "owner" });
-    assert.equal((inserts[2].values as unknown[]).length, 3);
+    // The default workflow: backlog, to do, in progress, in review, done, canceled.
+    assert.deepEqual((inserts[2].values as Array<{ name: string }>).map((column) => column.name), ["Backlog", "To Do", "In Progress", "In Review", "Done", "Canceled"]);
 });
 
 test("an explicit duplicate key returns 409 instead of silently suffixing it", async () => {

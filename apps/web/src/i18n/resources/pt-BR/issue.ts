@@ -2,7 +2,7 @@ const issue = {
         newIssue: "Nova tarefa", active: "Ativas", genericIssue: "Tarefa", title: "Título da tarefa", description: "Descrição", status: "Estado", priority: "Prioridade", assignee: "Responsável",
         category: "Categoria", estimate: "Estimativa", createdBy: "Criado por", created: "Criado em", updated: "Atualizado em",
         parent: "Tarefa principal", none: "Nenhum", unassigned: "Sem responsável", noIssues: "Nenhuma tarefa ainda", createFirst: "Crie uma tarefa para começar a acompanhar o trabalho deste projeto.",
-        low: "Baixa", medium: "Média", high: "Alta", urgent: "Urgente", backlog: "Fila", inProgress: "Em andamento", done: "Concluída",
+        low: "Baixa", medium: "Média", high: "Alta", urgent: "Urgente", backlog: "Fila", inProgress: "Em andamento", done: "Concluída", inReview: "Em revisão", canceled: "Cancelada",
         todo: "A fazer", unknownStatus: "Estado desconhecido", unknown: "Desconhecido", clearFilters: "Limpar filtros", clearFilter: "Limpar filtro de {{filter}}", allIssues: "Todas as tarefas",
         issueTitle: "Título da tarefa", createStatusFirst: "Crie um estado antes de adicionar uma tarefa.", couldNotLoadIssues: "Não foi possível carregar as tarefas do projeto.",
         noIssuesMatch: "Nenhuma tarefa corresponde a estes filtros", clearOrSearch: "Limpe um filtro ou altere sua busca.", createFirstIssue: "Crie sua primeira tarefa para começar a acompanhar o trabalho deste projeto.",

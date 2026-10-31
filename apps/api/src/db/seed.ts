@@ -23,6 +23,9 @@ const SEED_USERS = [
 type Username = (typeof SEED_USERS)[number]["username"];
 type Priority = CreateIssueInput["priority"];
 
+/** `SeedIssue.column` indexes these default columns: to do, in progress, done. */
+const SEED_COLUMNS = ["A fazer", "Em andamento", "Concluído"] as const;
+
 interface SeedIssue {
     title: string;
     column: 0 | 1 | 2;
@@ -242,7 +245,7 @@ async function main() {
             const created = await createIssue(
                 project.id,
                 {
-                    columnId: columns[issue.column].id,
+                    columnId: columns.find((column) => column.name === SEED_COLUMNS[issue.column])!.id,
                     title: issue.title,
                     priority: issue.priority,
                     categoryId: issue.label ? labelId.get(issue.label) : null,
