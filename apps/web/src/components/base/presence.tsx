@@ -1,9 +1,8 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { type ReactNode, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Collapse } from "./collapse";
+import { UNMOUNT_AFTER } from "./motion";
 
 export type PresenceRow<T> = { key: string; item: T; leaving: boolean; entering: boolean };
-
-const EXIT_DURATION = 220;
 
 /**
  * A list that remembers what just left it. Removed items stay, marked `leaving`, until they have animated out;
@@ -36,23 +35,60 @@ export function usePresence<T>(items: T[] | undefined, keyOf: (item: T) => strin
     const leaving = rows.some((row) => row.leaving);
     useEffect(() => {
         if (!leaving) return;
-        const timer = window.setTimeout(() => setRows((current) => current.filter((row) => !row.leaving)), EXIT_DURATION);
+        const timer = window.setTimeout(() => setRows((current) => current.filter((row) => !row.leaving)), UNMOUNT_AFTER);
         return () => window.clearTimeout(timer);
     }, [leaving]);
 
     return rows;
 }
 
-/** Eases a row's height and opacity in when it is `entering`, and out while it is `leaving`. */
-export function Presence({ leaving, entering, children }: { leaving: boolean; entering: boolean; children: ReactNode }) {
-    const [entered, setEntered] = useState(!entering);
-    useEffect(() => {
+/**
+ * False for the first commit of something that should animate in, then true. Reading layout in between makes the
+ * browser take the closed state first, so switching to open transitions, without waiting for an animation frame
+ * (which never comes in a background tab).
+ */
+export function useEntered(animate: boolean) {
+    const [entered, setEntered] = useState(!animate);
+    useLayoutEffect(() => {
         if (entered) return;
-        const frame = requestAnimationFrame(() => setEntered(true));
-        return () => cancelAnimationFrame(frame);
+        void document.body.offsetHeight;
+        setEntered(true);
     }, [entered]);
+    return entered;
+}
+
+/** Eases a row's height (or, with `axis="x"`, an inline item's width) and opacity in when it is `entering`, and out while it is `leaving`. */
+export function Presence({ leaving, entering, axis = "y", children }: { leaving: boolean; entering: boolean; axis?: "x" | "y"; children: ReactNode }) {
+    const entered = useEntered(entering);
     return (
-        <Collapse open={entered && !leaving} lazy={false}>
+        <Collapse open={entered && !leaving} lazy={false} axis={axis}>
+            {children}
+        </Collapse>
+    );
+}
+
+/**
+ * One thing that comes and goes, such as a button that only shows while filters are on. It eases in when `show`
+ * turns on and stays mounted while it eases out. What is there on first render shows in place, without animating.
+ */
+export function Reveal({ show, axis = "y", children }: { show: boolean; axis?: "x" | "y"; children: ReactNode }) {
+    const [mounted, setMounted] = useState(show);
+    const [open, setOpen] = useState(show);
+    if (show && !mounted) setMounted(true);
+    if (!show && open) setOpen(false);
+    useLayoutEffect(() => {
+        if (!show || open) return;
+        void document.body.offsetHeight;
+        setOpen(true);
+    }, [show, open]);
+    useEffect(() => {
+        if (show) return;
+        const timer = window.setTimeout(() => setMounted(false), UNMOUNT_AFTER);
+        return () => window.clearTimeout(timer);
+    }, [show]);
+    if (!mounted) return null;
+    return (
+        <Collapse open={open} lazy={false} axis={axis}>
             {children}
         </Collapse>
     );

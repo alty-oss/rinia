@@ -25,6 +25,8 @@ const columnMenuItem = "flex h-8 cursor-pointer items-center gap-2.5 rounded px-
 
 interface ColumnProps {
     column: BoardColumn;
+    /** Every status, for the status menu on each card. */
+    statuses: BoardColumn[];
     issues: Issue[];
     projectId: string;
     categoriesById: Map<string, { id: string; name: string; color: string | null }>;
@@ -39,7 +41,7 @@ interface ColumnProps {
     onManageStates: () => void;
 }
 
-export const Column = ({ column, issues, projectId, categoriesById, membersById, people, labels, onUpdateIssue, onOpenIssue, onCreateIssue, onHide, onManageStates }: ColumnProps) => {
+export const Column = ({ column, statuses, issues, projectId, categoriesById, membersById, people, labels, onUpdateIssue, onOpenIssue, onCreateIssue, onHide, onManageStates }: ColumnProps) => {
     const { t } = useTranslation();
     const { setNodeRef: setDropRef, isOver } = useDroppable({ id: column.id });
 
@@ -164,6 +166,8 @@ export const Column = ({ column, issues, projectId, categoriesById, membersById,
                         <IssueCard
                             key={issue.id}
                             issue={issue}
+                            status={column}
+                            statuses={statuses}
                             projectId={projectId}
                             categories={resolveLabels(issue.categoryIds, categoriesById)}
                             assignee={issue.assigneeId ? membersById.get(issue.assigneeId) : undefined}

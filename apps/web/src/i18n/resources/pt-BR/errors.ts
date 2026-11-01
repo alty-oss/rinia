@@ -2,7 +2,7 @@ const errors = {
         notAuthenticated: "Você não está autenticado", invalidSession: "Sessão inválida ou expirada", invalidData: "Confira os campos destacados.",
         requestFailed: "Não foi possível concluir a solicitação.", internal: "Ocorreu um erro interno. Tente novamente.",
         tooLarge: "Este documento é grande demais para salvar. Divida o conteúdo em páginas menores.",
-        projectNotFound: "Projeto não encontrado", issueNotFound: "Tarefa não encontrada", documentNotFound: "Documento não encontrado",
+        projectNotFound: "Projeto não encontrado", issueNotFound: "Tarefa não encontrada", documentNotFound: "Documento não encontrado", viewNotFound: "View não encontrada",
         notFound: "O item solicitado não foi encontrado.", accountFieldInUse: "Este campo ({{field}}) já está em uso.", requestLimit: "Muitas solicitações. Tente novamente mais tarde.",
         incorrectCredentials: "Usuário ou senha incorretos", invalidSpecialCode: "Código especial inválido", projectKeyInUse: "Este ID de projeto já está em uso",
         projectKeyLocked: "O ID do projeto não pode ser alterado depois da criação da primeira tarefa", membershipRequired: "Você não é membro deste projeto",

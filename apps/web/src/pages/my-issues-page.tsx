@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { ChevronDownOutline, ProjectsOutline, HistoryOutline, LabelsOutline, PriorityOutline, StateOutline } from "@makeplane/propel/icons";
+import { AssigneeOutline, ChevronDownOutline, ProjectsOutline, HistoryOutline, LabelsOutline, PriorityOutline, StateOutline } from "@makeplane/propel/icons";
 import { myIssuesFilterValues, type IssueOrder, type MyIssuesFilter } from "@rinia/shared";
 import { CalendarDays, Hash, Minus } from "lucide-react";
 import { useNavigate, useParams, useSearchParams } from "react-router";
@@ -16,7 +16,7 @@ import { IssueAvatar, PriorityIcon, StateIcon } from "@/features/board/component
 import { useColumns } from "@/features/board/hooks/use-board";
 import type { MyIssue } from "@/features/issues/api";
 import { IssueListRow } from "@/features/issues/components/issue-list-row";
-import { IssueToolbar, dueFilter, type IssueFilter } from "@/features/issues/components/issue-toolbar";
+import { IssueFilterRow, IssueToolbar, dueFilter, pillTab, type IssueFilter } from "@/features/issues/components/issue-toolbar";
 import { useMyIssues, useUpdateMyIssue } from "@/features/issues/hooks/use-issues";
 import { matchesDueFilter } from "@/features/issues/lib/due-date";
 import { matchesLabels, readLabels } from "@/features/issues/lib/issue-filters";
@@ -27,7 +27,6 @@ import { ProjectIcon } from "@/features/projects/components/project-icon";
 import { useProjectMembers } from "@/features/projects/hooks/use-project-members";
 import { translateStatusName } from "@/i18n/status-label";
 import { urls } from "@/lib/urls";
-import { cx } from "@/utils/cx";
 
 type OrderBy = Exclude<IssueOrder, "position">;
 type GroupBy = "status" | "project" | "none";
@@ -121,11 +120,11 @@ export const MyIssuesPage = () => {
     }, [navigate, orderedIssues, selectedIssueId]);
 
     const toolbarFilters: IssueFilter[] = [
-        { key: "status", label: t("issue.status"), items: options.statuses.map((column) => ({ id: nameKey(column.name), name: translateStatusName(column.name, t), icon: <StateIcon name={column.name} color={column.color} /> })) },
-        { key: "priority", label: t("issue.priority"), items: PRIORITY_OPTIONS.map((id) => ({ id, name: t(priorityLabelKey(id)), icon: <PriorityIcon priority={id} /> })) },
-        { key: "assignee", label: t("issue.assignee"), items: options.assignees.map((person) => ({ id: person.id, name: person.name, avatarUrl: person.avatarUrl, icon: person.avatarUrl ? undefined : <IssueAvatar name={person.name} avatarUrl={person.avatarUrl} /> })) },
-        { key: "label", label: t("issue.label"), multiple: true, items: options.labels.map((item) => ({ id: nameKey(item.name), name: item.name, icon: <LabelsOutline className="size-3.5" style={{ color: item.color ?? "#7a5af8" }} /> })) },
-        { key: "project", label: t("myIssues.project"), items: options.projects.map((item) => ({ id: item.id, name: item.name, icon: <ProjectIcon icon={item.iconAppearance ?? item.icon} className="size-3.5" /> })) },
+        { key: "status", label: t("issue.status"), icon: StateOutline, items: options.statuses.map((column) => ({ id: nameKey(column.name), name: translateStatusName(column.name, t), icon: <StateIcon name={column.name} color={column.color} /> })) },
+        { key: "priority", label: t("issue.priority"), icon: PriorityOutline, items: PRIORITY_OPTIONS.map((id) => ({ id, name: t(priorityLabelKey(id)), icon: <PriorityIcon priority={id} /> })) },
+        { key: "assignee", label: t("issue.assignee"), icon: AssigneeOutline, items: options.assignees.map((person) => ({ id: person.id, name: person.name, avatarUrl: person.avatarUrl, icon: person.avatarUrl ? undefined : <IssueAvatar name={person.name} avatarUrl={person.avatarUrl} /> })) },
+        { key: "label", label: t("issue.label"), icon: LabelsOutline, multiple: true, items: options.labels.map((item) => ({ id: nameKey(item.name), name: item.name, icon: <LabelsOutline className="size-3.5" style={{ color: item.color ?? "#7a5af8" }} /> })) },
+        { key: "project", label: t("myIssues.project"), icon: ProjectsOutline, items: options.projects.map((item) => ({ id: item.id, name: item.name, icon: <ProjectIcon icon={item.iconAppearance ?? item.icon} className="size-3.5" /> })) },
         dueFilter(t),
     ];
 
@@ -169,17 +168,16 @@ export const MyIssuesPage = () => {
     return (
         <div className="flex h-full min-h-0 flex-col bg-surface-1">
             <Topbar title={t("myIssues.title")} />
-            <div className="flex h-10 shrink-0 select-none items-center gap-1 border-b border-subtle px-3">
+            <div className="flex h-11 shrink-0 select-none items-center gap-1 px-3">
                 <div role="group" aria-label={t("myIssues.tabs")} className="flex min-w-0 items-center gap-1">
                     {myIssuesFilterValues.map((value) => (
-                        <button key={value} type="button" aria-pressed={filter === value} className={tab(filter === value)} onClick={() => setFilter(value)}>
+                        <button key={value} type="button" aria-pressed={filter === value} className={pillTab(filter === value)} onClick={() => setFilter(value)}>
                             {t(`myIssues.${value}`)}
                         </button>
                     ))}
                 </div>
                 <div className="ml-auto flex items-center gap-1">
                     <IssueToolbar
-                        chrome
                         filters={toolbarFilters}
                         defaultOrder="updated"
                         orders={[
@@ -196,6 +194,7 @@ export const MyIssuesPage = () => {
                     />
                 </div>
             </div>
+            <IssueFilterRow filters={toolbarFilters} />
             <main className="min-h-0 w-full flex-1 overflow-y-auto">
                 <div className="flex min-h-full flex-col">
                     {isLoading && <MyIssuesSkeleton />}
@@ -298,9 +297,6 @@ function collectOptions(issues: MyIssue[]) {
         projects: byName(projects.values()),
     };
 }
-
-const tab = (active: boolean) =>
-    cx("flex h-7 items-center gap-1.5 rounded-md px-2 text-[13px]", active ? "bg-layer-1-selected text-primary" : "text-tertiary hover:bg-layer-transparent-hover hover:text-primary");
 
 function MyIssuesSkeleton() {
     const { t } = useTranslation();

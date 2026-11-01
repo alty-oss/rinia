@@ -17,6 +17,7 @@ import { DeleteProjectDialog } from "@/features/projects/components/delete-proje
 import { useProjectPermissions } from "@/features/projects/hooks/use-project-permissions";
 import { useProjects } from "@/features/projects/hooks/use-projects";
 import { urls } from "@/lib/urls";
+import { UNMOUNT_AFTER } from "@/components/base/motion";
 import { cx } from "@/utils/cx";
 import { useTranslation } from "react-i18next";
 import { ApiError } from "@/lib/api-client";
@@ -80,6 +81,17 @@ export function ContextMenuButton({ entity, className }: { entity: ContextMenuEn
 export const ContextMenuProvider = ({ children }: { children: ReactNode }) => {
     const { t } = useTranslation();
     const [state, setState] = useState<MenuState | null>(null);
+    // A closing menu stays a moment to animate out; opening another one cancels that.
+    const [closing, setClosing] = useState(false);
+    const close = useCallback(() => setClosing(true), []);
+    useEffect(() => {
+        if (!closing) return;
+        const timer = window.setTimeout(() => {
+            setState(null);
+            setClosing(false);
+        }, UNMOUNT_AFTER);
+        return () => window.clearTimeout(timer);
+    }, [closing]);
     const [confirmation, setConfirmation] = useState<ContextMenuEntity | null>(null);
     const [deletePending, setDeletePending] = useState(false);
     const [deleteError, setDeleteError] = useState<string | null>(null);
@@ -98,6 +110,7 @@ export const ContextMenuProvider = ({ children }: { children: ReactNode }) => {
 
     const open = useCallback((entity: ContextMenuEntity, anchor: MenuAnchor) => {
         setPosition(null);
+        setClosing(false);
         setState({ entity, ...anchor });
     }, []);
 
@@ -244,12 +257,12 @@ export const ContextMenuProvider = ({ children }: { children: ReactNode }) => {
         const focusReturnTarget = state.source;
         menuRef.current?.querySelector<HTMLButtonElement>("[role='menuitem']")?.focus();
         function handlePointerDown(event: PointerEvent) {
-            if (menuRef.current && !menuRef.current.contains(event.target as Node)) setState(null);
+            if (menuRef.current && !menuRef.current.contains(event.target as Node)) close();
         }
         function handleKeyDown(event: KeyboardEvent) {
             if (event.key === "Escape") {
                 event.preventDefault();
-                setState(null);
+                close();
                 focusReturnTarget?.focus();
                 return;
             }
@@ -267,7 +280,7 @@ export const ContextMenuProvider = ({ children }: { children: ReactNode }) => {
             document.removeEventListener("pointerdown", handlePointerDown);
             document.removeEventListener("keydown", handleKeyDown);
         };
-    }, [state]);
+    }, [close, state]);
 
     useEffect(() => {
         if (!notice) return;
@@ -411,7 +424,7 @@ export const ContextMenuProvider = ({ children }: { children: ReactNode }) => {
     function selectAction(action: MenuAction) {
         if (action.key === "delete") setDeleteError(null);
         action.onSelect();
-        setState(null);
+        close();
     }
 
     return (
@@ -423,7 +436,7 @@ export const ContextMenuProvider = ({ children }: { children: ReactNode }) => {
                     role="menu"
                     aria-label={t("common.actions")}
                     style={{ left: position?.x ?? Math.max(8, Math.min(state.mode === "button" ? state.x - 224 : state.x, window.innerWidth - 232)), top: position?.y ?? Math.max(8, Math.min(state.y, window.innerHeight - 280)) }}
-                    className={menuClass}
+                    className={cx(menuClass, closing ? "animate-popup-out" : "animate-popup-in", state.mode === "button" ? "origin-top-right" : "origin-top-left")}
                 >
                     {actions.map((action, index) => (
                         <FragmentMenuAction key={action.key} action={action} first={index === 0} onSelect={() => selectAction(action)} />

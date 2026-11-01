@@ -20,6 +20,7 @@ export function ProjectWorkspaceHeader({
     actions,
     hideSection = false,
     favorite,
+    crumb,
 }: {
     projectId: string;
     actions?: ReactNode;
@@ -27,7 +28,9 @@ export function ProjectWorkspaceHeader({
     hideSection?: boolean;
     /** What the star favorites. Defaults to the project, or its issue list on issue screens; `null` hides it. */
     favorite?: FavoriteTarget | null;
-    activeView: "overview" | "members" | "issues" | "board" | "documents" | "settings";
+    /** A page inside the section, such as a saved view, named after it. */
+    crumb?: ReactNode;
+    activeView: "overview" | "members" | "issues" | "board" | "documents" | "settings" | "views";
 }) {
     const { data: projectData } = useProject(projectId);
     const { data: projects } = useProjects();
@@ -44,7 +47,7 @@ export function ProjectWorkspaceHeader({
                 ? { kind: "issues", projectId }
                 : null;
     const showSection = !hideSection && activeView !== "overview" && activeView !== "members";
-    const title = activeView === "issues" || activeView === "board" ? t("nav.issues") : activeView === "documents" ? t("nav.documents") : activeView === "settings" ? t("nav.projectSettings") : t("nav.overview");
+    const title = activeView === "views" ? t("views.title") : activeView === "issues" || activeView === "board" ? t("nav.issues") : activeView === "documents" ? t("nav.documents") : activeView === "settings" ? t("nav.projectSettings") : t("nav.overview");
     return (
         <header className="flex h-11 shrink-0 select-none items-center justify-between gap-3 border-b border-subtle px-3">
             <div className="flex min-w-0 items-center gap-1 text-[13px]">
@@ -55,10 +58,17 @@ export function ProjectWorkspaceHeader({
                     <ProjectIcon icon={project?.iconAppearance ?? project?.icon} className="size-4 shrink-0" />
                     <Link to={project ? urls.project(project.issueKey) : "/"} className="truncate text-secondary hover:text-primary">{project?.name ?? t("projects.project")}</Link>
                 </span>
+                {/* With a page inside the section, narrow screens skip the section so the page's own name keeps the room. */}
                 {showSection && (
                     <>
+                        <ChevronRight className={`size-3 shrink-0 text-placeholder ${crumb ? "max-sm:hidden" : ""}`} aria-hidden="true" />
+                        {crumb ? <Link to={activeView === "views" ? urls.views(project?.issueKey ?? "") : urls.issues(project?.issueKey ?? "")} className="truncate text-secondary hover:text-primary max-sm:hidden">{title}</Link> : <span className="truncate text-primary">{title}</span>}
+                    </>
+                )}
+                {crumb && (
+                    <>
                         <ChevronRight className="size-3 shrink-0 text-placeholder" aria-hidden="true" />
-                        <span className="truncate text-primary">{title}</span>
+                        <span className="flex min-w-0 items-center gap-1 text-primary">{crumb}</span>
                     </>
                 )}
                 {favoriteTarget && <FavoriteStar target={favoriteTarget} />}

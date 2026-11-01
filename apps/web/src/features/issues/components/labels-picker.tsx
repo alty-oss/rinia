@@ -81,7 +81,7 @@ export function LabelsPicker({
                 {children}
             </Popover.Trigger>
             <Popover.Portal>
-                <Popover.Positioner side="bottom" align="start" sideOffset={4} collisionPadding={12} className="z-50">
+                <Popover.Positioner side="bottom" align="start" sideOffset={4} collisionPadding={12} className="z-[60]">
                     <Popover.Popup className={cx("w-64 p-1", overlayChrome.popup, popupMotion)} {...contained}>
                         <Popover.Title className="sr-only">{t("issue.labels")}</Popover.Title>
                         <div className="mb-1 flex items-center gap-2 border-b border-subtle px-2 pb-1">

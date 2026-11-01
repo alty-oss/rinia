@@ -55,6 +55,9 @@ export const urls = {
     },
     documents: (key: string) => `/project/${key}/docs`,
     document: (key: string, document: { id: string; title: string }) => `/project/${key}/docs/${documentSlug(document)}`,
+    views: (key: string) => `/project/${key}/views`,
+    /** Saved views are addressed like documents: the name for people, the first digits of the id for lookups. */
+    view: (key: string, view: { id: string; name: string }) => `/project/${key}/views/${documentSlug({ id: view.id, title: view.name })}`,
     members: (key: string) => `/project/${key}/members`,
     projectSettings: (key: string, section?: ProjectSettingsSection) => (section ? `/settings/project/${key}/${section}` : `/settings/project/${key}`),
 };

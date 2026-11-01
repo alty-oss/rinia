@@ -7,10 +7,12 @@ export interface Favorite {
     projectId: string;
     documentId: string | null;
     issueId: string | null;
+    viewId: string | null;
     createdAt: string;
     project: { id: string; name: string; issueKey: string; icon: string | null; iconAppearance: EntityIcon | null };
     document: { id: string; title: string; iconAppearance: EntityIcon | null } | null;
     issue: { id: string; number: number; title: string; identifier: string } | null;
+    view: { id: string; name: string } | null;
 }
 
 export type FavoriteTarget = CreateFavoriteInput;

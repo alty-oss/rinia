@@ -40,6 +40,9 @@ const issue = {
         leaveReply: "Deixe uma resposta…", replyAction: "Responder", couldNotAddReply: "Não foi possível adicionar a resposta.",
         deleteThreadTitle: "Excluir este comentário e as respostas?", deleteThreadDescription: "As {{count}} respostas desta conversa são excluídas junto.", deleteThreadDescriptionOne: "A resposta desta conversa é excluída junto.",
         conditionDueOverdue: "data de entrega vencida", conditionDueThisWeek: "entrega nesta semana", changedDueDate: "mudou a data de entrega",
+        addFilter: "Adicionar filtro", noOptions: "Nada para escolher ainda", search: "Busca", filterIs: "é", filterIsAnyOf: "é qualquer de", filterContains: "contém", clear: "Limpar",
+        hiddenByFiltersOne: "1 tarefa", hiddenByFiltersMany: "{{count}} tarefas", hiddenByFilters: "ocultas por filtros", views: "Views salvas", saveAsView: "Salvar como view",
+        issueCreated: "{{identifier}} criada", collapseEditor: "Recolher", expandEditor: "Expandir", addDescription: "Adicionar descrição…", createMore: "Criar mais", createIssue: "Criar tarefa",
     } as const;
 
 export default issue;

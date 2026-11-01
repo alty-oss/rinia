@@ -16,7 +16,7 @@ export const DropdownAccountButton = () => {
             <Menu.Trigger render={<Button size="sm" className="group" color="secondary" iconTrailing={(props) => <ChevronDown data-icon="inline-end" {...props} className="size-4! stroke-[2.25px]!" />}>Account</Button>} />
             <Menu.Portal>
                 <Menu.Positioner align="end" sideOffset={4}>
-                    <Menu.Popup className="z-50 w-60 rounded-lg bg-surface-1 p-1 shadow-lg ring-1 ring-secondary_alt">
+                    <Menu.Popup className="overlay-motion z-50 w-60 rounded-lg bg-surface-1 p-1 shadow-lg ring-1 ring-secondary_alt">
                         <Menu.Item className={itemClass}><User01 className="size-4 text-placeholder" />View profile<span className="ml-auto text-xs text-placeholder">⌘K→P</span></Menu.Item>
                         <Menu.Item className={itemClass}><Settings01 className="size-4 text-placeholder" />Settings<span className="ml-auto text-xs text-placeholder">⌘S</span></Menu.Item>
                         <Menu.CheckboxItem checked={darkMode} onCheckedChange={(checked) => setDarkMode(checked)} className={itemClass}>
@@ -27,7 +27,7 @@ export const DropdownAccountButton = () => {
                             <Menu.SubmenuTrigger className={itemClass}><HelpCircle className="size-4 text-placeholder" />Support<ChevronRight className="ml-auto size-4 text-placeholder" /></Menu.SubmenuTrigger>
                             <Menu.Portal>
                                 <Menu.Positioner side="right" align="start" sideOffset={-4}>
-                                    <Menu.Popup className="z-50 w-48 rounded-lg bg-surface-1 p-1 shadow-lg ring-1 ring-secondary_alt">
+                                    <Menu.Popup className="overlay-motion z-50 w-48 rounded-lg bg-surface-1 p-1 shadow-lg ring-1 ring-secondary_alt">
                                         <Menu.Item className={itemClass}>Help center</Menu.Item>
                                         <Menu.Item className={itemClass}>Contact support</Menu.Item>
                                         <Menu.Item className={itemClass}>Send feedback</Menu.Item>

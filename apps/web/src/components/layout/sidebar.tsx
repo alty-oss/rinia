@@ -1,19 +1,19 @@
 import { useEffect, useState, type Dispatch, type ReactNode, type SetStateAction } from "react";
-import { ChevronDown, Circle, House, Search, ShieldCheck, SlidersHorizontal, SquarePen, UserRound, X } from "lucide-react";
+import { ChevronDown, Circle, House, Layers, Search, ShieldCheck, SlidersHorizontal, SquarePen, UserRound, X } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router";
 import { AppIcons } from "@/components/foundations/icons";
 import type { AppIcon } from "@/components/foundations/icons";
-import { ContextMenuButton } from "@/components/overlay/context-menu-provider";
 import { SidebarAccount } from "./sidebar-account";
 import { useAuth } from "@/features/auth/hooks/use-auth";
 import { useColumns } from "@/features/board/hooks/use-board";
 import { defaultIssueColumn } from "@/features/board/column-bucket";
-import { useDocuments } from "@/features/documents/hooks/use-documents";
 import { IssueQuickCreateModal } from "@/features/issues/components/issue-quick-create-modal";
 import type { Favorite } from "@/features/favorites/api";
 import { useFavorites, useMigrateLegacyFavorites, useRemoveFavorite } from "@/features/favorites/hooks/use-favorites";
 import { useUnreadNotificationCount } from "@/features/notifications/hooks/use-notifications";
 import { Collapse } from "@/components/base/collapse";
+import { UNMOUNT_AFTER } from "@/components/base/motion";
+import { Presence } from "@/components/base/presence";
 import { ProjectIcon } from "@/features/projects/components/project-icon";
 import type { ProjectCardSummary } from "@/features/projects/api";
 import { useProjects } from "@/features/projects/hooks/use-projects";
@@ -23,7 +23,6 @@ import { useTranslation } from "react-i18next";
 
 const OPEN_PROJECTS_KEY = "rinia-open-projects";
 const LAST_PROJECT_KEY = "rinia-last-project";
-const OPEN_DOCS_KEY = "rinia-open-project-docs";
 const SECTIONS_KEY = "rinia-sidebar-sections";
 const ITEM = "flex h-7 w-full min-w-0 items-center gap-2.5 rounded-md px-2 text-left text-[13px] font-medium transition-colors duration-150";
 const IDLE = "text-tertiary hover:bg-layer-transparent-hover hover:text-primary";
@@ -114,7 +113,6 @@ export function Sidebar({ onSearch, onNavigate }: { onSearch: () => void; onNavi
         if (routeProjectId) ids.add(routeProjectId);
         return ids;
     });
-    const [openDocs, setOpenDocs] = useState(() => readIdSet(OPEN_DOCS_KEY));
     const [sections, setSections] = useState(readSections);
     const settings = location.pathname.includes("/settings");
     useEffect(() => setCreatingProjectId(null), [routeProjectId]);
@@ -184,10 +182,7 @@ export function Sidebar({ onSearch, onNavigate }: { onSearch: () => void; onNavi
                                 project={project}
                                 currentProjectId={routeProjectId}
                                 open={openProjects.has(project.id)}
-                                docsOpen={openDocs.has(project.id)}
                                 onToggle={() => toggleStoredId(OPEN_PROJECTS_KEY, setOpenProjects, project.id)}
-                                onToggleDocs={() => toggleStoredId(OPEN_DOCS_KEY, setOpenDocs, project.id)}
-                                onOpenDocs={() => openStoredId(OPEN_DOCS_KEY, setOpenDocs, project.id)}
                             />
                         ))}
                         </Collapse>
@@ -326,18 +321,12 @@ function ProjectNavItem({
     project,
     currentProjectId,
     open,
-    docsOpen,
     onToggle,
-    onToggleDocs,
-    onOpenDocs,
 }: {
     project: ProjectCardSummary;
     currentProjectId: string;
     open: boolean;
-    docsOpen: boolean;
     onToggle: () => void;
-    onToggleDocs: () => void;
-    onOpenDocs: () => void;
 }) {
     const location = useLocation();
     const { t } = useTranslation();
@@ -346,7 +335,9 @@ function ProjectNavItem({
     const key = project.issueKey;
     const home = !viaFavorite && location.pathname === urls.project(key);
     const issues = !viaFavorite && current && (location.pathname.startsWith(urls.issues(key)) || location.pathname.startsWith("/issue/"));
-    const documentsIndex = !viaFavorite && location.pathname === urls.documents(key);
+    // Documents and Views are single links, like Linear's; a page inside either keeps its link lit.
+    const documentsActive = !viaFavorite && location.pathname.startsWith(urls.documents(key));
+    const viewsActive = !viaFavorite && location.pathname.startsWith(urls.views(key));
 
     return (
         <div className="group/project">
@@ -368,25 +359,8 @@ function ProjectNavItem({
                 <nav aria-label={project.name} className="ml-4 flex flex-col gap-px pt-px">
                     <ChildLink to={urls.project(key)} icon={House} label={t("nav.home")} active={home} />
                     <ChildLink to={urls.issues(key)} icon={Circle} label={t("nav.issues")} active={issues} />
-                    <div className={`${ITEM} ${documentsIndex ? ACTIVE : IDLE} pr-1`}>
-                        <Link to={urls.documents(key)} onClick={onOpenDocs} className="flex min-w-0 items-center gap-2.5 self-stretch" aria-current={documentsIndex ? "page" : undefined}>
-                            <AppIcons.Documents className="size-4 shrink-0" />
-                            <span className="truncate">{t("nav.documents")}</span>
-                        </Link>
-                        <button
-                            type="button"
-                            aria-expanded={docsOpen}
-                            aria-label={docsOpen ? t("nav.collapsePages") : t("nav.expandPages")}
-                            className="grid size-5 shrink-0 place-items-center rounded text-placeholder hover:text-primary"
-                            onClick={onToggleDocs}
-                        >
-                            <Caret open={docsOpen} />
-                        </button>
-                        <Link to={urls.documents(key)} onClick={onOpenDocs} tabIndex={-1} aria-hidden="true" className="flex-1 self-stretch" />
-                    </div>
-                    <Collapse open={docsOpen}>
-                        <ProjectDocumentsNav projectId={project.id} projectKey={key} />
-                    </Collapse>
+                    <ChildLink to={urls.documents(key)} icon={AppIcons.Documents} label={t("nav.documents")} active={documentsActive} />
+                    <ChildLink to={urls.views(key)} icon={Layers} label={t("views.title")} active={viewsActive} />
                 </nav>
             </Collapse>
         </div>
@@ -399,33 +373,6 @@ function ChildLink({ to, icon: Icon, label, active }: { to: string; icon: AppIco
             <Icon className="size-4 shrink-0" />
             <span className="truncate">{label}</span>
         </Link>
-    );
-}
-
-function ProjectDocumentsNav({ projectId, projectKey }: { projectId: string; projectKey: string }) {
-    const location = useLocation();
-    const viaFavorite = useViaFavorite();
-    const { data: documents } = useDocuments(projectId);
-
-    return (
-        <div className="ml-4 flex flex-col gap-px">
-            {documents?.map((page) => {
-                const to = urls.document(projectKey, page);
-                const active = !viaFavorite && location.pathname.startsWith(`${urls.documents(projectKey)}/`) && location.pathname.endsWith(page.id.replace(/-/g, "").slice(0, 12));
-                return (
-                    <div key={page.id} className="group/doc relative flex min-w-0 items-center" data-document-context="true" data-project-id={projectId} data-document-id={page.id} data-document-title={page.title} data-document-author-id={page.createdBy}>
-                        <Link to={to} className={itemClass(active, "pr-7 font-normal")} aria-current={active ? "page" : undefined}>
-                            {page.iconAppearance ? <ProjectIcon icon={page.iconAppearance} className="size-3.5 shrink-0" /> : <AppIcons.Documents className="size-3.5 shrink-0" />}
-                            <span className="truncate">{page.title}</span>
-                        </Link>
-                        <ContextMenuButton
-                            entity={{ type: "document", projectId, documentId: page.id, title: page.title, authorId: page.createdBy }}
-                            className="absolute right-0.5 size-6 opacity-100 md:opacity-0 md:group-hover/doc:opacity-100 md:group-focus-within/doc:opacity-100"
-                        />
-                    </div>
-                );
-            })}
-        </div>
     );
 }
 
@@ -458,7 +405,7 @@ function FavoritesNav({ open, onToggle }: { open: boolean; onToggle: () => void 
     const leaving = rows.some((row) => row.leaving);
     useEffect(() => {
         if (!leaving) return;
-        const timer = window.setTimeout(() => setRows((current) => current.filter((row) => !row.leaving)), 220);
+        const timer = window.setTimeout(() => setRows((current) => current.filter((row) => !row.leaving)), UNMOUNT_AFTER);
         return () => window.clearTimeout(timer);
     }, [leaving]);
 
@@ -480,17 +427,11 @@ function FavoriteRow({ favorite, leaving, animateIn }: { favorite: Favorite; lea
     const { t } = useTranslation();
     const location = useLocation();
     const remove = useRemoveFavorite();
-    const [entered, setEntered] = useState(!animateIn);
-    useEffect(() => {
-        if (entered) return;
-        const frame = requestAnimationFrame(() => setEntered(true));
-        return () => cancelAnimationFrame(frame);
-    }, [entered]);
     const { to, icon, label, context } = describeFavorite(favorite, t("nav.issues"));
     const active = useViaFavorite() && location.pathname === to;
 
     return (
-        <Collapse open={entered && !leaving} lazy={false}>
+        <Presence leaving={leaving} entering={animateIn}>
             <div className="group/favorite relative pb-px">
                 <Link to={to} state={{ via: "favorite" }} className={itemClass(active, "pr-7")} aria-current={active ? "page" : undefined}>
                     {icon}
@@ -508,7 +449,7 @@ function FavoriteRow({ favorite, leaving, animateIn }: { favorite: Favorite; lea
                     <X className="size-3.5" />
                 </button>
             </div>
-        </Collapse>
+        </Presence>
     );
 }
 
@@ -527,6 +468,7 @@ function describeFavorite(favorite: Favorite, issuesLabel: string): { to: string
     if (favorite.kind === "issue" && favorite.issue) {
         return { to: urls.issue(favorite.issue.identifier, favorite.issue.title), icon: <Circle className="size-4 shrink-0" />, label: favorite.issue.title, context: favorite.issue.identifier };
     }
+    if (favorite.kind === "view" && favorite.view) return { to: urls.view(key, favorite.view), icon: <Layers className="size-4 shrink-0" />, label: favorite.view.name, context: favorite.project.name };
     if (favorite.kind === "issues") return { to: urls.issues(key), icon: <AppIcons.Issues className="size-4 shrink-0" />, label: issuesLabel, context: favorite.project.name };
     return { to: urls.project(key), icon: projectIcon, label: favorite.project.name };
 }

@@ -22,6 +22,8 @@ const NotFound = lazy(() => import("@/pages/not-found").then((module) => ({ defa
 const ProjectDocumentPage = lazy(() => import("@/pages/project-documents-page").then((module) => ({ default: module.ProjectDocumentPage })));
 const ProjectDocumentsPage = lazy(() => import("@/pages/project-documents-page").then((module) => ({ default: module.ProjectDocumentsPage })));
 const ProjectMembersPage = lazy(() => import("@/pages/project-members-page").then((module) => ({ default: module.ProjectMembersPage })));
+const ProjectViewsPage = lazy(() => import("@/pages/project-views-page").then((module) => ({ default: module.ProjectViewsPage })));
+const ProjectViewPage = lazy(() => import("@/pages/project-view-page").then((module) => ({ default: module.ProjectViewPage })));
 const ProjectIssuesPage = lazy(() => import("@/pages/project-issues-page").then((module) => ({ default: module.ProjectIssuesPage })));
 const ProjectOverviewPage = lazy(() => import("@/pages/project-overview-page").then((module) => ({ default: module.ProjectOverviewPage })));
 const PreferencesSettingsPage = lazy(() => import("@/pages/preferences-settings-page").then((module) => ({ default: module.PreferencesSettingsPage })));
@@ -87,6 +89,8 @@ export const AppRoutes = () => {
                     <Route path="/project/:projectKey" element={<ProjectRoute><ProjectOverviewPage /></ProjectRoute>} />
                     <Route path="/project/:projectKey/issues" element={<ProjectRoute><ProjectIssuesPage /></ProjectRoute>} />
                     <Route path="/project/:projectKey/issues/:scope" element={<ProjectRoute><ProjectIssuesPage /></ProjectRoute>} />
+                    <Route path="/project/:projectKey/views" element={<ProjectRoute><ProjectViewsPage /></ProjectRoute>} />
+                    <Route path="/project/:projectKey/views/:viewSlug" element={<ProjectRoute><ProjectViewPage /></ProjectRoute>} />
                     <Route path="/project/:projectKey/members" element={<ProjectRoute><ProjectMembersPage /></ProjectRoute>} />
                     <Route path="/project/:projectKey/docs" element={<ProjectRoute><ProjectDocumentsPage /></ProjectRoute>} />
                     <Route path="/project/:projectKey/docs/:documentSlug" element={<ProjectRoute><ProjectDocumentPage /></ProjectRoute>} />

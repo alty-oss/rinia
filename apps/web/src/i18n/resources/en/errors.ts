@@ -2,7 +2,7 @@ const errors = {
         notAuthenticated: "Not authenticated", invalidSession: "Invalid or expired session", invalidData: "Please check the highlighted fields.",
         requestFailed: "The request could not be completed.", internal: "An internal error occurred. Please try again.",
         tooLarge: "This document is too large to save. Split its content into smaller pages.",
-        projectNotFound: "Project not found", issueNotFound: "Issue not found", documentNotFound: "Document not found",
+        projectNotFound: "Project not found", issueNotFound: "Issue not found", documentNotFound: "Document not found", viewNotFound: "View not found",
         notFound: "The requested item could not be found.", accountFieldInUse: "This {{field}} is already in use.", requestLimit: "Too many requests. Please try again later.",
         incorrectCredentials: "Incorrect username or password", invalidSpecialCode: "Invalid special code", projectKeyInUse: "Project ID is already in use",
         projectKeyLocked: "Project ID cannot change after the first issue is created", membershipRequired: "You are not a member of this project",

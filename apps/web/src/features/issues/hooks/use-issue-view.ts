@@ -28,9 +28,10 @@ function storePreference(projectId: string, preference: ViewPreference) {
 
 /**
  * The issue view for a project. A `?view=` link wins, then the view this user last chose for the project.
- * `view` is null only while a first-time preference is still loading. Choosing a view saves it.
+ * `view` is null only while a first-time preference is still loading. Choosing a view saves it, except on a
+ * saved view's page, where it is one more thing the saved view holds and only changes the link.
  */
-export function useIssueView(projectId: string) {
+export function useIssueView(projectId: string, { saved = false }: { saved?: boolean } = {}) {
     const queryClient = useQueryClient();
     const [searchParams, setSearchParams] = useSearchParams();
     const queryKey = viewPreferenceKey(projectId);
@@ -65,6 +66,14 @@ export function useIssueView(projectId: string) {
     const view = linked ?? preference.data?.issueView ?? (preference.isError ? defaultIssueView : null);
 
     function setView(next: IssueView) {
+        if (saved) {
+            setSearchParams((current) => {
+                const params = new URLSearchParams(current);
+                params.set("view", next);
+                return params;
+            }, { replace: true });
+            return;
+        }
         // Once the user picks a view, the saved preference drives the page, so drop the link's override.
         if (linked) {
             setSearchParams((current) => {

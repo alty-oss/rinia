@@ -1,7 +1,7 @@
 import type { CreateFavoriteInput } from "@rinia/shared";
 import { and, asc, eq, inArray, isNull } from "drizzle-orm";
 import { db } from "../../db";
-import { favorites, issues, projectDocuments, projectMembers } from "../../db/schema";
+import { favorites, issues, projectDocuments, projectMembers, views } from "../../db/schema";
 import { HttpError } from "../../lib/http-error";
 import { requireUndoWindow } from "../../lib/soft-delete";
 import { assertProjectMembership } from "../../middleware/project-membership.middleware";
@@ -10,6 +10,7 @@ const FAVORITE_WITH = {
     project: { columns: { id: true, name: true, issueKey: true, icon: true, iconAppearance: true } },
     document: { columns: { id: true, title: true, iconAppearance: true, deletedAt: true } },
     issue: { columns: { id: true, number: true, title: true, deletedAt: true } },
+    view: { columns: { id: true, name: true, shared: true, ownerId: true, deletedAt: true } },
 } as const;
 
 type FavoriteRow = NonNullable<Awaited<ReturnType<typeof findFavorite>>>;
@@ -25,10 +26,12 @@ function toFavorite(row: FavoriteRow) {
         projectId: row.projectId,
         documentId: row.documentId,
         issueId: row.issueId,
+        viewId: row.viewId,
         createdAt: row.createdAt,
         project: row.project,
         document: row.document ?? null,
         issue: row.issue ? { ...row.issue, identifier: `${row.project.issueKey}-${row.issue.number}` } : null,
+        view: row.view ? { id: row.view.id, name: row.view.name } : null,
     };
 }
 
@@ -39,7 +42,8 @@ export async function listFavorites(userId: string, isAdmin: boolean) {
         orderBy: [asc(favorites.createdAt)],
         with: FAVORITE_WITH,
     });
-    const activeTargets = rows.filter((row) => !row.document?.deletedAt && !row.issue?.deletedAt);
+    // A view stops showing when it is deleted, or when its owner takes it back from the project.
+    const activeTargets = rows.filter((row) => !row.document?.deletedAt && !row.issue?.deletedAt && !row.view?.deletedAt && (!row.view || row.view.shared || row.view.ownerId === userId));
     if (isAdmin || activeTargets.length === 0) return activeTargets.map(toFavorite);
 
     const memberships = await db.query.projectMembers.findMany({
@@ -54,6 +58,7 @@ export async function addFavorite(userId: string, isAdmin: boolean, input: Creat
     await assertProjectMembership(input.projectId, userId, isAdmin);
     const documentId = input.kind === "document" ? input.documentId : null;
     const issueId = input.kind === "issue" ? input.issueId : null;
+    const viewId = input.kind === "view" ? input.viewId : null;
 
     if (documentId) {
         const document = await db.query.projectDocuments.findFirst({ where: and(eq(projectDocuments.id, documentId), eq(projectDocuments.projectId, input.projectId), isNull(projectDocuments.deletedAt)), columns: { id: true } });
@@ -64,12 +69,17 @@ export async function addFavorite(userId: string, isAdmin: boolean, input: Creat
         if (!issue) throw new HttpError(404, "Issue not found");
     }
 
+    if (viewId) {
+        const view = await db.query.views.findFirst({ where: and(eq(views.id, viewId), eq(views.projectId, input.projectId), isNull(views.deletedAt)), columns: { shared: true, ownerId: true } });
+        if (!view || (!view.shared && view.ownerId !== userId)) throw new HttpError(404, "View not found");
+    }
+
     // Favoriting twice is a no-op that returns the existing favorite.
     const [inserted] = await db
         .insert(favorites)
-        .values({ userId, kind: input.kind, projectId: input.projectId, documentId, issueId })
+        .values({ userId, kind: input.kind, projectId: input.projectId, documentId, issueId, viewId })
         .onConflictDoUpdate({
-            target: [favorites.userId, favorites.kind, favorites.projectId, favorites.documentId, favorites.issueId],
+            target: [favorites.userId, favorites.kind, favorites.projectId, favorites.documentId, favorites.issueId, favorites.viewId],
             set: { deletedAt: null },
         })
         .returning({ id: favorites.id });
@@ -83,6 +93,7 @@ export async function addFavorite(userId: string, isAdmin: boolean, input: Creat
                     equals(table.projectId, input.projectId),
                     documentId ? equals(table.documentId, documentId) : isNull(table.documentId),
                     issueId ? equals(table.issueId, issueId) : isNull(table.issueId),
+                    viewId ? equals(table.viewId, viewId) : isNull(table.viewId),
                 ),
             columns: { id: true },
         }))?.id;

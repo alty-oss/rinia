@@ -117,7 +117,7 @@ export const ComboBox = ({
                         <BaseCombobox.Positioner className="z-50 outline-none" sideOffset={4}>
                             <BaseCombobox.Popup
                                 className={cx(
-                                    "shadow-lg min-w-(--anchor-width) overflow-hidden rounded-md bg-surface-1 p-1 ring-1 ring-secondary_alt outline-none",
+                                    "overlay-motion shadow-lg min-w-(--anchor-width) overflow-hidden rounded-md bg-surface-1 p-1 ring-1 ring-secondary_alt outline-none",
                                     popoverClassName,
                                 )}
                             >

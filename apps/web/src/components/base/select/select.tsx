@@ -135,9 +135,7 @@ const Select = ({
                         <BaseSelect.Positioner className="z-50 outline-none" sideOffset={4}>
                             <BaseSelect.Popup
                                 className={cx(
-                                    "shadow-lg min-w-(--anchor-width) origin-(--transform-origin) overflow-hidden rounded-md bg-surface-1 p-1 ring-1 ring-secondary_alt outline-none",
-                                    "data-[side=bottom]:animate-in data-[side=bottom]:fade-in data-[side=bottom]:slide-in-from-top-1",
-                                    "data-[side=top]:animate-in data-[side=top]:fade-in data-[side=top]:slide-in-from-bottom-1",
+                                    "overlay-motion shadow-lg min-w-(--anchor-width) overflow-hidden rounded-md bg-surface-1 p-1 ring-1 ring-secondary_alt outline-none",
                                     popoverClassName,
                                 )}
                             >
