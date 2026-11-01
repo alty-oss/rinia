@@ -10,6 +10,7 @@ import { publishChange } from "../realtime/realtime.service";
 
 const EMPTY_DOCUMENT = { type: "doc" as const, content: [] };
 const PERSON = { id: true, name: true, username: true, avatarUrl: true } as const;
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /** Loads an issue's labels with the names and colors the lists show. */
 const LABELS_WITH = { columns: { categoryId: true }, with: { category: { columns: { id: true, name: true, color: true } } } } as const;
@@ -87,6 +88,8 @@ async function findIssue(identifier: string) {
                   .where(and(eq(projectKeyAliases.key, parsed.key), eq(issues.number, parsed.number), isNull(issues.deletedAt)));
         identifier = match?.id ?? aliased?.id ?? identifier;
     }
+    // An identifier that matched no issue is not an id either; Postgres would reject it as a uuid.
+    if (!UUID.test(identifier)) return undefined;
 
     const issue = await db.query.issues.findFirst({
         where: and(eq(issues.id, identifier), isNull(issues.deletedAt)),

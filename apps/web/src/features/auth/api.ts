@@ -1,4 +1,4 @@
-import type { LoginInput, RegisterInput, UpdateLocaleInput, UpdateProfileInput } from "@rinia/shared";
+import type { CreateApiTokenInput, LoginInput, RegisterInput, UpdateLocaleInput, UpdateProfileInput } from "@rinia/shared";
 import { apiClient } from "@/lib/api-client";
 
 export interface AuthUser {
@@ -42,4 +42,29 @@ export async function updateProfile(input: UpdateProfileInput): Promise<AuthUser
 export async function updateLocale(locale: UpdateLocaleInput["locale"]): Promise<AuthUser> {
     const { user } = await apiClient.patch<{ user: AuthUser }>("/users/me/locale", { locale });
     return user;
+}
+
+export interface ApiToken {
+    id: string;
+    name: string;
+    /** The token's first characters, enough to tell tokens apart. */
+    prefix: string;
+    lastUsedAt: string | null;
+    createdAt: string;
+}
+
+export const API_TOKENS_QUERY_KEY = ["api-tokens"] as const;
+
+export async function fetchApiTokens(): Promise<ApiToken[]> {
+    const { tokens } = await apiClient.get<{ tokens: ApiToken[] }>("/api-tokens");
+    return tokens;
+}
+
+/** The full token is in `secret`, and this response is the only place it ever appears. */
+export function createApiToken(input: CreateApiTokenInput): Promise<{ token: ApiToken; secret: string }> {
+    return apiClient.post<{ token: ApiToken; secret: string }>("/api-tokens", input);
+}
+
+export function revokeApiToken(tokenId: string): Promise<void> {
+    return apiClient.delete<void>(`/api-tokens/${tokenId}`);
 }

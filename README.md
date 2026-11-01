@@ -76,6 +76,35 @@ Set these in `apps/api/.env`, or pass them to the container.
 | `SPECIAL_REGISTRATION_CODE` | Code required to create an account |
 | `ADMIN_USERNAMES` | Comma-separated admin usernames |
 | `PORT` | API port, default `3000` |
+| `APP_URL` | Public address of Rinia, used for links in MCP results. Defaults to the address each request came to |
+
+### Connect Claude Code (MCP)
+
+Rinia has an [MCP](https://modelcontextprotocol.io) server at `/api/mcp`, so Claude Code and other AI tools can read and change your projects. They act as you: they see the projects you are a member of and can do what you can do.
+
+1. In Rinia, open **Settings → Profile → API tokens**, give the token a name and create it. Copy it right away; it is shown only once.
+2. Add the server to Claude Code:
+
+   ```bash
+   claude mcp add --transport http rinia https://your-rinia-host/api/mcp --header "Authorization: Bearer rinia_..."
+   ```
+
+   For local development, use `http://localhost:3000/api/mcp`. Add `--scope user` to use Rinia from every folder.
+3. Ask in plain words, for example "lista minhas tarefas em andamento" or "comenta na RIN-4 que o deploy terminou".
+
+| Tool | What it does |
+| --- | --- |
+| `list_projects` | Projects with their key, states, labels and members |
+| `list_issues` | Issues, filtered by project, state, assignee (`me`), priority or label |
+| `get_issue` | One issue with its description, sub-issues, relations and comments |
+| `search` | Issues and pages that contain the words, or an issue by its identifier |
+| `get_document` | A page as Markdown |
+| `create_issue` | Creates an issue |
+| `update_issue` | Changes state, assignee, priority, labels, title, description, due date or parent |
+| `add_comment` | Comments on an issue, or replies to a comment |
+| `create_document` | Creates a page from Markdown |
+
+Results name issues by identifier (`RIN-4`) and link to them in Rinia. Revoking a token in the same settings page cuts off whatever uses it at once. The same token also works with the REST API as `Authorization: Bearer <token>`.
 
 ## ⚙️ Built with
 

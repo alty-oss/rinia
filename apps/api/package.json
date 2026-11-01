@@ -16,6 +16,7 @@
     "db:migrate:prod": "bun dist/migrate.js"
   },
   "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.32.2",
     "@rinia/shared": "workspace:*",
     "@tiptap/core": "3.31.3",
     "@tiptap/pm": "3.31.3",
