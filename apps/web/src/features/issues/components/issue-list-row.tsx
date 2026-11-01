@@ -5,6 +5,8 @@ import { Link } from "react-router";
 import { urls } from "@/lib/urls";
 import type { UpdateIssueInput } from "@rinia/shared";
 import type { Issue } from "@/features/issues/api";
+import { columnBucket } from "@/features/board/column-bucket";
+import { DueDateMenu } from "@/features/issues/components/due-date-picker";
 import { AssigneeMenu, PriorityMenu, StatusMenu, propertyIcon } from "@/features/issues/components/issue-property-menus";
 import { cx } from "@/utils/cx";
 import { useTranslation } from "react-i18next";
@@ -79,6 +81,7 @@ export function IssueListRow({
             >
                 {issue.title}
             </Link>
+            {issue.dueDate && <DueDateMenu value={issue.dueDate} closed={columnBucket(column?.name ?? "") === "closed"} onChange={(dueDate) => onUpdate({ dueDate })} />}
             <PriorityMenu value={issue.priority} onChange={(priority) => onUpdate({ priority })} className="opacity-0 group-hover/issue:opacity-100 focus-visible:opacity-100" />
             <AssigneeMenu value={member} people={members} onChange={(assigneeId) => onUpdate({ assigneeId })} />
             <span className="w-14 shrink-0 text-right text-xs text-tertiary">{date}</span>

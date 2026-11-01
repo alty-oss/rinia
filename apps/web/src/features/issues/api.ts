@@ -34,6 +34,8 @@ export interface Issue {
     position: number;
     parentIssueId: string | null;
     estimate: number | null;
+    /** `YYYY-MM-DD`, a calendar day with no time zone. */
+    dueDate: string | null;
     createdAt: string;
     updatedAt: string;
 }

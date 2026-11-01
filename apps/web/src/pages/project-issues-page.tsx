@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { DndContext, DragOverlay } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import type { Issue } from "@/features/issues/api";
-import type { IssueView } from "@rinia/shared";
+import type { IssueOrder, IssueView } from "@rinia/shared";
 import { AddOutline, ChevronDownOutline } from "@makeplane/propel/icons";
 import { Plus } from "lucide-react";
 import { useNavigate, useParams, useSearchParams } from "react-router";
@@ -28,12 +28,13 @@ import { listGroupKey, useListReorder, type ListGroupBy } from "@/features/issue
 import { issueViews } from "@/features/issues/views";
 import { useProjectMembers } from "@/features/projects/hooks/use-project-members";
 import { useCategories } from "@/features/categories/hooks/use-categories";
+import { matchesDueFilter } from "@/features/issues/lib/due-date";
 import { priorityLabelKey } from "@/features/issues/lib/priority";
 import { ApiError } from "@/lib/api-client";
 import { useTranslation } from "react-i18next";
 import { translateStatusName } from "@/i18n/status-label";
 
-type OrderBy = "position" | "priority" | "updated" | "number";
+type OrderBy = IssueOrder;
 type GroupBy = ListGroupBy;
 type Scope = "active" | "backlog" | "all";
 
@@ -50,6 +51,7 @@ export const ProjectIssuesPage = () => {
     const status = searchParams.get("status") ?? "";
     const assignee = searchParams.get("assignee") ?? "";
     const category = searchParams.get("label") ?? "";
+    const due = searchParams.get("due") ?? "";
     const scope = readScope(params.scope ?? null);
     const { view, setView } = useIssueView(projectId!);
     const { data: issues, isLoading, isError } = useIssues(projectId!, { orderBy });
@@ -76,16 +78,18 @@ export const ProjectIssuesPage = () => {
                 const textMatch = !search || `${issue.identifier} ${issue.title}`.toLowerCase().includes(search.toLowerCase());
                 const bucket = columnBucket(columnById.get(issue.columnId)?.name ?? "");
                 const scopeMatch = scope === "all" || bucket === scope;
+                const dueMatch = matchesDueFilter(issue.dueDate, due, bucket === "closed");
                 return (
                     textMatch &&
                     scopeMatch &&
+                    dueMatch &&
                     (!priority || issue.priority === priority) &&
                     (!status || issue.columnId === status) &&
                     (!assignee || issue.assigneeId === assignee) &&
                     (!category || issue.categoryId === category)
                 );
             }),
-        [assignee, category, columnById, issues, priority, scope, search, status],
+        [assignee, category, columnById, due, issues, priority, scope, search, status],
     );
     // In manual order the list sorts by position itself, so a moved issue lands in place before the server answers.
     const manualOrder = orderBy === "position";
@@ -163,7 +167,7 @@ export const ProjectIssuesPage = () => {
     function clearFilters() {
         setSearchParams(
             (current) => {
-                for (const key of ["q", "priority", "status", "assignee", "label", "group"]) current.delete(key);
+                for (const key of ["q", "priority", "status", "assignee", "label", "due", "group"]) current.delete(key);
                 return current;
             },
             { replace: true },
@@ -191,6 +195,8 @@ export const ProjectIssuesPage = () => {
             statusColumn && t("issue.conditionStatus", { value: statusName(statusColumn) }),
             assigneeName && t("issue.conditionAssignee", { value: assigneeName }),
             labelName && t("issue.conditionLabel", { value: labelName }),
+            due === "overdue" && t("issue.conditionDueOverdue"),
+            due === "thisWeek" && t("issue.conditionDueThisWeek"),
             search && t("issue.conditionSearch", { value: search }),
         ] as Array<string | false | undefined>).filter((condition): condition is string => !!condition);
         if (conditions.length > 0) {
@@ -467,7 +473,7 @@ function IssueListSkeleton() {
 }
 
 function readOrder(value: string | null): OrderBy {
-    return value === "number" || value === "priority" || value === "updated" ? value : "position";
+    return value === "number" || value === "priority" || value === "updated" || value === "due" ? value : "position";
 }
 
 function readGroup(value: string | null): GroupBy {

@@ -12,6 +12,16 @@ export const issuePriorityValues = ["none", "low", "medium", "high", "urgent"] a
 export type IssuePriority = (typeof issuePriorityValues)[number];
 export const issueRelationValues = ["blocks", "blocked_by", "related", "duplicate"] as const;
 export const issueEstimateValues = [1, 2, 3, 5, 8] as const;
+/** A calendar day, `YYYY-MM-DD`, with no time or zone: an issue is due on a day, wherever its people are. */
+export const dueDateSchema = z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, "Use a YYYY-MM-DD date")
+    .refine((value) => {
+        const date = new Date(`${value}T00:00:00Z`);
+        return !Number.isNaN(date.getTime()) && date.toISOString().startsWith(value);
+    }, "Use a real calendar date");
+export const issueOrderValues = ["position", "priority", "updated", "number", "due"] as const;
+export type IssueOrder = (typeof issueOrderValues)[number];
 const estimateSchema = z.number().int().refine((value) => issueEstimateValues.includes(value as (typeof issueEstimateValues)[number]), "Estimate must be 1, 2, 3, 5, or 8");
 
 export const createIssueSchema = z.object({
@@ -23,6 +33,7 @@ export const createIssueSchema = z.object({
     priority: z.enum(issuePriorityValues).default("none"),
     parentIssueId: z.string().uuid().nullable().optional(),
     estimate: estimateSchema.nullable().optional(),
+    dueDate: dueDateSchema.nullable().optional(),
 });
 export type CreateIssueInput = z.infer<typeof createIssueSchema>;
 
@@ -38,6 +49,7 @@ export const updateIssueSchema = z
         priority: z.enum(issuePriorityValues).optional(),
         parentIssueId: z.string().uuid().nullable().optional(),
         estimate: estimateSchema.nullable().optional(),
+        dueDate: dueDateSchema.nullable().optional(),
     })
     .strict()
     .superRefine((value, context) => {
@@ -56,7 +68,7 @@ export const issueListQuerySchema = z.object({
     assigneeId: z.string().uuid().optional(),
     categoryId: z.string().uuid().optional(),
     groupBy: z.enum(["status", "assignee"]).optional(),
-    orderBy: z.enum(["position", "priority", "updated", "number"]).default("position"),
+    orderBy: z.enum(issueOrderValues).default("position"),
 });
 export type IssueListQuery = z.infer<typeof issueListQuerySchema>;
 

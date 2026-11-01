@@ -1,4 +1,4 @@
-import type { CreateIssueCommentInput, CreateIssueInput, CreateIssueRelationInput, IssueListQuery, MyIssuesQuery, TiptapDocument, UpdateIssueCommentInput, UpdateIssueInput } from "@rinia/shared";
+import type { CreateIssueCommentInput, CreateIssueInput, CreateIssueRelationInput, IssueListQuery, IssueOrder, MyIssuesQuery, TiptapDocument, UpdateIssueCommentInput, UpdateIssueInput } from "@rinia/shared";
 import { and, asc, count, desc, eq, inArray, max, or, sql, type SQL } from "drizzle-orm";
 import { db } from "../../db";
 import { boardColumns, categories, issueActivities, issueComments, issueRelations, issues, issueSubscriptions, projectKeyAliases, projectMembers, projects, users } from "../../db/schema";
@@ -9,6 +9,15 @@ const EMPTY_DOCUMENT = { type: "doc" as const, content: [] };
 
 /** Most urgent first, issues without a priority last. The enum's own order runs low to high, so it cannot sort this. */
 const priorityRank = sql`case ${issues.priority} when 'urgent' then 0 when 'high' then 1 when 'medium' then 2 when 'low' then 3 else 4 end`;
+
+/** How a list sorts. Due dates run soonest first, with undated issues last. */
+function issueOrder(orderBy: IssueOrder) {
+    if (orderBy === "updated") return desc(issues.updatedAt);
+    if (orderBy === "number") return asc(issues.number);
+    if (orderBy === "priority") return asc(priorityRank);
+    if (orderBy === "due") return sql`${issues.dueDate} asc nulls last`;
+    return asc(issues.position);
+}
 
 function validateIssueImageUrls(document?: TiptapDocument) {
     if (!document) return;
@@ -137,9 +146,8 @@ export async function listIssues(projectId: string, query: IssueListQuery) {
     if (query.assigneeId) filters.push(eq(issues.assigneeId, query.assigneeId));
     if (query.categoryId) filters.push(eq(issues.categoryId, query.categoryId));
 
-    const order = query.orderBy === "updated" ? desc(issues.updatedAt) : query.orderBy === "number" ? asc(issues.number) : query.orderBy === "priority" ? asc(priorityRank) : asc(issues.position);
     // The number breaks ties, so issues that share a position (or a priority, for that order) keep a stable order.
-    const rows = await db.query.issues.findMany({ where: and(...filters), orderBy: [order, asc(issues.number)] });
+    const rows = await db.query.issues.findMany({ where: and(...filters), orderBy: [issueOrder(query.orderBy), asc(issues.number)] });
     const project = await db.query.projects.findFirst({ where: eq(projects.id, projectId), columns: { issueKey: true } });
     if (!project) throw new HttpError(404, "Project not found");
     return rows.map((issue) => ({ ...issue, identifier: `${project.issueKey}-${issue.number}` }));
@@ -159,10 +167,9 @@ export async function listMyIssues(userId: string, isAdmin: boolean, query: MyIs
     ];
     if (!isAdmin) filters.push(inArray(issues.projectId, db.select({ id: projectMembers.projectId }).from(projectMembers).where(eq(projectMembers.userId, userId))));
 
-    const order = query.orderBy === "number" ? asc(issues.number) : query.orderBy === "priority" ? asc(priorityRank) : query.orderBy === "position" ? asc(issues.position) : desc(issues.updatedAt);
     const rows = await db.query.issues.findMany({
         where: and(...filters),
-        orderBy: [order, asc(issues.number)],
+        orderBy: [issueOrder(query.orderBy), asc(issues.number)],
         limit: 500,
         with: {
             project: { columns: { id: true, name: true, issueKey: true, icon: true, iconAppearance: true } },
@@ -200,6 +207,7 @@ export async function createIssue(projectId: string, input: CreateIssueInput, ac
                 priority: input.priority,
                 parentIssueId: input.parentIssueId,
                 estimate: input.estimate,
+                dueDate: input.dueDate,
                 createdBy: actorId,
                 position: (last?.position ?? 0) + 1000,
             })
@@ -241,6 +249,7 @@ export async function updateIssue(identifier: string, input: UpdateIssueInput, a
         ["assigneeId", "assignee_changed"],
         ["categoryId", "category_changed"],
         ["estimate", "estimate_changed"],
+        ["dueDate", "due_date_changed"],
         ["parentIssueId", "parent_changed"],
     ] as const;
     for (const [field, type] of activityMap) {

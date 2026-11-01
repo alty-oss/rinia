@@ -10,6 +10,7 @@ export const issueActivityTypeEnum = pgEnum("issue_activity_type", [
     "category_changed",
     "cycle_changed",
     "estimate_changed",
+    "due_date_changed",
     "parent_changed",
     "relation_added",
     "relation_removed",

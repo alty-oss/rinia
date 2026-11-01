@@ -25,6 +25,10 @@ const issue = {
         addSubIssue: "Adicionar subtarefa", subIssueTitle: "Título da subtarefa", couldNotCreateSubIssue: "Não foi possível criar a subtarefa.",
         createdByOn: "Criada por {{name}} em {{date}}", labels: "Etiquetas",
         noPriority: "Sem prioridade", setPriorityAction: "Definir prioridade",
+        dueDate: "Data de entrega", setDueDate: "Definir data de entrega", dueDateAction: "Definir data de entrega", clearDueDate: "Limpar data", dueDateValue: "Entrega em {{date}}",
+        dueToday: "Hoje", dueTomorrow: "Amanhã", dueNextWeek: "Próxima semana", previousMonth: "Mês anterior", nextMonth: "Próximo mês",
+        overdue: "Atrasadas", dueThisWeek: "Vence esta semana", isOverdue: "Atrasada", isDueToday: "Vence hoje",
+        conditionDueOverdue: "data de entrega vencida", conditionDueThisWeek: "entrega nesta semana", changedDueDate: "mudou a data de entrega",
     } as const;
 
 export default issue;

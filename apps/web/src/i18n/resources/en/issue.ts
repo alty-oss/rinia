@@ -25,6 +25,10 @@ const issue = {
         addSubIssue: "Add sub-issue", subIssueTitle: "Sub-issue title", couldNotCreateSubIssue: "Could not create the sub-issue.",
         createdByOn: "Created by {{name}} on {{date}}", labels: "Labels",
         noPriority: "No priority", setPriorityAction: "Set priority",
+        dueDate: "Due date", setDueDate: "Set due date", dueDateAction: "Set due date", clearDueDate: "Clear due date", dueDateValue: "Due {{date}}",
+        dueToday: "Today", dueTomorrow: "Tomorrow", dueNextWeek: "Next week", previousMonth: "Previous month", nextMonth: "Next month",
+        overdue: "Overdue", dueThisWeek: "Due this week", isOverdue: "Overdue", isDueToday: "Due today",
+        conditionDueOverdue: "a past due date", conditionDueThisWeek: "a due date this week", changedDueDate: "changed the due date",
     } as const;
 
 export default issue;

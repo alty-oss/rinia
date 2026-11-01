@@ -1,8 +1,9 @@
 import { Popover } from "@base-ui/react/popover";
 import type { FC, ReactNode } from "react";
+import type { TFunction } from "i18next";
 import type { IssueView } from "@rinia/shared";
 import { AddOutline, AssigneeOutline, CloseOutline, DisplayOutline, FilterOutline, HistoryOutline, LabelsOutline, ListOutline, PriorityOutline, SearchOutline, StateOutline } from "@makeplane/propel/icons";
-import { Hash, Minus } from "lucide-react";
+import { CalendarClock, CalendarDays, CalendarX2, Hash, Minus } from "lucide-react";
 import { IssueAvatar, PriorityIcon, StateIcon } from "@/features/board/components/issue-property-icons";
 import { useSearchParams } from "react-router";
 import { Button } from "@/components/base/buttons/button";
@@ -17,6 +18,18 @@ import { readIssueOrder } from "../lib/issue-filters";
 import { useTranslation } from "react-i18next";
 import { PRIORITY_OPTIONS, priorityLabelKey } from "@/features/issues/lib/priority";
 import { translateStatusName } from "@/i18n/status-label";
+
+/** Late open issues, and those due between today and Saturday. Shared with lists that span projects. */
+export function dueFilter(t: TFunction): IssueFilter {
+    return {
+        key: "due",
+        label: t("issue.dueDate"),
+        items: [
+            { id: "overdue", name: t("issue.overdue"), icon: <CalendarX2 className="size-3.5 text-danger-primary" /> },
+            { id: "thisWeek", name: t("issue.dueThisWeek"), icon: <CalendarClock className="size-3.5 text-warning-primary" /> },
+        ],
+    };
+}
 
 export type IssueFilter = { key: string; label: string; items: Array<{ id: string; name: string; icon?: ReactNode; avatarUrl?: string | null }> };
 type DisplayOption = { id: string; label: string; icon: FC<{ className?: string }> };
@@ -65,6 +78,7 @@ export function IssueToolbar({
         { key: "priority", label: t("issue.priority"), items: PRIORITY_OPTIONS.map((id) => ({ id, name: t(priorityLabelKey(id)), icon: <PriorityIcon priority={id} /> })) },
         { key: "assignee", label: t("issue.assignee"), items: (members ?? []).map((member) => ({ id: member.id, name: member.name, avatarUrl: member.avatarUrl, icon: member.avatarUrl ? undefined : <IssueAvatar name={member.name} avatarUrl={member.avatarUrl} /> })) },
         { key: "label", label: t("issue.label"), items: (categories ?? []).map((item) => ({ id: item.id, name: item.name, icon: <LabelsOutline className="size-3.5" style={{ color: item.color ?? "#7a5af8" }} /> })) },
+        dueFilter(t),
     ];
     const count = filters.filter((filter) => query.get(filter.key)).length;
     const popup = cx("grid w-[min(320px,calc(100vw-32px))] gap-3", overlayChrome.popupPadded);
@@ -132,6 +146,7 @@ export function IssueToolbar({
                                             { id: "priority", label: t("issue.priority"), icon: PriorityOutline },
                                             { id: "updated", label: t("issue.recentlyUpdated"), icon: HistoryOutline },
                                             { id: "number", label: t("issue.issueNumber"), icon: Hash },
+                                            { id: "due", label: t("issue.dueDate"), icon: CalendarDays },
                                         ]}
                                     >
                                         {(item) => <Select.Item id={item.id} icon={item.icon}>{item.label}</Select.Item>}

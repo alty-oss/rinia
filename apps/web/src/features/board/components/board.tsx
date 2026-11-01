@@ -32,6 +32,7 @@ import { useColumns } from "../hooks/use-board";
 import { positionAtIndex } from "../position";
 import { Column } from "./column";
 import { HiddenColumns, useHiddenColumns } from "./hidden-columns";
+import { columnBucket } from "../column-bucket";
 import { IssueCardContent } from "./issue-card";
 import { useTranslation } from "react-i18next";
 
@@ -56,7 +57,8 @@ export const Board = ({ projectId, filters = new URLSearchParams() }: { projectI
     const { hidden, hideColumn, showColumn } = useHiddenColumns(projectId);
     const orderBy = readIssueOrder(filters.get("order"));
     const { data: issues, isLoading: issuesLoading, isError: issuesError } = useIssues(projectId, { orderBy });
-    const filtered = useMemo(() => filterIssues(issues ?? [], filters), [issues, filters]);
+    const closedColumnIds = useMemo(() => new Set((columns ?? []).filter((column) => columnBucket(column.name) === "closed").map((column) => column.id)), [columns]);
+    const filtered = useMemo(() => filterIssues(issues ?? [], filters, (issue) => closedColumnIds.has(issue.columnId)), [closedColumnIds, issues, filters]);
     const { data: categories } = useCategories(projectId);
     const { data: members } = useProjectMembers(projectId);
     const updateIssue = useUpdateIssue(projectId);
@@ -264,6 +266,7 @@ export const Board = ({ projectId, filters = new URLSearchParams() }: { projectI
                                 issue={activeIssue}
                                 category={activeCategory}
                                 assignee={activeAssignee}
+                                closed={closedColumnIds.has(activeIssue.columnId)}
                             />
                         </div>
                     )}

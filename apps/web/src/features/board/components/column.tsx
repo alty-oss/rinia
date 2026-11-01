@@ -13,6 +13,7 @@ import type { Issue, IssuePerson } from "@/features/issues/api";
 import { ApiError } from "@/lib/api-client";
 import { cx } from "@/utils/cx";
 import type { BoardColumn } from "../api";
+import { columnBucket } from "../column-bucket";
 import { useDeleteColumn, useUpdateColumn } from "../hooks/use-board";
 import { StateIcon } from "./issue-property-icons";
 import { IssueCard } from "./issue-card";
@@ -167,6 +168,7 @@ export const Column = ({ column, issues, projectId, categoriesById, membersById,
                             assignee={issue.assigneeId ? membersById.get(issue.assigneeId) : undefined}
                             people={people}
                             labels={labels}
+                            closed={columnBucket(column.name) === "closed"}
                             onUpdate={(input) => onUpdateIssue(issue.identifier, input)}
                             onClick={() => onOpenIssue(issue.identifier)}
                         />

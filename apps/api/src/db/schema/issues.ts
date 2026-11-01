@@ -1,4 +1,4 @@
-import { index, integer, jsonb, pgEnum, pgTable, real, text, timestamp, uuid, type AnyPgColumn } from "drizzle-orm/pg-core";
+import { date, index, integer, jsonb, pgEnum, pgTable, real, text, timestamp, uuid, type AnyPgColumn } from "drizzle-orm/pg-core";
 import { boardColumns } from "./board-columns";
 import { categories } from "./categories";
 import { projects } from "./projects";
@@ -34,6 +34,7 @@ export const issues = pgTable(
         position: real("position").notNull(),
         parentIssueId: uuid("parent_issue_id").references((): AnyPgColumn => issues.id, { onDelete: "restrict" }),
         estimate: integer("estimate"),
+        dueDate: date("due_date", { mode: "string" }),
         createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
         updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
     },

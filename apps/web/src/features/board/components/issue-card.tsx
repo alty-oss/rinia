@@ -5,6 +5,7 @@ import { useLocation } from "react-router";
 import type { UpdateIssueInput } from "@rinia/shared";
 import { ContextMenuButton } from "@/components/overlay/context-menu-provider";
 import type { Issue, IssuePerson } from "@/features/issues/api";
+import { DueDateMenu } from "@/features/issues/components/due-date-picker";
 import { AssigneeMenu, EstimateMenu, LabelMenu, PriorityMenu } from "@/features/issues/components/issue-property-menus";
 import { cx } from "@/utils/cx";
 
@@ -16,6 +17,8 @@ interface IssueCardContentProps {
     people?: IssuePerson[];
     labels?: Array<{ id: string; name: string; color: string | null }>;
     onUpdate?: (input: UpdateIssueInput) => void;
+    /** Whether the issue sits in a closed state, where a past due date is no longer late. */
+    closed?: boolean;
 }
 
 function firstIssueImage(document: Issue["descriptionJson"]): string | null {
@@ -52,12 +55,13 @@ const revealOnHover = "opacity-0 group-hover/card:opacity-100 group-focus-within
  * Shared with the drag overlay so picking up an issue preserves its geometry. The column already names the
  * status, so the card does not repeat it; each property is a 16px icon that opens a menu to change it.
  */
-export const IssueCardContent = ({ issue, category, assignee, people = [], labels = [], onUpdate = () => {} }: IssueCardContentProps) => {
+export const IssueCardContent = ({ issue, category, assignee, people = [], labels = [], onUpdate = () => {}, closed = false }: IssueCardContentProps) => {
     const imagePreview = firstIssueImage(issue.descriptionJson);
     const estimate = <EstimateMenu key="estimate" value={issue.estimate} onChange={(next) => onUpdate({ estimate: next })} className={issue.estimate == null ? revealOnHover : undefined} />;
     const label = <LabelMenu key="label" value={category && issue.categoryId ? { id: issue.categoryId, ...category } : undefined} labels={labels} onChange={(categoryId) => onUpdate({ categoryId })} className={category ? "min-w-0" : revealOnHover} />;
+    const due = <DueDateMenu key="due" value={issue.dueDate} closed={closed} onChange={(dueDate) => onUpdate({ dueDate })} className={issue.dueDate ? undefined : revealOnHover} />;
     // Set properties come first so the hidden, unset ones never leave a gap between visible icons.
-    const optional = [issue.estimate != null && estimate, category && label, issue.estimate == null && estimate, !category && label];
+    const optional = [issue.dueDate && due, issue.estimate != null && estimate, category && label, !issue.dueDate && due, issue.estimate == null && estimate, !category && label];
     return <>
         {imagePreview && <IssuePreviewImage key={imagePreview} src={imagePreview} />}
         <span className="block text-[11px] font-medium tracking-wide text-tertiary">{issue.identifier}</span>
@@ -75,7 +79,7 @@ interface IssueCardProps extends IssueCardContentProps {
     onClick: () => void;
 }
 
-export const IssueCard = ({ issue, category, assignee, people, labels, onUpdate, projectId, onClick }: IssueCardProps) => {
+export const IssueCard = ({ issue, category, assignee, people, labels, onUpdate, closed, projectId, onClick }: IssueCardProps) => {
     const { attributes, listeners, setActivatorNodeRef, setNodeRef, transform, transition, isDragging } = useSortable({ id: issue.id });
 
     const location = useLocation();
@@ -111,7 +115,7 @@ export const IssueCard = ({ issue, category, assignee, people, labels, onUpdate,
                     selected && "border-accent-strong",
                 )}
             >
-                <IssueCardContent issue={issue} category={category} assignee={assignee} people={people} labels={labels} onUpdate={onUpdate} />
+                <IssueCardContent issue={issue} category={category} assignee={assignee} people={people} labels={labels} onUpdate={onUpdate} closed={closed} />
             </div>
             <ContextMenuButton
                 entity={{ type: "issue", projectId, identifier: issue.identifier, title: issue.title }}

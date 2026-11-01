@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { ChevronDownOutline, ProjectsOutline, HistoryOutline, LabelsOutline, PriorityOutline, StateOutline } from "@makeplane/propel/icons";
-import { myIssuesFilterValues, type MyIssuesFilter } from "@rinia/shared";
-import { Hash, Minus } from "lucide-react";
+import { myIssuesFilterValues, type IssueOrder, type MyIssuesFilter } from "@rinia/shared";
+import { CalendarDays, Hash, Minus } from "lucide-react";
 import { useNavigate, useParams, useSearchParams } from "react-router";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/base/buttons/button";
@@ -16,8 +16,9 @@ import { IssueAvatar, PriorityIcon, StateIcon } from "@/features/board/component
 import { useColumns } from "@/features/board/hooks/use-board";
 import type { MyIssue } from "@/features/issues/api";
 import { IssueListRow } from "@/features/issues/components/issue-list-row";
-import { IssueToolbar, type IssueFilter } from "@/features/issues/components/issue-toolbar";
+import { IssueToolbar, dueFilter, type IssueFilter } from "@/features/issues/components/issue-toolbar";
 import { useMyIssues, useUpdateMyIssue } from "@/features/issues/hooks/use-issues";
+import { matchesDueFilter } from "@/features/issues/lib/due-date";
 import { PRIORITY_OPTIONS, priorityLabelKey } from "@/features/issues/lib/priority";
 import { ProjectIcon } from "@/features/projects/components/project-icon";
 import { useProjectMembers } from "@/features/projects/hooks/use-project-members";
@@ -25,7 +26,7 @@ import { translateStatusName } from "@/i18n/status-label";
 import { urls } from "@/lib/urls";
 import { cx } from "@/utils/cx";
 
-type OrderBy = "updated" | "priority" | "number";
+type OrderBy = Exclude<IssueOrder, "position">;
 type GroupBy = "status" | "project" | "none";
 
 /** States and labels belong to each project, so across projects the ones that share a name are filtered and grouped together. */
@@ -47,6 +48,7 @@ export const MyIssuesPage = () => {
     const assignee = searchParams.get("assignee") ?? "";
     const label = searchParams.get("label") ?? "";
     const project = searchParams.get("project") ?? "";
+    const due = searchParams.get("due") ?? "";
     const { data: issues, isLoading, isError } = useMyIssues({ filter, orderBy });
     const updateIssue = useUpdateMyIssue();
     const [selectedIssueId, setSelectedIssueId] = useState<string | null>(null);
@@ -62,9 +64,10 @@ export const MyIssuesPage = () => {
                     (!status || nameKey(issue.column.name) === status) &&
                     (!assignee || issue.assigneeId === assignee) &&
                     (!label || (issue.category && nameKey(issue.category.name) === label)) &&
-                    (!project || issue.projectId === project),
+                    (!project || issue.projectId === project) &&
+                    matchesDueFilter(issue.dueDate, due, columnBucket(issue.column.name) === "closed"),
             ),
-        [assignee, issues, label, priority, project, search, status],
+        [assignee, due, issues, label, priority, project, search, status],
     );
     const rows = usePresence(filtered, (issue) => issue.id);
     const identifierWidth = useMemo(() => Math.max(4, ...(issues ?? []).map((issue) => issue.identifier.length)), [issues]);
@@ -120,11 +123,12 @@ export const MyIssuesPage = () => {
         { key: "assignee", label: t("issue.assignee"), items: options.assignees.map((person) => ({ id: person.id, name: person.name, avatarUrl: person.avatarUrl, icon: person.avatarUrl ? undefined : <IssueAvatar name={person.name} avatarUrl={person.avatarUrl} /> })) },
         { key: "label", label: t("issue.label"), items: options.labels.map((item) => ({ id: nameKey(item.name), name: item.name, icon: <LabelsOutline className="size-3.5" style={{ color: item.color ?? "#7a5af8" }} /> })) },
         { key: "project", label: t("myIssues.project"), items: options.projects.map((item) => ({ id: item.id, name: item.name, icon: <ProjectIcon icon={item.iconAppearance ?? item.icon} className="size-3.5" /> })) },
+        dueFilter(t),
     ];
 
     function clearFilters() {
         setSearchParams((current) => {
-            for (const key of ["q", "priority", "status", "assignee", "label", "project"]) current.delete(key);
+            for (const key of ["q", "priority", "status", "assignee", "label", "project", "due"]) current.delete(key);
             return current;
         }, { replace: true });
     }
@@ -141,6 +145,7 @@ export const MyIssuesPage = () => {
             const value = searchParams.get(item.key);
             const name = value ? item.items.find((option) => option.id === value)?.name : undefined;
             if (!name) return [];
+            if (item.key === "due") return [value === "overdue" ? t("issue.conditionDueOverdue") : t("issue.conditionDueThisWeek")];
             const key = { status: "issue.conditionStatus", priority: "issue.conditionPriority", assignee: "issue.conditionAssignee", label: "issue.conditionLabel", project: "myIssues.conditionProject" }[item.key] as "issue.conditionStatus";
             return [t(key, { value: name })];
         });
@@ -177,6 +182,7 @@ export const MyIssuesPage = () => {
                             { id: "updated", label: t("issue.recentlyUpdated"), icon: HistoryOutline },
                             { id: "priority", label: t("issue.priority"), icon: PriorityOutline },
                             { id: "number", label: t("issue.issueNumber"), icon: Hash },
+                            { id: "due", label: t("issue.dueDate"), icon: CalendarDays },
                         ]}
                         groups={[
                             { id: "none", label: t("issue.noGrouping"), icon: Minus },
@@ -308,7 +314,7 @@ function readFilter(value: string | undefined): MyIssuesFilter {
 }
 
 function readOrder(value: string | null): OrderBy {
-    return value === "priority" || value === "number" ? value : "updated";
+    return value === "priority" || value === "number" || value === "due" ? value : "updated";
 }
 
 function readGroup(value: string | null): GroupBy {

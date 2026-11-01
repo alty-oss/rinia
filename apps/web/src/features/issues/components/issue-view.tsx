@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { EntityIcon, TiptapDocument, UpdateIssueInput } from "@rinia/shared";
-import { ArrowDown, ArrowUp, Ban, Check, ChevronRight, Copy, GitBranch, Link2, Pencil, Plus, ShieldOff, Sparkles, Trash2 } from "lucide-react";
+import { ArrowDown, ArrowUp, Ban, CalendarDays, Check, ChevronRight, Copy, GitBranch, Link2, Pencil, Plus, ShieldOff, Sparkles, Trash2 } from "lucide-react";
 import { Link, useBeforeUnload, useLocation, useNavigate, useParams } from "react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { useHotkeys } from "react-hotkeys-hook";
@@ -22,7 +22,8 @@ import { overlayChrome } from "@/components/overlay/overlay-chrome";
 import { useAuth } from "@/features/auth/hooks/use-auth";
 import { IssueAvatar, PriorityIcon, StateIcon } from "@/features/board/components/issue-property-icons";
 import { useColumns } from "@/features/board/hooks/use-board";
-import { defaultIssueColumn } from "@/features/board/column-bucket";
+import { columnBucket, defaultIssueColumn } from "@/features/board/column-bucket";
+import { dueState as getDueState, dueStateClass, formatDueDate } from "@/features/issues/lib/due-date";
 import { useCategories } from "@/features/categories/hooks/use-categories";
 import { FavoriteStar } from "@/features/favorites/components/favorite-star";
 import { FollowButton } from "@/features/notifications/components/follow-button";
@@ -55,6 +56,7 @@ import {
 import type { IssueDetail } from "../api";
 import { fetchIssueClipboardContent } from "../lib/issue-clipboard";
 import { issueDescriptionDrafts, issueDraftKey } from "../lib/issue-description-drafts";
+import { DueDatePopover } from "./due-date-picker";
 import { EMPTY_TIPTAP_DOCUMENT, RichTextEditor, type MentionItem } from "./rich-text-editor";
 import { useTranslation } from "react-i18next";
 import { translateStatusName } from "@/i18n/status-label";
@@ -65,7 +67,7 @@ const propertyButton =
 const menuItemClass = "flex h-8 w-full cursor-pointer items-center gap-2.5 rounded px-2 text-[13px] text-secondary outline-none data-highlighted:bg-layer-2-hover data-highlighted:text-primary";
 const popupMotion = "origin-[var(--transform-origin)] transition-[opacity,transform] duration-150 ease-out data-[ending-style]:scale-95 data-[ending-style]:opacity-0 data-[starting-style]:scale-95 data-[starting-style]:opacity-0";
 
-type PropertyMenuId = "state" | "priority" | "assignee" | "estimate" | "parent" | "label";
+type PropertyMenuId = "state" | "priority" | "assignee" | "estimate" | "due" | "parent" | "label";
 
 const activityLabelKeys: Record<string, TranslationKey> = {
     created: "issue.createdThisIssue",
@@ -75,6 +77,7 @@ const activityLabelKeys: Record<string, TranslationKey> = {
     category_changed: "issue.changedCategory",
     cycle_changed: "issue.changedCycle",
     estimate_changed: "issue.changedEstimate",
+    due_date_changed: "issue.changedDueDate",
     parent_changed: "issue.changedParent",
     relation_added: "issue.addedRelation",
     relation_removed: "issue.removedRelation",
@@ -120,6 +123,7 @@ export const IssueView = () => {
     useHotkeys("p", () => setOpenMenu("priority"), propertyHotkey);
     useHotkeys("a", () => setOpenMenu("assignee"), propertyHotkey);
     useHotkeys("l", () => setOpenMenu("label"), propertyHotkey);
+    useHotkeys("shift+d", () => setOpenMenu("due"), propertyHotkey);
 
     // Keep the URL canonical: an identifier from before a key change, a missing or stale title slug,
     // or a lowercase identifier all become `/issue/KEY-12/current-title`.
@@ -925,6 +929,7 @@ function IssueProperties({
     const menu = (id: PropertyMenuId) => ({ open: openMenu === id, onOpenChange: (open: boolean) => onOpenMenuChange(open ? id : null), disabled: isPending });
     const avatar = (person: { name: string; avatarUrl: string | null }) => <IssueAvatar name={person.name} avatarUrl={person.avatarUrl} className="size-4 text-[9px]" />;
     const created = new Intl.DateTimeFormat(i18n.language, { dateStyle: "medium" }).format(new Date(issue.createdAt));
+    const dueState = getDueState(issue.dueDate, columnBucket(column?.name ?? "") === "closed");
 
     return (
         <div className="flex flex-col gap-6">
@@ -976,6 +981,20 @@ function IssueProperties({
                     <PropertyIcon><EstimateOutline className="size-3.5 text-tertiary" /></PropertyIcon>
                     <span className={cx("truncate", issue.estimate == null && "text-tertiary")}>{issue.estimate != null ? t("projects.points", { count: issue.estimate }) : t("issue.estimateAction")}</span>
                 </PropertyMenu>
+                <DueDatePopover
+                    {...menu("due")}
+                    value={issue.dueDate}
+                    onChange={(dueDate) => save({ dueDate })}
+                    triggerLabel={t("issue.dueDate")}
+                    triggerClassName={propertyButton}
+                >
+                    <PropertyIcon><CalendarDays className={cx("size-3.5", dueState ? dueStateClass[dueState] : "text-tertiary")} /></PropertyIcon>
+                    <span className={cx("truncate", !issue.dueDate ? "text-tertiary" : dueState !== "upcoming" && dueState ? dueStateClass[dueState] : undefined)}>
+                        {issue.dueDate ? formatDueDate(issue.dueDate, i18n.language) : t("issue.dueDateAction")}
+                    </span>
+                    {dueState === "overdue" && <span className="ml-auto shrink-0 text-[11px] text-danger-primary">{t("issue.isOverdue")}</span>}
+                    {dueState === "today" && <span className="ml-auto shrink-0 text-[11px] text-warning-primary">{t("issue.isDueToday")}</span>}
+                </DueDatePopover>
                 <PropertyMenu
                     {...menu("parent")}
                     label={t("issue.parent")}
@@ -1319,7 +1338,7 @@ function TimelineActivity({ entry, lookups }: { entry: ActivityEntry; lookups: T
             </span>
             <p className="min-w-0 flex-1">
                 <span className="font-medium text-secondary">{entry.actor.name}</span> {activityLabelKeys[entry.type] ? t(activityLabelKeys[entry.type]) : entry.type}
-                {formatActivityChange(entry.payload, { ...lookups, columns: lookups.columns.map((column) => ({ ...column, name: translateStatusName(column.name, t) })) }, t("issue.noneValue"))}
+                {formatActivityChange(entry.payload, { ...lookups, columns: lookups.columns.map((column) => ({ ...column, name: translateStatusName(column.name, t) })) }, t("issue.noneValue"), i18n.language)}
                 <span className="text-placeholder"> · </span>
                 <time className="text-placeholder" title={formatFullIssueDate(entry.createdAt, i18n.language)} dateTime={entry.createdAt}>{formatDistanceToNow(entry.createdAt, i18n.language)}</time>
             </p>
@@ -1418,11 +1437,12 @@ function formatActivityChange(payload: Record<string, unknown>, lookups: {
     members: Array<{ id: string; name: string }>;
     categories: Array<{ id: string; name: string }>;
     projectIssues: Array<{ id: string; identifier: string; title: string }>;
-}, noneLabel: string) {
+}, noneLabel: string, locale: string) {
     if (!("from" in payload) && !("to" in payload)) return "";
     const field = String(payload.field ?? "");
     const resolve = (value: unknown) => {
         if (value === null || value === undefined || value === "") return noneLabel;
+        if (field === "dueDate") return formatDueDate(String(value), locale);
         const options = field === "columnId" ? lookups.columns : field === "assigneeId" ? lookups.members : field === "categoryId" ? lookups.categories : field === "parentIssueId" ? lookups.projectIssues : [];
         const match = options.find((option) => option.id === value);
         if (match && "identifier" in match) return match.identifier;
