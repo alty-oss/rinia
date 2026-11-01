@@ -420,3 +420,7 @@ html[data-theme*="dark"] {
 .tiptap-editor.issue-comment-composer { min-height: 0; }
 .issue-comment-composer .ProseMirror { min-height: 2.5rem; padding: 0.75rem 1rem 0.25rem; font-size: 14px; }
 .issue-comment-body .ProseMirror { min-height: 0; padding: 0; font-size: 14px; }
+/* The reply box sits on one line next to the avatar until there is more to say. */
+.tiptap-editor.issue-reply-composer { min-height: 0; }
+.issue-reply-composer .ProseMirror { min-height: 1.75rem; padding: 0.25rem 0; font-size: 14px; }
+.issue-reply-composer .ProseMirror:focus-visible { outline: none; }

@@ -11,6 +11,7 @@ const nav = {
         favorite: "Favorite",
         searchSettings: "Search settings", yourProjects: "Your projects", administration: "Administration", noSettingsFound: "No settings found.",
         resizeDrag: "Drag", resizeDragHint: "to resize",
+        inbox: "Inbox", myIssues: "My issues", unreadInbox: "Unread notifications",
         favorites: "Favorites", addFavorite: "Add to favorites", removeFavorite: "Remove from favorites",
     } as const;
 

@@ -1,4 +1,4 @@
-import type { IssuePriority, IssueView } from "@rinia/shared";
+import type { BulkIssuePatch, EntityIcon, IssuePriority, IssueView, MyIssuesQuery } from "@rinia/shared";
 import type {
     CreateIssueCommentInput,
     CreateIssueInput,
@@ -10,6 +10,12 @@ import type {
     UpdateViewPreferenceInput,
 } from "@rinia/shared";
 import { apiClient } from "@/lib/api-client";
+
+export interface IssueLabel {
+    id: string;
+    name: string;
+    color: string | null;
+}
 
 export interface IssuePerson {
     id: string;
@@ -28,12 +34,17 @@ export interface Issue {
     descriptionJson: TiptapDocument;
     descriptionRevision: number;
     assigneeId: string | null;
-    categoryId: string | null;
+    /** The issue's labels, in the order they were added. */
+    categoryIds: string[];
+    /** The labels with names and colors, sorted by name. Edits update `categoryIds` first; lists resolve names from it. */
+    categories?: IssueLabel[];
     priority: IssuePriority;
     createdBy: string;
     position: number;
     parentIssueId: string | null;
     estimate: number | null;
+    /** `YYYY-MM-DD`, a calendar day with no time zone. */
+    dueDate: string | null;
     createdAt: string;
     updatedAt: string;
 }
@@ -42,17 +53,40 @@ export type IssueDetail = Omit<Issue, "createdBy"> & {
     project: { id: string; name: string; issueKey: string };
     assignee: IssuePerson | null;
     createdBy: IssuePerson;
-    category: { id: string; name: string; color: string | null } | null;
+    categories: IssueLabel[];
     column: { id: string; name: string };
     parent: { id: string; number: number; title: string } | null;
     children: Array<{ id: string; number: number; title: string; columnId: string; priority: Issue["priority"] }>;
 };
 
+/** Everyone who reacted to a comment with one emoji. */
+export interface ReactionGroup {
+    emoji: string;
+    users: IssuePerson[];
+}
+
 export interface IssueComment {
     id: string;
     issueId: string;
     authorId: string;
+    /** The comment whose thread this reply is in, or null for a comment that opens a thread. */
+    parentCommentId: string | null;
     contentJson: TiptapDocument;
+    createdAt: string;
+    updatedAt: string;
+    author: IssuePerson;
+    reactions: ReactionGroup[];
+}
+
+/** A saved version of an issue's description. */
+export interface DescriptionRevision {
+    id: string;
+    issueId: string;
+    revision: number;
+    authorId: string;
+    contentJson: TiptapDocument;
+    /** Set when this version brought back an older one. */
+    restoredFromId: string | null;
     createdAt: string;
     updatedAt: string;
     author: IssuePerson;
@@ -82,12 +116,32 @@ function queryString(query: IssueListQuery) {
     return params.toString() ? `?${params.toString()}` : "";
 }
 
+/** An issue listed outside its project, carrying the project, state, label, and assignee it shows with. */
+export type MyIssue = Issue & {
+    project: { id: string; name: string; issueKey: string; icon: string | null; iconAppearance: EntityIcon | null };
+    column: { id: string; name: string; color: string | null; position: number };
+    categories: IssueLabel[];
+    assignee: IssuePerson | null;
+};
+
+export function listMyIssues(query: MyIssuesQuery): Promise<MyIssue[]> {
+    return apiClient.get<{ issues: MyIssue[] }>(`/my-issues?${new URLSearchParams(query).toString()}`).then((res) => res.issues);
+}
+
 export function listIssues(projectId: string, query: IssueListQuery = { orderBy: "position" }): Promise<Issue[]> {
     return apiClient.get<{ issues: Issue[] }>(`/projects/${projectId}/issues${queryString(query)}`).then((res) => res.issues);
 }
 
 export function createIssue(projectId: string, input: CreateIssueInput): Promise<Issue> {
     return apiClient.post<{ issue: Issue }>(`/projects/${projectId}/issues`, input).then((res) => res.issue);
+}
+
+export function bulkUpdateIssues(projectId: string, issueIds: string[], patch: BulkIssuePatch): Promise<Issue[]> {
+    return apiClient.patch<{ issues: Issue[] }>(`/projects/${projectId}/issues/bulk`, { issueIds, patch }).then((res) => res.issues);
+}
+
+export function bulkDeleteIssues(projectId: string, issueIds: string[]): Promise<void> {
+    return apiClient.post<void>(`/projects/${projectId}/issues/bulk-delete`, { issueIds });
 }
 
 export function getIssue(identifier: string): Promise<IssueDetail> {
@@ -116,6 +170,22 @@ export function updateIssueComment(commentId: string, input: UpdateIssueCommentI
 
 export function deleteIssueComment(commentId: string): Promise<void> {
     return apiClient.delete<void>(`/comments/${commentId}`);
+}
+
+export function addCommentReaction(commentId: string, emoji: string): Promise<ReactionGroup[]> {
+    return apiClient.post<{ reactions: ReactionGroup[] }>(`/comments/${commentId}/reactions`, { emoji }).then((res) => res.reactions);
+}
+
+export function removeCommentReaction(commentId: string, emoji: string): Promise<ReactionGroup[]> {
+    return apiClient.delete<{ reactions: ReactionGroup[] }>(`/comments/${commentId}/reactions/${encodeURIComponent(emoji)}`).then((res) => res.reactions);
+}
+
+export function listDescriptionRevisions(identifier: string): Promise<DescriptionRevision[]> {
+    return apiClient.get<{ revisions: DescriptionRevision[] }>(`/issues/${encodeURIComponent(identifier)}/description-revisions`).then((res) => res.revisions);
+}
+
+export function restoreDescriptionRevision(identifier: string, revisionId: string): Promise<Issue> {
+    return apiClient.post<{ issue: Issue }>(`/issues/${encodeURIComponent(identifier)}/description-revisions/${revisionId}/restore`).then((res) => res.issue);
 }
 
 export function listIssueActivity(identifier: string): Promise<IssueActivity[]> {

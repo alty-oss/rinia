@@ -1,6 +1,5 @@
-import { index, integer, jsonb, pgEnum, pgTable, real, text, timestamp, uuid, type AnyPgColumn } from "drizzle-orm/pg-core";
+import { date, index, integer, jsonb, pgEnum, pgTable, real, text, timestamp, uuid, type AnyPgColumn } from "drizzle-orm/pg-core";
 import { boardColumns } from "./board-columns";
-import { categories } from "./categories";
 import { projects } from "./projects";
 import { users } from "./users";
 
@@ -26,7 +25,6 @@ export const issues = pgTable(
         descriptionJson: jsonb("description_json").$type<TiptapDocument>().notNull(),
         descriptionRevision: integer("description_revision").notNull().default(0),
         assigneeId: uuid("assignee_id").references(() => users.id, { onDelete: "set null" }),
-        categoryId: uuid("category_id").references(() => categories.id, { onDelete: "set null" }),
         priority: issuePriorityEnum("priority").notNull().default("medium"),
         createdBy: uuid("created_by")
             .notNull()
@@ -34,6 +32,7 @@ export const issues = pgTable(
         position: real("position").notNull(),
         parentIssueId: uuid("parent_issue_id").references((): AnyPgColumn => issues.id, { onDelete: "restrict" }),
         estimate: integer("estimate"),
+        dueDate: date("due_date", { mode: "string" }),
         createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
         updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
     },
@@ -41,7 +40,6 @@ export const issues = pgTable(
         index("issues_project_id_idx").on(table.projectId),
         index("issues_column_id_idx").on(table.columnId),
         index("issues_assignee_id_idx").on(table.assigneeId),
-        index("issues_category_id_idx").on(table.categoryId),
         index("issues_parent_issue_id_idx").on(table.parentIssueId),
     ],
 );

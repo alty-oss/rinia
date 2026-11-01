@@ -61,7 +61,7 @@ function buildIssueClipboardContent({
         `- **${t("issue.status")}:** ${issue.column.name}`,
         `- **${t("issue.priority")}:** ${t(priorityLabelKey(issue.priority))}`,
         `- **${t("issue.assignee")}:** ${issue.assignee?.name ?? t("issue.unassigned")}`,
-        `- **${t("issue.category")}:** ${issue.category?.name ?? t("issue.noneValue")}`,
+        `- **${t("issue.labels")}:** ${issue.categories.length ? issue.categories.map((category) => category.name).join(", ") : t("issue.noneValue")}`,
         `- **${t("issue.estimate")}:** ${issue.estimate ?? t("issue.noneValue")}`,
         `- **${t("issue.createdBy")}:** ${issue.createdBy.name}`,
         `- **${t("issue.created")}:** ${formatDate(issue.createdAt, locale)}`,

@@ -5,17 +5,21 @@ import { useLocation } from "react-router";
 import type { UpdateIssueInput } from "@rinia/shared";
 import { ContextMenuButton } from "@/components/overlay/context-menu-provider";
 import type { Issue, IssuePerson } from "@/features/issues/api";
+import { DueDateMenu } from "@/features/issues/components/due-date-picker";
 import { AssigneeMenu, EstimateMenu, LabelMenu, PriorityMenu } from "@/features/issues/components/issue-property-menus";
 import { cx } from "@/utils/cx";
+import { IssueCheckbox, useIssueSelection } from "@/features/issues/selection";
 
 interface IssueCardContentProps {
     issue: Issue;
-    category?: { name: string; color: string | null };
+    categories?: Array<{ id: string; name: string; color: string | null }>;
     assignee?: IssuePerson;
     /** Choices for the property menus. The drag overlay leaves them out: its copy of the card is never clicked. */
     people?: IssuePerson[];
     labels?: Array<{ id: string; name: string; color: string | null }>;
     onUpdate?: (input: UpdateIssueInput) => void;
+    /** Whether the issue sits in a closed state, where a past due date is no longer late. */
+    closed?: boolean;
 }
 
 function firstIssueImage(document: Issue["descriptionJson"]): string | null {
@@ -52,12 +56,14 @@ const revealOnHover = "opacity-0 group-hover/card:opacity-100 group-focus-within
  * Shared with the drag overlay so picking up an issue preserves its geometry. The column already names the
  * status, so the card does not repeat it; each property is a 16px icon that opens a menu to change it.
  */
-export const IssueCardContent = ({ issue, category, assignee, people = [], labels = [], onUpdate = () => {} }: IssueCardContentProps) => {
+export const IssueCardContent = ({ issue, categories = [], assignee, people = [], labels = [], onUpdate = () => {}, closed = false }: IssueCardContentProps) => {
     const imagePreview = firstIssueImage(issue.descriptionJson);
     const estimate = <EstimateMenu key="estimate" value={issue.estimate} onChange={(next) => onUpdate({ estimate: next })} className={issue.estimate == null ? revealOnHover : undefined} />;
-    const label = <LabelMenu key="label" value={category && issue.categoryId ? { id: issue.categoryId, ...category } : undefined} labels={labels} onChange={(categoryId) => onUpdate({ categoryId })} className={category ? "min-w-0" : revealOnHover} />;
+    const labeled = categories.length > 0;
+    const label = <LabelMenu key="label" value={categories} labels={labels} onChange={(categoryIds) => onUpdate({ categoryIds })} className={labeled ? "min-w-0" : revealOnHover} />;
+    const due = <DueDateMenu key="due" value={issue.dueDate} closed={closed} onChange={(dueDate) => onUpdate({ dueDate })} className={issue.dueDate ? undefined : revealOnHover} />;
     // Set properties come first so the hidden, unset ones never leave a gap between visible icons.
-    const optional = [issue.estimate != null && estimate, category && label, issue.estimate == null && estimate, !category && label];
+    const optional = [issue.dueDate && due, issue.estimate != null && estimate, labeled && label, !issue.dueDate && due, issue.estimate == null && estimate, !labeled && label];
     return <>
         {imagePreview && <IssuePreviewImage key={imagePreview} src={imagePreview} />}
         <span className="block text-[11px] font-medium tracking-wide text-tertiary">{issue.identifier}</span>
@@ -75,12 +81,14 @@ interface IssueCardProps extends IssueCardContentProps {
     onClick: () => void;
 }
 
-export const IssueCard = ({ issue, category, assignee, people, labels, onUpdate, projectId, onClick }: IssueCardProps) => {
+export const IssueCard = ({ issue, categories, assignee, people, labels, onUpdate, closed, projectId, onClick }: IssueCardProps) => {
     const { attributes, listeners, setActivatorNodeRef, setNodeRef, transform, transition, isDragging } = useSortable({ id: issue.id });
 
     const location = useLocation();
     const selected = location.pathname.endsWith(`/issues/${issue.identifier}`);
     const style = { transform: CSS.Transform.toString(transform), transition };
+    const selection = useIssueSelection();
+    const checked = selection?.isSelected(issue.id) ?? false;
 
     return (
         <div
@@ -88,6 +96,7 @@ export const IssueCard = ({ issue, category, assignee, people, labels, onUpdate,
             style={style}
             data-issue-id={issue.id}
             className={cx("group/card relative", isDragging && "z-10 opacity-40")}
+            onMouseEnter={() => selection?.setFocused(issue.id)}
         >
             {/* A div rather than a button: the property menus inside it are buttons themselves. */}
             <div
@@ -99,7 +108,12 @@ export const IssueCard = ({ issue, category, assignee, people, labels, onUpdate,
                 data-issue-identifier={issue.identifier}
                 data-issue-title={issue.title}
                 data-peek-selected={selected || undefined}
-                onClick={onClick}
+                onClick={(event) => {
+                    // Shift-click selects a range of cards instead of opening this one.
+                    if (selection && event.shiftKey) selection.toggle(issue.id, { range: true });
+                    else onClick();
+                }}
+                onFocus={() => selection?.setFocused(issue.id)}
                 onKeyDown={(event) => {
                     if (event.key === "Enter") {
                         event.preventDefault();
@@ -109,10 +123,12 @@ export const IssueCard = ({ issue, category, assignee, people, labels, onUpdate,
                 className={cx(
                     "block w-full cursor-pointer touch-none rounded-md border border-subtle bg-surface-1 px-3 py-2.5 pr-9 text-left outline-none transition-colors duration-200 ease-out hover:border-strong focus-visible:ring-2 focus-visible:ring-accent-strong md:pr-3",
                     selected && "border-accent-strong",
+                    checked && "border-accent-strong bg-accent-subtle/40",
                 )}
             >
-                <IssueCardContent issue={issue} category={category} assignee={assignee} people={people} labels={labels} onUpdate={onUpdate} />
+                <IssueCardContent issue={issue} categories={categories} assignee={assignee} people={people} labels={labels} onUpdate={onUpdate} closed={closed} />
             </div>
+            <IssueCheckbox issueId={issue.id} className="absolute top-2 right-9 z-10 bg-surface-1 group-hover/card:opacity-100" />
             <ContextMenuButton
                 entity={{ type: "issue", projectId, identifier: issue.identifier, title: issue.title }}
                 className="absolute top-1.5 right-1.5 z-10 rounded-md bg-layer-2"

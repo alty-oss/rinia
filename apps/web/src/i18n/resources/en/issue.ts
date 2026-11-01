@@ -25,6 +25,21 @@ const issue = {
         addSubIssue: "Add sub-issue", subIssueTitle: "Sub-issue title", couldNotCreateSubIssue: "Could not create the sub-issue.",
         createdByOn: "Created by {{name}} on {{date}}", labels: "Labels",
         noPriority: "No priority", setPriorityAction: "Set priority",
+        dueDate: "Due date", setDueDate: "Set due date", dueDateAction: "Set due date", clearDueDate: "Clear due date", dueDateValue: "Due {{date}}",
+        dueToday: "Today", dueTomorrow: "Tomorrow", dueNextWeek: "Next week", previousMonth: "Previous month", nextMonth: "Next month",
+        overdue: "Overdue", dueThisWeek: "Due this week", isOverdue: "Overdue", isDueToday: "Due today",
+        addReaction: "Add reaction", moreEmoji: "More emoji", reactedWith: "{{names}} reacted with {{emoji}}", reactedWithMany: "{{names}} reacted with {{emoji}}", reactionYou: "You", removeYourReaction: "Click to remove yours",
+        descriptionHistory: "Description history", noDescriptionHistory: "No versions yet", noDescriptionHistoryHint: "A version is saved each time the description changes. Edits made within a few minutes of each other count as one.",
+        currentVersion: "Current", restoreVersion: "Restore this version", restoredFromVersion: "Restored the version from {{date}}", emptyVersion: "The description was empty in this version.",
+        couldNotLoadHistory: "Could not load the description history.", couldNotRestoreVersion: "Could not restore this version.", versionRestored: "Version restored",
+        addedLabel: "added the label", removedLabel: "removed the label",
+        selectIssue: "Select issue", selectedOne: "1 selected", selectedMany: "{{count}} selected", bulkActions: "Actions for the selected issues", clearSelection: "Clear selection",
+        updatedOne: "1 issue updated", updatedMany: "{{count}} issues updated", deletedOne: "1 issue deleted", deletedMany: "{{count}} issues deleted",
+        undo: "Undo", changesUndone: "Changes undone", couldNotUndo: "Could not undo the changes.", couldNotUpdateSelected: "Could not update the selected issues.", couldNotDeleteSelected: "Could not delete the selected issues.",
+        deleteSelectedOne: "Delete 1 issue?", deleteSelectedMany: "Delete {{count}} issues?", deleteSelectedDescription: "They are removed with their comments and history. This cannot be undone.", deleteAction: "Delete",
+        leaveReply: "Leave a reply…", replyAction: "Reply", couldNotAddReply: "Could not add the reply.",
+        deleteThreadTitle: "Delete this comment and its replies?", deleteThreadDescription: "The {{count}} replies in this thread are deleted with it.", deleteThreadDescriptionOne: "The reply in this thread is deleted with it.",
+        conditionDueOverdue: "a past due date", conditionDueThisWeek: "a due date this week", changedDueDate: "changed the due date",
     } as const;
 
 export default issue;

@@ -141,6 +141,41 @@
       "when": 1790011000000,
       "tag": "0019_distinct_issue_positions",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1790012000000,
+      "tag": "0020_notifications",
+      "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1790013000000,
+      "tag": "0021_issue_due_date",
+      "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1790014000000,
+      "tag": "0022_reactions_and_description_history",
+      "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1790015000000,
+      "tag": "0023_issue_labels",
+      "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1790016000000,
+      "tag": "0024_comment_replies",
+      "breakpoints": true
     }
   ]
 }

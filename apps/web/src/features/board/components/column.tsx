@@ -13,6 +13,8 @@ import type { Issue, IssuePerson } from "@/features/issues/api";
 import { ApiError } from "@/lib/api-client";
 import { cx } from "@/utils/cx";
 import type { BoardColumn } from "../api";
+import { resolveLabels } from "@/features/issues/components/labels-picker";
+import { columnBucket } from "../column-bucket";
 import { useDeleteColumn, useUpdateColumn } from "../hooks/use-board";
 import { StateIcon } from "./issue-property-icons";
 import { IssueCard } from "./issue-card";
@@ -25,7 +27,7 @@ interface ColumnProps {
     column: BoardColumn;
     issues: Issue[];
     projectId: string;
-    categoriesById: Map<string, { name: string; color: string | null }>;
+    categoriesById: Map<string, { id: string; name: string; color: string | null }>;
     membersById: Map<string, IssuePerson>;
     people: IssuePerson[];
     labels: Array<{ id: string; name: string; color: string | null }>;
@@ -163,10 +165,11 @@ export const Column = ({ column, issues, projectId, categoriesById, membersById,
                             key={issue.id}
                             issue={issue}
                             projectId={projectId}
-                            category={issue.categoryId ? categoriesById.get(issue.categoryId) : undefined}
+                            categories={resolveLabels(issue.categoryIds, categoriesById)}
                             assignee={issue.assigneeId ? membersById.get(issue.assigneeId) : undefined}
                             people={people}
                             labels={labels}
+                            closed={columnBucket(column.name) === "closed"}
                             onUpdate={(input) => onUpdateIssue(issue.identifier, input)}
                             onClick={() => onOpenIssue(issue.identifier)}
                         />

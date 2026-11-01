@@ -8,6 +8,7 @@ import { IssueAvatar, PriorityIcon, StateIcon } from "@/features/board/component
 import { PRIORITY_OPTIONS, priorityLabelKey } from "@/features/issues/lib/priority";
 import { translateStatusName } from "@/i18n/status-label";
 import { cx } from "@/utils/cx";
+import { LabelChip, LabelsPicker, useLabelToggle } from "./labels-picker";
 
 /** Every property icon on issue rows and cards (status, priority, assignee, label, estimate) is this 16px square. */
 export const propertyIcon = "size-4";
@@ -102,21 +103,28 @@ export function AssigneeMenu({ value, people, onChange, className }: { value?: P
     );
 }
 
-/** Shows the label's name next to its icon when one is set; an unlabeled issue shows a faint icon to add one. */
-export function LabelMenu({ value, labels, onChange, className }: { value?: Label; labels: Label[]; onChange: (categoryId: string | null) => void; className?: string }) {
+/** How many label chips a row or card shows before folding the rest into "+N". */
+const VISIBLE_LABELS = 2;
+
+/** Shows the issue's labels as chips; an unlabeled issue shows a faint icon to add some. Opens the multi-select picker. */
+export function LabelMenu({ value, labels, onChange, className }: { value: Label[]; labels: Label[]; onChange: (categoryIds: string[]) => void; className?: string }) {
     const { t } = useTranslation();
+    const editor = useLabelToggle(value.map((label) => label.id), onChange);
+    const hidden = value.length - VISIBLE_LABELS;
     return (
-        <PropertyMenu
-            label={t("issue.label")}
-            triggerLabel={value?.name ?? t("issue.addLabel")}
-            className={cx(value && "max-w-full px-1 text-[11px] text-secondary", className)}
-            trigger={value ? <><LabelIcon color={value.color} /><span className="truncate">{value.name}</span></> : <LabelIcon muted />}
+        <LabelsPicker
+            labels={labels}
+            state={editor.state}
+            onToggle={editor.toggle}
+            onClose={editor.reset}
+            stopPropagation
+            triggerLabel={value.length ? value.map((label) => label.name).join(", ") : t("issue.addLabel")}
+            triggerClassName={cx("flex h-5 min-w-0 shrink items-center gap-1 rounded outline-none hover:bg-layer-1-hover focus-visible:ring-2 focus-visible:ring-accent-strong data-[popup-open]:bg-layer-1-hover", className)}
         >
-            <Item icon={<LabelIcon muted />} label={t("issue.noLabel")} onClick={() => onChange(null)} />
-            {labels.map((label) => (
-                <Item key={label.id} icon={<LabelIcon color={label.color} />} label={label.name} onClick={() => onChange(label.id)} />
-            ))}
-        </PropertyMenu>
+            {value.length === 0 && <LabelIcon muted />}
+            {value.slice(0, VISIBLE_LABELS).map((label) => <LabelChip key={label.id} label={label} className="max-w-28" />)}
+            {hidden > 0 && <span className="shrink-0 px-0.5 text-[11px] text-tertiary">+{hidden}</span>}
+        </LabelsPicker>
     );
 }
 

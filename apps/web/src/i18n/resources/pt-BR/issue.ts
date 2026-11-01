@@ -25,6 +25,21 @@ const issue = {
         addSubIssue: "Adicionar subtarefa", subIssueTitle: "Título da subtarefa", couldNotCreateSubIssue: "Não foi possível criar a subtarefa.",
         createdByOn: "Criada por {{name}} em {{date}}", labels: "Etiquetas",
         noPriority: "Sem prioridade", setPriorityAction: "Definir prioridade",
+        dueDate: "Data de entrega", setDueDate: "Definir data de entrega", dueDateAction: "Definir data de entrega", clearDueDate: "Limpar data", dueDateValue: "Entrega em {{date}}",
+        dueToday: "Hoje", dueTomorrow: "Amanhã", dueNextWeek: "Próxima semana", previousMonth: "Mês anterior", nextMonth: "Próximo mês",
+        overdue: "Atrasadas", dueThisWeek: "Vence esta semana", isOverdue: "Atrasada", isDueToday: "Vence hoje",
+        addReaction: "Adicionar reação", moreEmoji: "Mais emojis", reactedWith: "{{names}} reagiu com {{emoji}}", reactedWithMany: "{{names}} reagiram com {{emoji}}", reactionYou: "Você", removeYourReaction: "Clique para remover a sua",
+        descriptionHistory: "Histórico da descrição", noDescriptionHistory: "Nenhuma versão ainda", noDescriptionHistoryHint: "Uma versão é salva sempre que a descrição muda. Edições feitas com poucos minutos de diferença contam como uma.",
+        currentVersion: "Atual", restoreVersion: "Restaurar esta versão", restoredFromVersion: "Restaurou a versão de {{date}}", emptyVersion: "A descrição estava vazia nesta versão.",
+        couldNotLoadHistory: "Não foi possível carregar o histórico da descrição.", couldNotRestoreVersion: "Não foi possível restaurar esta versão.", versionRestored: "Versão restaurada",
+        addedLabel: "adicionou a etiqueta", removedLabel: "removeu a etiqueta",
+        selectIssue: "Selecionar tarefa", selectedOne: "1 selecionada", selectedMany: "{{count}} selecionadas", bulkActions: "Ações para as tarefas selecionadas", clearSelection: "Limpar seleção",
+        updatedOne: "1 tarefa atualizada", updatedMany: "{{count}} tarefas atualizadas", deletedOne: "1 tarefa excluída", deletedMany: "{{count}} tarefas excluídas",
+        undo: "Desfazer", changesUndone: "Alterações desfeitas", couldNotUndo: "Não foi possível desfazer as alterações.", couldNotUpdateSelected: "Não foi possível atualizar as tarefas selecionadas.", couldNotDeleteSelected: "Não foi possível excluir as tarefas selecionadas.",
+        deleteSelectedOne: "Excluir 1 tarefa?", deleteSelectedMany: "Excluir {{count}} tarefas?", deleteSelectedDescription: "Elas são removidas com os comentários e o histórico. Isso não pode ser desfeito.", deleteAction: "Excluir",
+        leaveReply: "Deixe uma resposta…", replyAction: "Responder", couldNotAddReply: "Não foi possível adicionar a resposta.",
+        deleteThreadTitle: "Excluir este comentário e as respostas?", deleteThreadDescription: "As {{count}} respostas desta conversa são excluídas junto.", deleteThreadDescriptionOne: "A resposta desta conversa é excluída junto.",
+        conditionDueOverdue: "data de entrega vencida", conditionDueThisWeek: "entrega nesta semana", changedDueDate: "mudou a data de entrega",
     } as const;
 
 export default issue;

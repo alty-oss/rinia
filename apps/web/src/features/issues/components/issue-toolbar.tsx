@@ -1,8 +1,9 @@
 import { Popover } from "@base-ui/react/popover";
-import type { ReactNode } from "react";
+import type { FC, ReactNode } from "react";
+import type { TFunction } from "i18next";
 import type { IssueView } from "@rinia/shared";
 import { AddOutline, AssigneeOutline, CloseOutline, DisplayOutline, FilterOutline, HistoryOutline, LabelsOutline, ListOutline, PriorityOutline, SearchOutline, StateOutline } from "@makeplane/propel/icons";
-import { Hash, Minus } from "lucide-react";
+import { CalendarClock, CalendarDays, CalendarX2, Hash, Minus } from "lucide-react";
 import { IssueAvatar, PriorityIcon, StateIcon } from "@/features/board/components/issue-property-icons";
 import { useSearchParams } from "react-router";
 import { Button } from "@/components/base/buttons/button";
@@ -13,17 +14,56 @@ import { Select } from "@/components/base/select/select";
 import { useColumns } from "@/features/board/hooks/use-board";
 import { useCategories } from "@/features/categories/hooks/use-categories";
 import { useProjectMembers } from "@/features/projects/hooks/use-project-members";
-import { readIssueOrder } from "../lib/issue-filters";
+import { readIssueOrder, readLabels } from "../lib/issue-filters";
+import { CheckboxBase } from "@/components/base/checkbox/checkbox";
 import { useTranslation } from "react-i18next";
 import { PRIORITY_OPTIONS, priorityLabelKey } from "@/features/issues/lib/priority";
 import { translateStatusName } from "@/i18n/status-label";
 
-export function IssueToolbar({ projectId, onCreate, layout = "list", compact = false, chrome = false }: { projectId: string; onCreate: () => void; layout?: IssueView; compact?: boolean; chrome?: boolean }) {
+/** Late open issues, and those due between today and Saturday. Shared with lists that span projects. */
+export function dueFilter(t: TFunction): IssueFilter {
+    return {
+        key: "due",
+        label: t("issue.dueDate"),
+        items: [
+            { id: "overdue", name: t("issue.overdue"), icon: <CalendarX2 className="size-3.5 text-danger-primary" /> },
+            { id: "thisWeek", name: t("issue.dueThisWeek"), icon: <CalendarClock className="size-3.5 text-warning-primary" /> },
+        ],
+    };
+}
+
+/** A filter in the popover. A `multiple` filter keeps several comma-separated ids and matches issues with any of them. */
+export type IssueFilter = { key: string; label: string; multiple?: boolean; items: Array<{ id: string; name: string; icon?: ReactNode; avatarUrl?: string | null }> };
+type DisplayOption = { id: string; label: string; icon: FC<{ className?: string }> };
+
+export function IssueToolbar({
+    projectId = "",
+    onCreate,
+    layout = "list",
+    compact = false,
+    chrome = false,
+    filters: customFilters,
+    orders,
+    groups,
+    defaultOrder = "position",
+}: {
+    /** The project whose states, priorities, people, and labels fill the filters. Lists that span projects pass `filters` instead. */
+    projectId?: string;
+    onCreate?: () => void;
+    layout?: IssueView;
+    compact?: boolean;
+    chrome?: boolean;
+    filters?: IssueFilter[];
+    /** The orders and groupings offered under Display, when they differ from a project's. */
+    orders?: DisplayOption[];
+    groups?: DisplayOption[];
+    defaultOrder?: string;
+}) {
     const [query, setQuery] = useSearchParams();
     const { t } = useTranslation();
-    const { data: columns } = useColumns(projectId);
-    const { data: categories } = useCategories(projectId);
-    const { data: members } = useProjectMembers(projectId);
+    const { data: columns } = useColumns(customFilters ? "" : projectId);
+    const { data: categories } = useCategories(customFilters ? "" : projectId);
+    const { data: members } = useProjectMembers(customFilters ? "" : projectId);
     function update(key: string, value: string) {
         setQuery(
             (current) => {
@@ -35,11 +75,12 @@ export function IssueToolbar({ projectId, onCreate, layout = "list", compact = f
             { replace: true },
         );
     }
-    const filters: Array<{ key: string; label: string; items: Array<{ id: string; name: string; icon?: ReactNode; avatarUrl?: string | null }> }> = [
+    const filters: IssueFilter[] = customFilters ?? [
         { key: "status", label: t("issue.status"), items: (columns ?? []).map((item) => ({ id: item.id, name: translateStatusName(item.name, t), icon: <StateIcon name={item.name} color={item.color} /> })) },
         { key: "priority", label: t("issue.priority"), items: PRIORITY_OPTIONS.map((id) => ({ id, name: t(priorityLabelKey(id)), icon: <PriorityIcon priority={id} /> })) },
         { key: "assignee", label: t("issue.assignee"), items: (members ?? []).map((member) => ({ id: member.id, name: member.name, avatarUrl: member.avatarUrl, icon: member.avatarUrl ? undefined : <IssueAvatar name={member.name} avatarUrl={member.avatarUrl} /> })) },
-        { key: "label", label: t("issue.label"), items: (categories ?? []).map((item) => ({ id: item.id, name: item.name, icon: <LabelsOutline className="size-3.5" style={{ color: item.color ?? "#7a5af8" }} /> })) },
+        { key: "label", label: t("issue.label"), multiple: true, items: (categories ?? []).map((item) => ({ id: item.id, name: item.name, icon: <LabelsOutline className="size-3.5" style={{ color: item.color ?? "#7a5af8" }} /> })) },
+        dueFilter(t),
     ];
     const count = filters.filter((filter) => query.get(filter.key)).length;
     const popup = cx("grid w-[min(320px,calc(100vw-32px))] gap-3", overlayChrome.popupPadded);
@@ -58,7 +99,9 @@ export function IssueToolbar({ projectId, onCreate, layout = "list", compact = f
                         <Popover.Positioner sideOffset={8} align="start" className="z-30">
                             <Popover.Popup className={popup}>
                                 <Popover.Title className="text-sm font-medium">{t("issue.filterTitle")}</Popover.Title>
-                                {filters.map((filter) => (
+                                {filters.map((filter) => filter.multiple ? (
+                                    <MultiFilter key={filter.key} filter={filter} selected={readLabels(query.get(filter.key))} onChange={(ids) => update(filter.key, ids.join(","))} />
+                                ) : (
                                     <Select
                                         key={filter.key}
                                         label={filter.label}
@@ -100,13 +143,14 @@ export function IssueToolbar({ projectId, onCreate, layout = "list", compact = f
                                     <Select
                                         label={t("issue.orderBy")}
                                         size="sm"
-                                        selectedKey={readIssueOrder(query.get("order"))}
-                                        onSelectionChange={(value) => update("order", String(value ?? "position"))}
-                                        items={[
+                                        selectedKey={orders ? (query.get("order") ?? defaultOrder) : readIssueOrder(query.get("order"))}
+                                        onSelectionChange={(value) => update("order", value === defaultOrder ? "" : String(value ?? ""))}
+                                        items={orders ?? [
                                             { id: "position", label: t("issue.manualOrder"), icon: ListOutline },
                                             { id: "priority", label: t("issue.priority"), icon: PriorityOutline },
                                             { id: "updated", label: t("issue.recentlyUpdated"), icon: HistoryOutline },
                                             { id: "number", label: t("issue.issueNumber"), icon: Hash },
+                                            { id: "due", label: t("issue.dueDate"), icon: CalendarDays },
                                         ]}
                                     >
                                         {(item) => <Select.Item id={item.id} icon={item.icon}>{item.label}</Select.Item>}
@@ -117,7 +161,7 @@ export function IssueToolbar({ projectId, onCreate, layout = "list", compact = f
                                             size="sm"
                                         selectedKey={query.get("group") ?? "status"}
                                         onSelectionChange={(value) => update("group", value === "status" ? "" : String(value ?? ""))}
-                                            items={[
+                                            items={groups ?? [
                                                 { id: "none", label: t("issue.noGrouping"), icon: Minus },
                                                 { id: "status", label: t("issue.status"), icon: StateOutline },
                                                 { id: "assignee", label: t("issue.assignee"), icon: AssigneeOutline },
@@ -130,7 +174,7 @@ export function IssueToolbar({ projectId, onCreate, layout = "list", compact = f
                             </Popover.Positioner>
                         </Popover.Portal>
                     </Popover.Root>
-                    {!chrome && <Button iconLeading={compact ? undefined : AddOutline} onClick={onCreate}>
+                    {!chrome && onCreate && <Button iconLeading={compact ? undefined : AddOutline} onClick={onCreate}>
                         {t("issue.newIssue")}
                     </Button>}
                 </div>
@@ -140,7 +184,9 @@ export function IssueToolbar({ projectId, onCreate, layout = "list", compact = f
                     {filters
                         .filter((filter) => query.get(filter.key))
                         .map((filter) => {
-                            const selected = filter.items.find((item) => item.id === query.get(filter.key));
+                            const ids = readLabels(query.get(filter.key));
+                            const chosen = filter.items.filter((item) => ids.includes(item.id));
+                            const selected = chosen.length > 1 ? { icon: chosen[0].icon, name: chosen.map((item) => item.name).join(", ") } : chosen[0];
                             return (
                             <button
                                 key={filter.key}
@@ -156,6 +202,34 @@ export function IssueToolbar({ projectId, onCreate, layout = "list", compact = f
                         })}
                 </div>
             )}
+        </div>
+    );
+}
+
+/** A filter where any number of values can be on at once, as a checklist. */
+function MultiFilter({ filter, selected, onChange }: { filter: IssueFilter; selected: string[]; onChange: (ids: string[]) => void }) {
+    return (
+        <div role="group" aria-label={filter.label} className="grid gap-1.5">
+            <span className="text-sm font-medium text-secondary">{filter.label}</span>
+            <div className="flex max-h-40 flex-col overflow-y-auto rounded-md border border-subtle p-1">
+                {filter.items.map((item) => {
+                    const on = selected.includes(item.id);
+                    return (
+                        <button
+                            key={item.id}
+                            type="button"
+                            role="checkbox"
+                            aria-checked={on}
+                            onClick={() => onChange(on ? selected.filter((id) => id !== item.id) : [...selected, item.id])}
+                            className="flex h-7 items-center gap-2 rounded px-1.5 text-left text-[13px] text-secondary transition-colors duration-100 hover:bg-layer-2-hover hover:text-primary"
+                        >
+                            <CheckboxBase isSelected={on} />
+                            {item.icon}
+                            <span className="truncate">{item.name}</span>
+                        </button>
+                    );
+                })}
+            </div>
         </div>
     );
 }

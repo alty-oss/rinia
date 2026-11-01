@@ -8,6 +8,7 @@ export * from "./schemas/documents";
 export * from "./schemas/users";
 export * from "./schemas/favorites";
 export * from "./schemas/views";
+export * from "./schemas/notifications";
 export * from "./rich-text";
 export * from "./locales";
 export * from "./error-codes";

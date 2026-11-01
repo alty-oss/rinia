@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { EntityIcon, TiptapDocument, UpdateIssueInput } from "@rinia/shared";
-import { ArrowDown, ArrowUp, Ban, Check, ChevronRight, Copy, GitBranch, Link2, Pencil, Plus, ShieldOff, Sparkles, Trash2 } from "lucide-react";
+import { ArrowDown, ArrowUp, Ban, CalendarDays, Check, History, ChevronRight, Copy, GitBranch, Link2, Pencil, Plus, ShieldOff, Sparkles, Trash2 } from "lucide-react";
 import { Link, useBeforeUnload, useLocation, useNavigate, useParams } from "react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { useHotkeys } from "react-hotkeys-hook";
@@ -22,9 +22,11 @@ import { overlayChrome } from "@/components/overlay/overlay-chrome";
 import { useAuth } from "@/features/auth/hooks/use-auth";
 import { IssueAvatar, PriorityIcon, StateIcon } from "@/features/board/components/issue-property-icons";
 import { useColumns } from "@/features/board/hooks/use-board";
-import { defaultIssueColumn } from "@/features/board/column-bucket";
+import { columnBucket, defaultIssueColumn } from "@/features/board/column-bucket";
+import { dueState as getDueState, dueStateClass, formatDueDate } from "@/features/issues/lib/due-date";
 import { useCategories } from "@/features/categories/hooks/use-categories";
 import { FavoriteStar } from "@/features/favorites/components/favorite-star";
+import { FollowButton } from "@/features/notifications/components/follow-button";
 import { ProjectIcon } from "@/features/projects/components/project-icon";
 import { useProject } from "@/features/projects/hooks/use-project";
 import { useCurrentProject } from "@/features/projects/hooks/use-current-project";
@@ -48,13 +50,19 @@ import {
     useIssueComments,
     useIssueRelations,
     useIssues,
+    useRestoreDescriptionRevision,
+    useToggleReaction,
     useUpdateIssue,
     useUpdateIssueComment,
 } from "../hooks/use-issues";
-import type { IssueDetail } from "../api";
+import type { DescriptionRevision, IssueDetail, ReactionGroup } from "../api";
+import { ReactionChips, ReactionPicker } from "./comment-reactions";
+import { DescriptionHistorySheet } from "./description-history";
 import { fetchIssueClipboardContent } from "../lib/issue-clipboard";
 import { issueDescriptionDrafts, issueDraftKey } from "../lib/issue-description-drafts";
-import { EMPTY_TIPTAP_DOCUMENT, RichTextEditor } from "./rich-text-editor";
+import { DueDatePopover } from "./due-date-picker";
+import { LabelChip, LabelsPicker, resolveLabels, useLabelToggle } from "./labels-picker";
+import { EMPTY_TIPTAP_DOCUMENT, RichTextEditor, type MentionItem } from "./rich-text-editor";
 import { useTranslation } from "react-i18next";
 import { translateStatusName } from "@/i18n/status-label";
 import type { TranslationKey } from "@/i18n/resources";
@@ -64,7 +72,7 @@ const propertyButton =
 const menuItemClass = "flex h-8 w-full cursor-pointer items-center gap-2.5 rounded px-2 text-[13px] text-secondary outline-none data-highlighted:bg-layer-2-hover data-highlighted:text-primary";
 const popupMotion = "origin-[var(--transform-origin)] transition-[opacity,transform] duration-150 ease-out data-[ending-style]:scale-95 data-[ending-style]:opacity-0 data-[starting-style]:scale-95 data-[starting-style]:opacity-0";
 
-type PropertyMenuId = "state" | "priority" | "assignee" | "estimate" | "parent" | "label";
+type PropertyMenuId = "state" | "priority" | "assignee" | "estimate" | "due" | "parent" | "label";
 
 const activityLabelKeys: Record<string, TranslationKey> = {
     created: "issue.createdThisIssue",
@@ -74,9 +82,12 @@ const activityLabelKeys: Record<string, TranslationKey> = {
     category_changed: "issue.changedCategory",
     cycle_changed: "issue.changedCycle",
     estimate_changed: "issue.changedEstimate",
+    due_date_changed: "issue.changedDueDate",
     parent_changed: "issue.changedParent",
     relation_added: "issue.addedRelation",
     relation_removed: "issue.removedRelation",
+    label_added: "issue.addedLabel",
+    label_removed: "issue.removedLabel",
 };
 
 export const IssueView = () => {
@@ -106,18 +117,23 @@ export const IssueView = () => {
     const { data: projectIssues } = useIssues(issue?.projectId ?? resolvedProjectId);
     const { data: columns } = useColumns(issue?.projectId ?? resolvedProjectId);
     const { data: members } = useProjectMembers(issue?.projectId ?? resolvedProjectId);
+    const mentionItems = useMemo(() => (members ?? []).map((member) => ({ id: member.id, label: member.username, description: member.name })), [members]);
     const { data: categories } = useCategories(issue?.projectId ?? resolvedProjectId);
     const createComment = useCreateIssueComment(issue?.identifier ?? resolvedIdentifier);
     const deleteComment = useDeleteIssueComment(issue?.identifier ?? resolvedIdentifier);
     const updateComment = useUpdateIssueComment(issue?.identifier ?? resolvedIdentifier);
     const createRelation = useCreateIssueRelation(issue?.identifier ?? resolvedIdentifier);
     const deleteRelation = useDeleteIssueRelation(issue?.identifier ?? resolvedIdentifier);
+    const toggleReaction = useToggleReaction(issue?.identifier ?? resolvedIdentifier, user ? { id: user.id, name: user.name, username: user.username, avatarUrl: user.avatarUrl } : null);
+    const restoreRevision = useRestoreDescriptionRevision(issue?.identifier ?? resolvedIdentifier);
+    const [historyOpen, setHistoryOpen] = useState(false);
     // Linear-style property shortcuts; ignored while typing in a field or the editor.
     const propertyHotkey = { enableOnFormTags: false, enableOnContentEditable: false, useKey: true, preventDefault: true } as const;
     useHotkeys("s", () => setOpenMenu("state"), propertyHotkey);
     useHotkeys("p", () => setOpenMenu("priority"), propertyHotkey);
     useHotkeys("a", () => setOpenMenu("assignee"), propertyHotkey);
     useHotkeys("l", () => setOpenMenu("label"), propertyHotkey);
+    useHotkeys("shift+d", () => setOpenMenu("due"), propertyHotkey);
 
     // Keep the URL canonical: an identifier from before a key change, a missing or stale title slug,
     // or a lowercase identifier all become `/issue/KEY-12/current-title`.
@@ -417,6 +433,21 @@ export const IssueView = () => {
         );
     };
     const currentTitle = title.trim() || issue.title;
+    /** Saves any pending edit first, so the restore is not undone by it, then lets the restored text replace the editor's. */
+    const restoreDescription = async (revision: DescriptionRevision) => {
+        try {
+            await flushDescriptionRef.current();
+            await restoreRevision.mutateAsync(revision.id);
+            descriptionDirty.current = false;
+            const key = descriptionDraftKey.current;
+            if (key) void issueDescriptionDrafts.clearDescription(key).catch(() => undefined);
+            setDescriptionSaveError(null);
+            setDescriptionStatus("saved");
+            showToast({ title: t("issue.versionRestored") });
+        } catch (reason) {
+            showToast({ tone: "error", title: errorMessage(reason, t("issue.couldNotRestoreVersion")) });
+        }
+    };
     const copyText = async (text: string, success: ToastInput) => {
         const result = await copy(text, "issue-meta");
         showToast(result.success ? success : { tone: "error", title: t("issue.couldNotCopy") });
@@ -504,10 +535,12 @@ export const IssueView = () => {
                         <span className="text-tertiary">{issue.identifier}</span> {currentTitle}
                     </span>
                     <FavoriteStar target={{ kind: "issue", projectId: issue.projectId, issueId: issue.id }} />
+                    <FollowButton identifier={issue.identifier} />
                     <IssueActionsMenu
                         {...copyActions}
                         onAddRelation={() => setRelationsOpen(true)}
                         onSetParent={() => window.setTimeout(() => setOpenMenu("parent"), 0)}
+                        onOpenHistory={() => setHistoryOpen(true)}
                         onDelete={() => setDeleteOpen(true)}
                     />
                 </div>
@@ -560,7 +593,7 @@ export const IssueView = () => {
                                     }
                                     setDescription(value);
                                 }}
-                                mentionItems={(members ?? []).map((member) => ({ id: member.id, label: member.username, description: member.name }))}
+                                mentionItems={mentionItems}
                                 placeholder={t("issue.describeIssue")}
                             />
                         </div>
@@ -588,7 +621,7 @@ export const IssueView = () => {
                                             title: `${currentTitle.slice(0, 200 - suffix.length)}${suffix}`,
                                             descriptionJson: latestDescription.current,
                                             assigneeId: issue.assigneeId,
-                                            categoryId: issue.categoryId,
+                                            categoryIds: issue.categoryIds,
                                             priority: issue.priority,
                                             estimate: issue.estimate,
                                         });
@@ -627,6 +660,12 @@ export const IssueView = () => {
                                 loadFailed={activityLoadFailed || commentsLoadFailed}
                                 lookups={{ columns: columns ?? [], members: members ?? [], categories: categories ?? [], projectIssues: projectIssues ?? [] }}
                                 currentUserId={user?.id}
+                                mentionItems={mentionItems}
+                                onReact={(commentId, emoji, add) => toggleReaction.mutate({ commentId, emoji, add })}
+                                currentUser={user ? { name: user.name, avatarUrl: user.avatarUrl } : null}
+                                onReply={async (parentCommentId, contentJson) => {
+                                    await createComment.mutateAsync({ contentJson, parentCommentId });
+                                }}
                                 value={comment}
                                 onChange={(value) => {
                                     commentDraftOwner.current = issue.id;
@@ -678,6 +717,7 @@ export const IssueView = () => {
                 )}
             </div>
 
+            <DescriptionHistorySheet identifier={issue.identifier} open={historyOpen} onOpenChange={setHistoryOpen} isRestoring={restoreRevision.isPending} onRestore={restoreDescription} />
             <ConfirmDialog
                 open={deleteOpen}
                 onOpenChange={setDeleteOpen}
@@ -714,7 +754,7 @@ interface CopyActions {
     isCopying: boolean;
 }
 
-function IssueActionsMenu({ onCopyLink, onCopyId, onCopyBranch, onCopyPrompt, isCopying, onAddRelation, onSetParent, onDelete }: CopyActions & { onAddRelation: () => void; onSetParent: () => void; onDelete: () => void }) {
+function IssueActionsMenu({ onCopyLink, onCopyId, onCopyBranch, onCopyPrompt, isCopying, onAddRelation, onSetParent, onOpenHistory, onDelete }: CopyActions & { onAddRelation: () => void; onSetParent: () => void; onOpenHistory: () => void; onDelete: () => void }) {
     const { t } = useTranslation();
     return (
         <Menu.Root>
@@ -731,6 +771,7 @@ function IssueActionsMenu({ onCopyLink, onCopyId, onCopyBranch, onCopyPrompt, is
                         <Menu.Separator className="my-1 h-px bg-[var(--border-subtle)]" />
                         <Menu.Item className={menuItemClass} onClick={onAddRelation}><Link2 className="size-4 text-tertiary" />{t("issue.addRelation")}</Menu.Item>
                         <Menu.Item className={menuItemClass} onClick={onSetParent}><ParentOutline className="size-4 text-tertiary" />{t("issue.addParent")}</Menu.Item>
+                        <Menu.Item className={menuItemClass} onClick={onOpenHistory}><History className="size-4 text-tertiary" />{t("issue.descriptionHistory")}</Menu.Item>
                         <Menu.Separator className="my-1 h-px bg-[var(--border-subtle)]" />
                         <Menu.Item className={cx(menuItemClass, "text-danger-primary data-highlighted:text-danger-primary")} onClick={onDelete}><Trash2 className="size-4" />{t("issue.deleteIssue")}</Menu.Item>
                     </Menu.Popup>
@@ -916,11 +957,14 @@ function IssueProperties({
     const { t, i18n } = useTranslation();
     const column = columns.find((candidate) => candidate.id === issue.columnId);
     const assignee = members.find((member) => member.id === issue.assigneeId);
-    const category = categories.find((candidate) => candidate.id === issue.categoryId);
+    const labelById = new Map(categories.map((candidate) => [candidate.id, candidate]));
+    const issueLabels = resolveLabels(issue.categoryIds, labelById);
+    const labelEditor = useLabelToggle(issue.categoryIds, (categoryIds) => save({ categoryIds }));
     const parent = projectIssues.find((candidate) => candidate.id === issue.parent?.id);
     const menu = (id: PropertyMenuId) => ({ open: openMenu === id, onOpenChange: (open: boolean) => onOpenMenuChange(open ? id : null), disabled: isPending });
     const avatar = (person: { name: string; avatarUrl: string | null }) => <IssueAvatar name={person.name} avatarUrl={person.avatarUrl} className="size-4 text-[9px]" />;
     const created = new Intl.DateTimeFormat(i18n.language, { dateStyle: "medium" }).format(new Date(issue.createdAt));
+    const dueState = getDueState(issue.dueDate, columnBucket(column?.name ?? "") === "closed");
 
     return (
         <div className="flex flex-col gap-6">
@@ -972,6 +1016,20 @@ function IssueProperties({
                     <PropertyIcon><EstimateOutline className="size-3.5 text-tertiary" /></PropertyIcon>
                     <span className={cx("truncate", issue.estimate == null && "text-tertiary")}>{issue.estimate != null ? t("projects.points", { count: issue.estimate }) : t("issue.estimateAction")}</span>
                 </PropertyMenu>
+                <DueDatePopover
+                    {...menu("due")}
+                    value={issue.dueDate}
+                    onChange={(dueDate) => save({ dueDate })}
+                    triggerLabel={t("issue.dueDate")}
+                    triggerClassName={propertyButton}
+                >
+                    <PropertyIcon><CalendarDays className={cx("size-3.5", dueState ? dueStateClass[dueState] : "text-tertiary")} /></PropertyIcon>
+                    <span className={cx("truncate", !issue.dueDate ? "text-tertiary" : dueState !== "upcoming" && dueState ? dueStateClass[dueState] : undefined)}>
+                        {issue.dueDate ? formatDueDate(issue.dueDate, i18n.language) : t("issue.dueDateAction")}
+                    </span>
+                    {dueState === "overdue" && <span className="ml-auto shrink-0 text-[11px] text-danger-primary">{t("issue.isOverdue")}</span>}
+                    {dueState === "today" && <span className="ml-auto shrink-0 text-[11px] text-warning-primary">{t("issue.isDueToday")}</span>}
+                </DueDatePopover>
                 <PropertyMenu
                     {...menu("parent")}
                     label={t("issue.parent")}
@@ -986,27 +1044,24 @@ function IssueProperties({
             </PropertyGroup>
 
             <PropertyGroup title={t("issue.labels")}>
-                <PropertyMenu
+                <LabelsPicker
                     {...menu("label")}
-                    label={t("issue.label")}
-                    placeholder={t("issue.addLabelPlaceholder")}
-                    shortcut="L"
-                    value={issue.categoryId ?? ""}
-                    options={[{ value: "", label: t("issue.noLabel"), icon: <LabelsOutline className="size-3.5 text-tertiary" /> }, ...categories.map((candidate) => ({ value: candidate.id, label: candidate.name, icon: <span className="size-2 rounded-full" style={{ backgroundColor: candidate.color ?? "#7a5af8" }} /> }))]}
-                    onSelect={(value) => save({ categoryId: value || null })}
+                    labels={categories}
+                    state={labelEditor.state}
+                    onToggle={labelEditor.toggle}
+                    onClose={labelEditor.reset}
+                    triggerLabel={t("issue.labels")}
+                    triggerClassName={cx(propertyButton, issueLabels.length > 0 && "h-auto min-h-8 flex-wrap gap-1 py-1")}
                 >
-                    {category ? (
-                        <span className="flex h-6 min-w-0 items-center gap-1.5 rounded-full border border-subtle px-2 text-[12px]">
-                            <span className="size-2 shrink-0 rounded-full" style={{ backgroundColor: category.color ?? "#7a5af8" }} />
-                            <span className="truncate">{category.name}</span>
-                        </span>
+                    {issueLabels.length > 0 ? (
+                        issueLabels.map((label) => <LabelChip key={label.id} label={label} className="h-6 max-w-full px-2 text-[12px]" />)
                     ) : (
                         <>
                             <PropertyIcon><LabelsOutline className="size-3.5 text-tertiary" /></PropertyIcon>
                             <span className="truncate text-tertiary">{t("issue.addLabel")}</span>
                         </>
                     )}
-                </PropertyMenu>
+                </LabelsPicker>
             </PropertyGroup>
 
             <PropertyGroup title={t("issue.project")}>
@@ -1219,11 +1274,11 @@ function IssueRelations({
 }
 
 type ActivityEntry = { id: string; type: string; createdAt: string; actor: { name: string; avatarUrl: string | null }; payload: Record<string, unknown> };
-type CommentEntry = { id: string; contentJson: TiptapDocument; authorId: string; author: { name: string; username?: string; avatarUrl: string | null }; createdAt: string; updatedAt: string };
+type CommentEntry = { id: string; contentJson: TiptapDocument; authorId: string; author: { name: string; username?: string; avatarUrl: string | null }; createdAt: string; updatedAt: string; reactions: ReactionGroup[]; parentCommentId: string | null };
 interface TimelineLookups {
     columns: Array<{ id: string; name: string; color?: string | null }>;
     members: Array<{ id: string; name: string }>;
-    categories: Array<{ id: string; name: string }>;
+    categories: Array<{ id: string; name: string; color: string | null }>;
     projectIssues: Array<{ id: string; identifier: string; title: string }>;
 }
 
@@ -1235,6 +1290,10 @@ function IssueTimeline({
     loadFailed,
     lookups,
     currentUserId,
+    currentUser,
+    mentionItems,
+    onReact,
+    onReply,
     value,
     onChange,
     isSubmitting,
@@ -1249,6 +1308,11 @@ function IssueTimeline({
     loadFailed: boolean;
     lookups: TimelineLookups;
     currentUserId?: string;
+    /** Project members, for @mentions in comments. */
+    mentionItems: MentionItem[];
+    onReact: (commentId: string, emoji: string, add: boolean) => void;
+    currentUser: { name: string; avatarUrl: string | null } | null;
+    onReply: (parentCommentId: string, contentJson: TiptapDocument) => Promise<void>;
     value: TiptapDocument;
     onChange: (value: TiptapDocument) => void;
     isSubmitting: boolean;
@@ -1258,9 +1322,15 @@ function IssueTimeline({
     onEdit: (id: string, contentJson: TiptapDocument) => void | Promise<void>;
 }) {
     const { t } = useTranslation();
+    // Replies sit inside their thread, oldest first; only the comments that open a thread join the timeline.
+    const replies = new Map<string, CommentEntry[]>();
+    for (const comment of comments) {
+        if (comment.parentCommentId) replies.set(comment.parentCommentId, [...(replies.get(comment.parentCommentId) ?? []), comment]);
+    }
+    for (const thread of replies.values()) thread.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
     const entries = [
         ...activity.map((entry) => ({ kind: "activity" as const, at: entry.createdAt, entry })),
-        ...comments.map((entry) => ({ kind: "comment" as const, at: entry.createdAt, entry })),
+        ...comments.filter((entry) => !entry.parentCommentId).map((entry) => ({ kind: "comment" as const, at: entry.createdAt, entry })),
     ].sort((a, b) => new Date(a.at).getTime() - new Date(b.at).getTime());
     const canSend = hasMeaningfulTiptapContent(value) && !isSubmitting;
 
@@ -1275,7 +1345,19 @@ function IssueTimeline({
                 <ol className="mt-3 flex flex-col">
                     {entries.map((item) =>
                         item.kind === "comment" ? (
-                            <TimelineComment key={`c-${item.entry.id}`} entry={item.entry} mine={item.entry.authorId === currentUserId} isSubmitting={isSubmitting} onDelete={onDelete} onEdit={onEdit} />
+                            <TimelineThread
+                                key={`c-${item.entry.id}`}
+                                entry={item.entry}
+                                replies={replies.get(item.entry.id) ?? []}
+                                currentUser={currentUser}
+                                onReply={onReply}
+                                currentUserId={currentUserId}
+                                onReact={onReact}
+                                mentionItems={mentionItems}
+                                isSubmitting={isSubmitting}
+                                onDelete={onDelete}
+                                onEdit={onEdit}
+                            />
                         ) : (
                             <TimelineActivity key={`a-${item.entry.id}`} entry={item.entry} lookups={lookups} />
                         ),
@@ -1283,7 +1365,7 @@ function IssueTimeline({
                 </ol>
             )}
             <div className="mt-4 rounded-xl border border-subtle bg-layer-1 transition-colors duration-150 focus-within:border-[var(--border-strong-1)]">
-                <RichTextEditor toolbar={false} variant="comment" content={value} onChange={onChange} onSubmitShortcut={onSubmit} placeholder={t("issue.leaveComment")} className="issue-comment-composer" />
+                <RichTextEditor toolbar={false} variant="comment" content={value} onChange={onChange} onSubmitShortcut={onSubmit} placeholder={t("issue.leaveComment")} mentionItems={mentionItems} className="issue-comment-composer" />
                 <div className="flex items-center justify-end gap-2 px-3 pb-3">
                     <button
                         type="button"
@@ -1305,6 +1387,7 @@ function IssueTimeline({
 function TimelineActivity({ entry, lookups }: { entry: ActivityEntry; lookups: TimelineLookups }) {
     const { t, i18n } = useTranslation();
     const statusTo = entry.type === "status_changed" ? lookups.columns.find((column) => column.id === entry.payload.to) : undefined;
+    const label = entry.type === "label_added" || entry.type === "label_removed" ? lookups.categories.find((category) => category.id === entry.payload.categoryId) : undefined;
     return (
         <li className="animate-enter flex items-center gap-2.5 py-1.5 pl-1 text-[13px] text-tertiary">
             <span className="grid size-5 shrink-0 place-items-center">
@@ -1312,7 +1395,8 @@ function TimelineActivity({ entry, lookups }: { entry: ActivityEntry; lookups: T
             </span>
             <p className="min-w-0 flex-1">
                 <span className="font-medium text-secondary">{entry.actor.name}</span> {activityLabelKeys[entry.type] ? t(activityLabelKeys[entry.type]) : entry.type}
-                {formatActivityChange(entry.payload, { ...lookups, columns: lookups.columns.map((column) => ({ ...column, name: translateStatusName(column.name, t) })) }, t("issue.noneValue"))}
+                {label && <> <LabelChip label={label} className="inline-flex max-w-40 align-middle" /></>}
+                {formatActivityChange(entry.payload, { ...lookups, columns: lookups.columns.map((column) => ({ ...column, name: translateStatusName(column.name, t) })) }, t("issue.noneValue"), i18n.language)}
                 <span className="text-placeholder"> · </span>
                 <time className="text-placeholder" title={formatFullIssueDate(entry.createdAt, i18n.language)} dateTime={entry.createdAt}>{formatDistanceToNow(entry.createdAt, i18n.language)}</time>
             </p>
@@ -1320,29 +1404,122 @@ function TimelineActivity({ entry, lookups }: { entry: ActivityEntry; lookups: T
     );
 }
 
-function TimelineComment({ entry, mine, isSubmitting, onDelete, onEdit }: { entry: CommentEntry; mine: boolean; isSubmitting: boolean; onDelete: (id: string) => void | Promise<void>; onEdit: (id: string, contentJson: TiptapDocument) => void | Promise<void> }) {
+type CommentActions = {
+    currentUserId?: string;
+    mentionItems: MentionItem[];
+    isSubmitting: boolean;
+    onReact: (commentId: string, emoji: string, add: boolean) => void;
+    onDelete: (id: string) => void | Promise<void>;
+    onEdit: (id: string, contentJson: TiptapDocument) => void | Promise<void>;
+};
+
+/**
+ * A comment and its replies in one card, with a box at the bottom to reply. Threads are one level deep: replying
+ * from the card always adds to the end of it.
+ */
+function TimelineThread({ entry, replies, currentUser, onReply, ...actions }: CommentActions & {
+    entry: CommentEntry;
+    replies: CommentEntry[];
+    currentUser: { name: string; avatarUrl: string | null } | null;
+    onReply: (parentCommentId: string, contentJson: TiptapDocument) => Promise<void>;
+}) {
+    return (
+        <li className="animate-enter my-2 overflow-hidden rounded-xl border border-subtle bg-layer-1">
+            <CommentItem entry={entry} replyCount={replies.length} {...actions} />
+            {replies.map((reply) => (
+                <div key={reply.id} className="animate-enter border-t border-subtle">
+                    <CommentItem entry={reply} replyCount={0} {...actions} />
+                </div>
+            ))}
+            <ReplyComposer currentUser={currentUser} mentionItems={actions.mentionItems} onSubmit={(contentJson) => onReply(entry.id, contentJson)} />
+        </li>
+    );
+}
+
+/** "Leave a reply…" under a thread. It grows as you type and sends with the arrow or Cmd/Ctrl+Enter. */
+function ReplyComposer({ currentUser, mentionItems, onSubmit }: { currentUser: { name: string; avatarUrl: string | null } | null; mentionItems: MentionItem[]; onSubmit: (contentJson: TiptapDocument) => Promise<void> }) {
+    const { t } = useTranslation();
+    const [value, setValue] = useState<TiptapDocument>(EMPTY_TIPTAP_DOCUMENT);
+    // Remounting the editor clears it once a reply is sent.
+    const [editorKey, setEditorKey] = useState(0);
+    const [sending, setSending] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+    const canSend = hasMeaningfulTiptapContent(value) && !sending;
+    const send = async () => {
+        if (!canSend) return;
+        setSending(true);
+        setError(null);
+        try {
+            await onSubmit(value);
+            setValue(EMPTY_TIPTAP_DOCUMENT);
+            setEditorKey((key) => key + 1);
+        } catch (reason) {
+            setError(errorMessage(reason, t("issue.couldNotAddReply")));
+        } finally {
+            setSending(false);
+        }
+    };
+    return (
+        <div className="border-t border-subtle">
+            <div className="flex items-start gap-2.5 px-4 py-2.5">
+                {currentUser && <IssueAvatar name={currentUser.name} avatarUrl={currentUser.avatarUrl} className="mt-1 size-5 shrink-0 text-[10px]" />}
+                <RichTextEditor
+                    key={editorKey}
+                    toolbar={false}
+                    variant="comment"
+                    content={value}
+                    onChange={setValue}
+                    onSubmitShortcut={() => void send()}
+                    placeholder={t("issue.leaveReply")}
+                    mentionItems={mentionItems}
+                    className="issue-reply-composer min-w-0 flex-1"
+                />
+                <button
+                    type="button"
+                    aria-label={t("issue.replyAction")}
+                    title={t("issue.replyAction")}
+                    disabled={!canSend}
+                    onClick={() => void send()}
+                    className="mt-0.5 grid size-6 shrink-0 place-items-center rounded-full bg-layer-2 text-tertiary transition-colors duration-150 enabled:bg-accent-primary enabled:text-white enabled:hover:opacity-90 disabled:cursor-not-allowed"
+                >
+                    <ArrowUp className="size-3.5" />
+                </button>
+            </div>
+            {error && <p role="alert" className="animate-enter px-4 pb-2.5 text-xs text-danger-primary">{error}</p>}
+        </div>
+    );
+}
+
+function CommentItem({ entry, replyCount, currentUserId, onReact, mentionItems, isSubmitting, onDelete, onEdit }: CommentActions & { entry: CommentEntry; replyCount: number }) {
     const { t, i18n } = useTranslation();
     const [editing, setEditing] = useState(false);
+    const [confirmDelete, setConfirmDelete] = useState(false);
     const [draft, setDraft] = useState<TiptapDocument>(entry.contentJson);
+    const mine = entry.authorId === currentUserId;
     const edited = new Date(entry.updatedAt).getTime() > new Date(entry.createdAt).getTime();
+    const remove = () => void Promise.resolve(onDelete(entry.id)).catch(() => undefined);
     return (
-        <li className="group/comment animate-enter my-2 rounded-xl border border-subtle bg-layer-1 px-4 py-3">
+        <div className="group/comment px-4 py-3">
             <div className="mb-1.5 flex items-center gap-2 text-[13px]">
                 <IssueAvatar name={entry.author.name} avatarUrl={entry.author.avatarUrl} className="size-5 text-[10px]" />
                 <span className="font-medium text-primary">{entry.author.name}</span>
                 <time className="text-tertiary" title={formatFullIssueDate(entry.createdAt, i18n.language)} dateTime={entry.createdAt}>
                     {formatDistanceToNow(entry.createdAt, i18n.language)}{edited ? ` · ${t("issue.edited")}` : ""}
                 </time>
-                {mine && !editing && (
-                    <div className="ml-auto flex items-center gap-0.5 opacity-0 transition-opacity duration-150 group-hover/comment:opacity-100 focus-within:opacity-100">
+                {!editing && (
+                    <div className="ml-auto flex items-center gap-0.5 opacity-0 transition-opacity duration-150 group-hover/comment:opacity-100 focus-within:opacity-100 has-[[data-popup-open]]:opacity-100">
+                        <ReactionPicker onPick={(emoji) => onReact(entry.id, emoji, !entry.reactions.find((group) => group.emoji === emoji)?.users.some((user) => user.id === currentUserId))} />
+                        {mine && <>
                         <ButtonUtility icon={Pencil} size="xs" color="tertiary" tooltip={t("common.edit")} onClick={() => { setDraft(entry.contentJson); setEditing(true); }} />
-                        <ButtonUtility icon={Trash2} size="xs" color="tertiary" tooltip={t("common.delete")} isDisabled={isSubmitting} onClick={() => void Promise.resolve(onDelete(entry.id)).catch(() => undefined)} />
+                        {/* Deleting the comment that opens a thread deletes its replies too, so that asks first. */}
+                        <ButtonUtility icon={Trash2} size="xs" color="tertiary" tooltip={t("common.delete")} isDisabled={isSubmitting} onClick={() => (replyCount > 0 ? setConfirmDelete(true) : remove())} />
+                        </>}
                     </div>
                 )}
             </div>
             {editing ? (
                 <>
-                    <RichTextEditor toolbar={false} variant="comment" content={draft} onChange={setDraft} className="issue-comment-composer" />
+                    <RichTextEditor toolbar={false} variant="comment" content={draft} onChange={setDraft} mentionItems={mentionItems} className="issue-comment-composer" />
                     <div className="mt-2 flex justify-end gap-2">
                         <Button size="xs" color="tertiary" onClick={() => setEditing(false)}>{t("common.cancel")}</Button>
                         <Button size="xs" isLoading={isSubmitting} onClick={async () => {
@@ -1356,9 +1533,26 @@ function TimelineComment({ entry, mine, isSubmitting, onDelete, onEdit }: { entr
                     </div>
                 </>
             ) : (
-                <RichTextEditor variant="comment" content={entry.contentJson} editable={false} className="issue-comment-body" />
+                <>
+                    <RichTextEditor variant="comment" content={entry.contentJson} editable={false} className="issue-comment-body" />
+                    <ReactionChips reactions={entry.reactions} currentUserId={currentUserId} onToggle={(emoji, add) => onReact(entry.id, emoji, add)} />
+                </>
             )}
-        </li>
+            {replyCount > 0 && (
+                <ConfirmDialog
+                    open={confirmDelete}
+                    onOpenChange={setConfirmDelete}
+                    title={t("issue.deleteThreadTitle")}
+                    description={replyCount === 1 ? t("issue.deleteThreadDescriptionOne") : t("issue.deleteThreadDescription", { count: replyCount })}
+                    confirmLabel={t("common.delete")}
+                    isPending={isSubmitting}
+                    onConfirm={() => {
+                        setConfirmDelete(false);
+                        remove();
+                    }}
+                />
+            )}
+        </div>
     );
 }
 
@@ -1411,11 +1605,12 @@ function formatActivityChange(payload: Record<string, unknown>, lookups: {
     members: Array<{ id: string; name: string }>;
     categories: Array<{ id: string; name: string }>;
     projectIssues: Array<{ id: string; identifier: string; title: string }>;
-}, noneLabel: string) {
+}, noneLabel: string, locale: string) {
     if (!("from" in payload) && !("to" in payload)) return "";
     const field = String(payload.field ?? "");
     const resolve = (value: unknown) => {
         if (value === null || value === undefined || value === "") return noneLabel;
+        if (field === "dueDate") return formatDueDate(String(value), locale);
         const options = field === "columnId" ? lookups.columns : field === "assigneeId" ? lookups.members : field === "categoryId" ? lookups.categories : field === "parentIssueId" ? lookups.projectIssues : [];
         const match = options.find((option) => option.id === value);
         if (match && "identifier" in match) return match.identifier;

@@ -12,6 +12,7 @@ import { useDocuments } from "@/features/documents/hooks/use-documents";
 import { IssueQuickCreateModal } from "@/features/issues/components/issue-quick-create-modal";
 import type { Favorite } from "@/features/favorites/api";
 import { useFavorites, useMigrateLegacyFavorites, useRemoveFavorite } from "@/features/favorites/hooks/use-favorites";
+import { useUnreadNotificationCount } from "@/features/notifications/hooks/use-notifications";
 import { Collapse } from "@/components/base/collapse";
 import { ProjectIcon } from "@/features/projects/components/project-icon";
 import type { ProjectCardSummary } from "@/features/projects/api";
@@ -165,6 +166,11 @@ export function Sidebar({ onSearch, onNavigate }: { onSearch: () => void; onNavi
                         </button>
                     </div>
                     <div className="min-h-0 flex-1 overflow-y-auto px-3 pt-1 pb-2">
+                        <InboxLink />
+                        <Link to={urls.myIssues()} className={itemClass(location.pathname.startsWith(urls.myIssues()))} aria-current={location.pathname.startsWith(urls.myIssues()) ? "page" : undefined}>
+                            <AppIcons.MyIssues className="size-4 shrink-0" />
+                            <span className="truncate">{t("nav.myIssues")}</span>
+                        </Link>
                         <Link to="/" className={itemClass(location.pathname === "/")} aria-current={location.pathname === "/" ? "page" : undefined}>
                             <AppIcons.Projects className="size-4 shrink-0" />
                             <span className="truncate">{t("nav.allProjects")}</span>
@@ -203,6 +209,25 @@ export function Sidebar({ onSearch, onNavigate }: { onSearch: () => void; onNavi
                 <CreateElsewhere projectId={creatingProjectId} onClose={() => setCreatingProjectId(null)} onCreated={(identifier) => go(urls.issue(identifier))} />
             )}
         </div>
+    );
+}
+
+/** The inbox, with a dot while anything in it is unread. */
+function InboxLink() {
+    const { t } = useTranslation();
+    const location = useLocation();
+    const { data: unread = 0 } = useUnreadNotificationCount();
+    const active = location.pathname === urls.inbox();
+    return (
+        <Link to={urls.inbox()} className={itemClass(active)} aria-current={active ? "page" : undefined}>
+            <AppIcons.Inbox className="size-4 shrink-0" />
+            <span className="truncate">{t("nav.inbox")}</span>
+            <span
+                role={unread > 0 ? "status" : undefined}
+                aria-label={unread > 0 ? `${t("nav.unreadInbox")}: ${unread}` : undefined}
+                className={`ml-auto size-1.5 shrink-0 rounded-full bg-accent-primary transition-[opacity,scale] duration-200 ease-out ${unread > 0 ? "scale-100 opacity-100" : "scale-50 opacity-0"}`}
+            />
+        </Link>
     );
 }
 

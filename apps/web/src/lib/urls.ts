@@ -3,6 +3,8 @@
  * their identifier (`/issue/RIN-4/short-title`), never by database ids. Trailing slugs are cosmetic.
  */
 
+import type { MyIssuesFilter } from "@rinia/shared";
+
 export type IssueScope = "active" | "backlog" | "all";
 export type ProjectSettingsSection = "general" | "members" | "states" | "labels";
 
@@ -43,6 +45,8 @@ export function projectKeyOf(identifier: string) {
 
 export const urls = {
     projects: () => "/",
+    inbox: () => "/inbox",
+    myIssues: (filter: MyIssuesFilter = "assigned") => (filter === "assigned" ? "/my-issues" : `/my-issues/${filter}`),
     project: (key: string) => `/project/${key}`,
     issues: (key: string, scope: IssueScope = "active") => (scope === "active" ? `/project/${key}/issues` : `/project/${key}/issues/${scope}`),
     issue: (identifier: string, title?: string) => {

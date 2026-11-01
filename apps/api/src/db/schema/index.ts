@@ -1,11 +1,15 @@
 import { relations } from "drizzle-orm";
 import { boardColumns } from "./board-columns";
 import { categories } from "./categories";
+import { commentReactions } from "./comment-reactions";
 import { favorites } from "./favorites";
 import { issueActivities } from "./issue-activities";
 import { issueComments } from "./issue-comments";
+import { issueDescriptionRevisions } from "./issue-description-revisions";
+import { issueLabels } from "./issue-labels";
 import { issueRelations } from "./issue-relations";
 import { issues } from "./issues";
+import { issueSubscriptions, notifications } from "./notifications";
 import { projectDocuments } from "./project-documents";
 import { projectKeyAliases } from "./project-key-aliases";
 import { projectMembers } from "./project-members";
@@ -14,11 +18,15 @@ import { users } from "./users";
 
 export * from "./board-columns";
 export * from "./categories";
+export * from "./comment-reactions";
 export * from "./favorites";
 export * from "./issue-activities";
 export * from "./issue-comments";
+export * from "./issue-description-revisions";
+export * from "./issue-labels";
 export * from "./issue-relations";
 export * from "./issues";
+export * from "./notifications";
 export * from "./project-documents";
 export * from "./project-key-aliases";
 export * from "./project-members";
@@ -54,7 +62,7 @@ export const projectMembersRelations = relations(projectMembers, ({ one }) => ({
 export const categoriesRelations = relations(categories, ({ one, many }) => ({
     project: one(projects, { fields: [categories.projectId], references: [projects.id] }),
     createdBy: one(users, { fields: [categories.createdBy], references: [users.id] }),
-    issues: many(issues),
+    issueLabels: many(issueLabels),
 }));
 
 export const boardColumnsRelations = relations(boardColumns, ({ one, many }) => ({
@@ -75,7 +83,7 @@ export const issuesRelations = relations(issues, ({ one, many }) => ({
         references: [users.id],
         relationName: "issueCreatedBy",
     }),
-    category: one(categories, { fields: [issues.categoryId], references: [categories.id] }),
+    labels: many(issueLabels),
     parent: one(issues, { fields: [issues.parentIssueId], references: [issues.id], relationName: "issueParent" }),
     children: many(issues, { relationName: "issueParent" }),
     comments: many(issueComments),
@@ -84,9 +92,22 @@ export const issuesRelations = relations(issues, ({ one, many }) => ({
     incomingRelations: many(issueRelations, { relationName: "relationTarget" }),
 }));
 
-export const issueCommentsRelations = relations(issueComments, ({ one }) => ({
+export const issueCommentsRelations = relations(issueComments, ({ one, many }) => ({
     issue: one(issues, { fields: [issueComments.issueId], references: [issues.id] }),
     author: one(users, { fields: [issueComments.authorId], references: [users.id] }),
+    reactions: many(commentReactions),
+    parent: one(issueComments, { fields: [issueComments.parentCommentId], references: [issueComments.id], relationName: "commentReplies" }),
+    replies: many(issueComments, { relationName: "commentReplies" }),
+}));
+
+export const commentReactionsRelations = relations(commentReactions, ({ one }) => ({
+    comment: one(issueComments, { fields: [commentReactions.commentId], references: [issueComments.id] }),
+    user: one(users, { fields: [commentReactions.userId], references: [users.id] }),
+}));
+
+export const issueDescriptionRevisionsRelations = relations(issueDescriptionRevisions, ({ one }) => ({
+    issue: one(issues, { fields: [issueDescriptionRevisions.issueId], references: [issues.id] }),
+    author: one(users, { fields: [issueDescriptionRevisions.authorId], references: [users.id] }),
 }));
 
 export const issueActivitiesRelations = relations(issueActivities, ({ one }) => ({
@@ -112,4 +133,22 @@ export const favoritesRelations = relations(favorites, ({ one }) => ({
     project: one(projects, { fields: [favorites.projectId], references: [projects.id] }),
     document: one(projectDocuments, { fields: [favorites.documentId], references: [projectDocuments.id] }),
     issue: one(issues, { fields: [favorites.issueId], references: [issues.id] }),
+}));
+
+export const notificationsRelations = relations(notifications, ({ one }) => ({
+    user: one(users, { fields: [notifications.userId], references: [users.id] }),
+    actor: one(users, { fields: [notifications.actorId], references: [users.id] }),
+    project: one(projects, { fields: [notifications.projectId], references: [projects.id] }),
+    issue: one(issues, { fields: [notifications.issueId], references: [issues.id] }),
+    comment: one(issueComments, { fields: [notifications.commentId], references: [issueComments.id] }),
+}));
+
+export const issueSubscriptionsRelations = relations(issueSubscriptions, ({ one }) => ({
+    user: one(users, { fields: [issueSubscriptions.userId], references: [users.id] }),
+    issue: one(issues, { fields: [issueSubscriptions.issueId], references: [issues.id] }),
+}));
+
+export const issueLabelsRelations = relations(issueLabels, ({ one }) => ({
+    issue: one(issues, { fields: [issueLabels.issueId], references: [issues.id] }),
+    category: one(categories, { fields: [issueLabels.categoryId], references: [categories.id] }),
 }));

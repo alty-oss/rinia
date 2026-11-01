@@ -1,7 +1,11 @@
-import { createIssueCommentSchema, createIssueRelationSchema, createIssueSchema, issueListQuerySchema, updateIssueCommentSchema, updateIssueSchema } from "@rinia/shared";
+import { bulkDeleteIssuesSchema, bulkUpdateIssuesSchema, commentReactionSchema, reactionEmojiSchema, createIssueCommentSchema, createIssueRelationSchema, createIssueSchema, issueListQuerySchema, updateIssueCommentSchema, updateIssueSchema } from "@rinia/shared";
+import { z } from "zod";
 import { asyncHandler } from "../../middleware/async-handler";
 import { assertProjectMembership } from "../../middleware/project-membership.middleware";
 import {
+    addCommentReaction,
+    bulkDeleteIssues,
+    bulkUpdateIssues,
     createIssue,
     createIssueComment,
     createIssueRelation,
@@ -9,10 +13,13 @@ import {
     deleteIssueComment,
     deleteIssueRelation,
     getIssueOrThrow,
+    listDescriptionRevisions,
     listIssueActivity,
     listIssueComments,
     listIssueRelations,
     listIssues,
+    removeCommentReaction,
+    restoreDescriptionRevision,
     updateIssue,
     updateIssueComment,
     issueIdentifier,
@@ -75,5 +82,31 @@ export const removeComment = asyncHandler<{ commentId: string }>(async (req, res
 
 export const removeRelation = asyncHandler<{ relationId: string }>(async (req, res) => {
     await deleteIssueRelation(req.params.relationId, req.user!.sub);
+    res.status(204).send();
+});
+
+export const addReaction = asyncHandler<{ commentId: string }>(async (req, res) => {
+    const { emoji } = commentReactionSchema.parse(req.body);
+    res.status(201).json({ reactions: await addCommentReaction(z.string().uuid().parse(req.params.commentId), emoji, req.user!.sub) });
+});
+
+export const removeReaction = asyncHandler<{ commentId: string; emoji: string }>(async (req, res) => {
+    res.json({ reactions: await removeCommentReaction(z.string().uuid().parse(req.params.commentId), reactionEmojiSchema.parse(req.params.emoji), req.user!.sub) });
+});
+
+export const descriptionRevisions = asyncHandler<{ issueIdentifier: string }>(async (req, res) => {
+    res.json({ revisions: await listDescriptionRevisions(req.params.issueIdentifier, req.user!.sub) });
+});
+
+export const restoreDescription = asyncHandler<{ issueIdentifier: string; revisionId: string }>(async (req, res) => {
+    res.json({ issue: await restoreDescriptionRevision(req.params.issueIdentifier, z.string().uuid().parse(req.params.revisionId), req.user!.sub) });
+});
+
+export const bulkUpdate = asyncHandler<{ projectId: string }>(async (req, res) => {
+    res.json({ issues: await bulkUpdateIssues(req.params.projectId, bulkUpdateIssuesSchema.parse(req.body), req.user!.sub) });
+});
+
+export const bulkDelete = asyncHandler<{ projectId: string }>(async (req, res) => {
+    await bulkDeleteIssues(req.params.projectId, bulkDeleteIssuesSchema.parse(req.body).issueIds);
     res.status(204).send();
 });

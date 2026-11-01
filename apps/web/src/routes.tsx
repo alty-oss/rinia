@@ -15,7 +15,9 @@ const ProfileSettingsPage = lazy(() => import("@/pages/profile-settings-page").t
 const DesignSystemPage = lazy(() => import("@/pages/design-system-page").then((module) => ({ default: module.default })));
 
 const IssueView = lazy(() => import("@/features/issues/components/issue-view").then((module) => ({ default: module.IssueView })));
+const InboxPage = lazy(() => import("@/pages/inbox-page").then((module) => ({ default: module.InboxPage })));
 const LoginPage = lazy(() => import("@/pages/login-page").then((module) => ({ default: module.LoginPage })));
+const MyIssuesPage = lazy(() => import("@/pages/my-issues-page").then((module) => ({ default: module.MyIssuesPage })));
 const NotFound = lazy(() => import("@/pages/not-found").then((module) => ({ default: module.NotFound })));
 const ProjectDocumentPage = lazy(() => import("@/pages/project-documents-page").then((module) => ({ default: module.ProjectDocumentPage })));
 const ProjectDocumentsPage = lazy(() => import("@/pages/project-documents-page").then((module) => ({ default: module.ProjectDocumentsPage })));
@@ -74,6 +76,9 @@ export const AppRoutes = () => {
                     }
                 >
                     <Route path="/" element={<ProjectsPage />} />
+                    <Route path="/inbox" element={<InboxPage />} />
+                    <Route path="/my-issues" element={<MyIssuesPage />} />
+                    <Route path="/my-issues/:filter" element={<MyIssuesPage />} />
                     <Route path="/settings/profile" element={<ProfileSettingsPage />} />
                     <Route path="/settings/preferences" element={<PreferencesSettingsPage />} />
                     <Route path="/settings/admin" element={<AdminSettingsPage />} />
