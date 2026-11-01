@@ -1,4 +1,3 @@
-<br /><br />
 
 <p align="center">
   <img src="apps/web/public/brand/rinia-icon-dark.svg" alt="Rinia" width="96">
