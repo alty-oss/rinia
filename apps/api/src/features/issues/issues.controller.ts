@@ -19,6 +19,9 @@ import {
     listIssueRelations,
     listIssues,
     removeCommentReaction,
+    restoreIssue,
+    restoreIssueComment,
+    restoreBulkIssues,
     restoreDescriptionRevision,
     updateIssue,
     updateIssueComment,
@@ -47,8 +50,12 @@ export const update = asyncHandler<{ issueIdentifier: string }>(async (req, res)
 });
 
 export const remove = asyncHandler<{ issueIdentifier: string }>(async (req, res) => {
-    await deleteIssue(req.params.issueIdentifier, req.user!.sub);
-    res.status(204).send();
+    res.json(await deleteIssue(req.params.issueIdentifier, req.user!.sub));
+});
+
+export const restore = asyncHandler<{ issueIdentifier: string }>(async (req, res) => {
+    const { deletedAt } = z.object({ deletedAt: z.string().datetime() }).parse(req.body);
+    res.json(await restoreIssue(req.params.issueIdentifier, req.user!.sub, new Date(deletedAt)));
 });
 
 export const comments = asyncHandler<{ issueIdentifier: string }>(async (req, res) => {
@@ -76,8 +83,12 @@ export const patchComment = asyncHandler<{ commentId: string }>(async (req, res)
 });
 
 export const removeComment = asyncHandler<{ commentId: string }>(async (req, res) => {
-    await deleteIssueComment(req.params.commentId, req.user!.sub);
-    res.status(204).send();
+    res.json(await deleteIssueComment(req.params.commentId, req.user!.sub));
+});
+
+export const restoreComment = asyncHandler<{ commentId: string }>(async (req, res) => {
+    const { deletedAt } = z.object({ deletedAt: z.string().datetime() }).parse(req.body);
+    res.json(await restoreIssueComment(req.params.commentId, req.user!.sub, new Date(deletedAt)));
 });
 
 export const removeRelation = asyncHandler<{ relationId: string }>(async (req, res) => {
@@ -107,6 +118,10 @@ export const bulkUpdate = asyncHandler<{ projectId: string }>(async (req, res) =
 });
 
 export const bulkDelete = asyncHandler<{ projectId: string }>(async (req, res) => {
-    await bulkDeleteIssues(req.params.projectId, bulkDeleteIssuesSchema.parse(req.body).issueIds);
-    res.status(204).send();
+    res.json(await bulkDeleteIssues(req.params.projectId, bulkDeleteIssuesSchema.parse(req.body).issueIds));
+});
+
+export const bulkRestore = asyncHandler<{ projectId: string }>(async (req, res) => {
+    const { issueIds, deletedAt } = z.object({ issueIds: z.array(z.string().uuid()).min(1).max(100), deletedAt: z.string().datetime() }).parse(req.body);
+    res.json(await restoreBulkIssues(req.params.projectId, issueIds, req.user!.sub, new Date(deletedAt)));
 });

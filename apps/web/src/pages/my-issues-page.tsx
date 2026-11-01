@@ -169,7 +169,7 @@ export const MyIssuesPage = () => {
     return (
         <div className="flex h-full min-h-0 flex-col bg-surface-1">
             <Topbar title={t("myIssues.title")} />
-            <div className="flex h-10 shrink-0 items-center gap-1 border-b border-subtle px-3">
+            <div className="flex h-10 shrink-0 select-none items-center gap-1 border-b border-subtle px-3">
                 <div role="group" aria-label={t("myIssues.tabs")} className="flex min-w-0 items-center gap-1">
                     {myIssuesFilterValues.map((value) => (
                         <button key={value} type="button" aria-pressed={filter === value} className={tab(filter === value)} onClick={() => setFilter(value)}>

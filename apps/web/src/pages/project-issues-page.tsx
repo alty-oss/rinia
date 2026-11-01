@@ -15,6 +15,7 @@ import { EmptyState } from "@/components/feedback/empty-state";
 import { ErrorMessage } from "@/components/feedback/error-message";
 import { Skeleton } from "@/components/base/feedback/skeleton";
 import { Board } from "@/features/board/components/board";
+import { HiddenColumnsMenu, useHiddenColumns } from "@/features/board/components/hidden-columns";
 import { StateIcon } from "@/features/board/components/issue-property-icons";
 import { useColumns } from "@/features/board/hooks/use-board";
 import { columnBucket, defaultIssueColumn } from "@/features/board/column-bucket";
@@ -72,6 +73,7 @@ const ProjectIssues = () => {
     const { data: issues, isLoading, isError } = useIssues(projectId!, { orderBy });
     const updateIssue = useUpdateIssue(projectId!);
     const { data: columns } = useColumns(projectId!);
+    const { hidden: hiddenColumns, hideColumn, showColumn, showAllColumns } = useHiddenColumns(projectId!);
     const { data: members } = useProjectMembers(projectId!);
     const { data: categories } = useCategories(projectId!);
     const createIssue = useCreateIssue(projectId!);
@@ -330,13 +332,21 @@ const ProjectIssues = () => {
                 {view && (
                     <div className="animate-enter ml-auto flex items-center gap-1">
                         <IssueToolbar chrome layout={view} projectId={projectId!} onCreate={() => setIsCreating(true)} />
+                        {view === "board" && (
+                            <HiddenColumnsMenu
+                                columns={(columns ?? []).filter((column) => hiddenColumns.has(column.id))}
+                                countFor={(columnId) => filteredIssues.filter((issue) => issue.columnId === columnId).length}
+                                onShow={showColumn}
+                                onShowAll={showAllColumns}
+                            />
+                        )}
                     </div>
                 )}
             </div>
             {/* Each view eases in when it opens, so switching (or a first-time preference arriving) never pops. */}
             {view === "board" && (
                 <div key="board" className="animate-enter min-h-0 flex-1 overflow-x-auto bg-surface-2 px-4 pt-3 pb-3">
-                    <Board projectId={projectId!} filters={searchParams} />
+                    <Board projectId={projectId!} filters={searchParams} hidden={hiddenColumns} hideColumn={hideColumn} showColumn={showColumn} />
                     {isCreating && defaultIssueColumn(columns) && (
                         <IssueQuickCreateModal
                             projectId={projectId!}

@@ -23,6 +23,10 @@ export function createFavorite(target: FavoriteTarget): Promise<Favorite> {
     return apiClient.post<{ favorite: Favorite }>("/favorites", target).then((res) => res.favorite);
 }
 
-export function deleteFavorite(favoriteId: string): Promise<void> {
-    return apiClient.delete<void>(`/favorites/${favoriteId}`);
+export function deleteFavorite(favoriteId: string): Promise<{ deletedAt: string }> {
+    return apiClient.delete<{ deletedAt: string }>(`/favorites/${favoriteId}`);
+}
+
+export function restoreFavorite(favoriteId: string, deletedAt: string): Promise<void> {
+    return apiClient.post<void>(`/favorites/${favoriteId}/restore`, { deletedAt });
 }

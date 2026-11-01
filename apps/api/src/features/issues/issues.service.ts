@@ -1,9 +1,10 @@
 import { nextLabels, type BulkUpdateIssuesInput, type CreateIssueCommentInput, type CreateIssueInput, type CreateIssueRelationInput, type IssueListQuery, type IssueOrder, type MyIssuesQuery, type TiptapDocument, type UpdateIssueCommentInput, type UpdateIssueInput } from "@rinia/shared";
-import { and, asc, count, desc, eq, inArray, max, or, sql, type SQL } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNull, max, or, sql, type SQL } from "drizzle-orm";
 import { db } from "../../db";
 import { boardColumns, categories, commentReactions, issueActivities, issueComments, issueDescriptionRevisions, issueLabels, issueRelations, issues, issueSubscriptions, projectKeyAliases, projectMembers, projects, users } from "../../db/schema";
 import type { TiptapDocument as StoredDocument } from "../../db/schema";
 import { HttpError } from "../../lib/http-error";
+import { requireUndoWindow } from "../../lib/soft-delete";
 import { mentionedUserIds, newMentions, recordIssueChange } from "../notifications/notifications.service";
 
 const EMPTY_DOCUMENT = { type: "doc" as const, content: [] };
@@ -74,7 +75,7 @@ async function findIssue(identifier: string) {
             .select({ id: issues.id })
             .from(issues)
             .innerJoin(projects, eq(issues.projectId, projects.id))
-            .where(and(eq(projects.issueKey, parsed.key), eq(issues.number, parsed.number)));
+        .where(and(eq(projects.issueKey, parsed.key), eq(issues.number, parsed.number), isNull(issues.deletedAt)));
         // Identifiers from before a project key change still open the same issue.
         const [aliased] = match
             ? []
@@ -82,12 +83,12 @@ async function findIssue(identifier: string) {
                   .select({ id: issues.id })
                   .from(issues)
                   .innerJoin(projectKeyAliases, eq(issues.projectId, projectKeyAliases.projectId))
-                  .where(and(eq(projectKeyAliases.key, parsed.key), eq(issues.number, parsed.number)));
+                  .where(and(eq(projectKeyAliases.key, parsed.key), eq(issues.number, parsed.number), isNull(issues.deletedAt)));
         identifier = match?.id ?? aliased?.id ?? identifier;
     }
 
     const issue = await db.query.issues.findFirst({
-        where: eq(issues.id, identifier),
+        where: and(eq(issues.id, identifier), isNull(issues.deletedAt)),
         with: {
             project: { columns: { id: true, name: true, issueKey: true } },
             assignee: { columns: { id: true, name: true, username: true, avatarUrl: true } },
@@ -95,7 +96,7 @@ async function findIssue(identifier: string) {
             labels: LABELS_WITH,
             column: { columns: { id: true, name: true } },
             parent: { columns: { id: true, number: true, title: true } },
-            children: { columns: { id: true, number: true, title: true, columnId: true, priority: true } },
+            children: { where: (child, { isNull: isNullValue }) => isNullValue(child.deletedAt), columns: { id: true, number: true, title: true, columnId: true, priority: true } },
         },
     });
     return issue && withLabels(issue);
@@ -112,7 +113,7 @@ export function issueIdentifier(issue: { number: number; project: { issueKey: st
 }
 
 async function ensureIssueBelongsToProject(issueId: string, projectId: string) {
-    const issue = await db.query.issues.findFirst({ where: and(eq(issues.id, issueId), eq(issues.projectId, projectId)), columns: { id: true } });
+    const issue = await db.query.issues.findFirst({ where: and(eq(issues.id, issueId), eq(issues.projectId, projectId), isNull(issues.deletedAt)), columns: { id: true } });
     if (!issue) throw new HttpError(400, "Issue does not belong to this project");
 }
 
@@ -146,7 +147,7 @@ async function ensureParentIsValid(parentIssueId: string, issueId: string | unde
 
     let current = parentIssueId;
     for (let depth = 0; depth < 20; depth += 1) {
-        const parent = await db.query.issues.findFirst({ where: eq(issues.id, current), columns: { parentIssueId: true } });
+        const parent = await db.query.issues.findFirst({ where: and(eq(issues.id, current), isNull(issues.deletedAt)), columns: { parentIssueId: true } });
         if (!parent?.parentIssueId) return;
         if (parent.parentIssueId === issueId) throw new HttpError(400, "An issue cannot become its own ancestor");
         current = parent.parentIssueId;
@@ -165,7 +166,7 @@ async function nextIssueNumber(projectId: string, tx: any = db): Promise<{ issue
 }
 
 export async function listIssues(projectId: string, query: IssueListQuery) {
-    const filters = [eq(issues.projectId, projectId)];
+    const filters = [eq(issues.projectId, projectId), isNull(issues.deletedAt)];
     if (query.columnId) filters.push(eq(issues.columnId, query.columnId));
     if (query.priority) filters.push(eq(issues.priority, query.priority));
     if (query.assigneeId) filters.push(eq(issues.assigneeId, query.assigneeId));
@@ -185,6 +186,7 @@ export async function listIssues(projectId: string, query: IssueListQuery) {
  */
 export async function listMyIssues(userId: string, isAdmin: boolean, query: MyIssuesQuery) {
     const filters: SQL[] = [
+        isNull(issues.deletedAt),
         query.filter === "assigned"
             ? eq(issues.assigneeId, userId)
             : query.filter === "created"
@@ -308,16 +310,49 @@ export async function updateIssue(identifier: string, input: UpdateIssueInput, a
 export async function deleteIssue(identifier: string, actorId: string) {
     const issue = await getIssueOrThrow(identifier);
     await ensureProjectMember(actorId, issue.projectId);
-    const [{ value: children }] = await db.select({ value: count() }).from(issues).where(eq(issues.parentIssueId, issue.id));
-    if (children > 0) throw new HttpError(409, "Reparent or delete the sub-issues before deleting this issue");
-    await db.delete(issues).where(eq(issues.id, issue.id));
+    const rows = await db.query.issues.findMany({ where: and(eq(issues.projectId, issue.projectId), isNull(issues.deletedAt)), columns: { id: true, parentIssueId: true } });
+    const ids = new Set([issue.id]);
+    for (let changed = true; changed;) {
+        changed = false;
+        for (const row of rows) if (row.parentIssueId && ids.has(row.parentIssueId) && !ids.has(row.id)) { ids.add(row.id); changed = true; }
+    }
+    const deletedAt = new Date();
+    await db.update(issues).set({ deletedAt }).where(inArray(issues.id, [...ids]));
+    return { deletedAt: deletedAt.toISOString() };
+}
+
+export async function restoreIssue(identifier: string, actorId: string, deletedAt: Date) {
+    requireUndoWindow(deletedAt);
+    const parsed = parseIdentifier(identifier);
+    if (!parsed) throw new HttpError(404, "Issue not found");
+    const [row] = await db.select({ id: issues.id, projectId: issues.projectId }).from(issues).innerJoin(projects, eq(issues.projectId, projects.id))
+        .where(and(eq(projects.issueKey, parsed.key), eq(issues.number, parsed.number), eq(issues.deletedAt, deletedAt)));
+    if (!row) throw new HttpError(404, "Issue not found or undo window expired");
+    await ensureProjectMember(actorId, row.projectId);
+    const descendants = await db.query.issues.findMany({ where: and(eq(issues.projectId, row.projectId), eq(issues.deletedAt, deletedAt)), columns: { id: true, parentIssueId: true } });
+    const ids = new Set([row.id]);
+    for (let changed = true; changed;) {
+        changed = false;
+        for (const child of descendants) if (child.parentIssueId && ids.has(child.parentIssueId) && !ids.has(child.id)) { ids.add(child.id); changed = true; }
+    }
+    await db.update(issues).set({ deletedAt: null }).where(and(inArray(issues.id, [...ids]), eq(issues.projectId, row.projectId), eq(issues.deletedAt, deletedAt)));
+    return { restored: true };
+}
+
+export async function restoreBulkIssues(projectId: string, issueIds: string[], actorId: string, deletedAt: Date) {
+    requireUndoWindow(deletedAt);
+    await ensureProjectMember(actorId, projectId);
+    const rows = await db.query.issues.findMany({ where: and(eq(issues.projectId, projectId), inArray(issues.id, issueIds), eq(issues.deletedAt, deletedAt)), columns: { id: true } });
+    if (rows.length !== issueIds.length) throw new HttpError(404, "Some issues could not be restored");
+    await db.update(issues).set({ deletedAt: null }).where(and(eq(issues.projectId, projectId), inArray(issues.id, issueIds), eq(issues.deletedAt, deletedAt)));
+    return { restored: true };
 }
 
 export async function listIssueComments(identifier: string, actorId: string) {
     const issue = await getIssueOrThrow(identifier);
     await ensureProjectMember(actorId, issue.projectId);
     const rows = await db.query.issueComments.findMany({
-        where: eq(issueComments.issueId, issue.id),
+        where: and(eq(issueComments.issueId, issue.id), isNull(issueComments.deletedAt)),
         orderBy: [asc(issueComments.createdAt)],
         with: {
             author: { columns: PERSON },
@@ -339,8 +374,9 @@ export function groupReactions(rows: Array<{ emoji: string; user: { id: string; 
 }
 
 async function commentForMember(commentId: string, userId: string) {
-    const comment = await db.query.issueComments.findFirst({ where: eq(issueComments.id, commentId), columns: { id: true }, with: { issue: { columns: { projectId: true } } } });
+    const comment = await db.query.issueComments.findFirst({ where: and(eq(issueComments.id, commentId), isNull(issueComments.deletedAt)), columns: { id: true }, with: { issue: { columns: { projectId: true, deletedAt: true } } } });
     if (!comment) throw new HttpError(404, "Comment not found");
+    if (comment.issue.deletedAt) throw new HttpError(404, "Issue not found");
     await ensureProjectMember(userId, comment.issue.projectId);
     return comment;
 }
@@ -371,7 +407,7 @@ export async function removeCommentReaction(commentId: string, emoji: string, us
 
 /** The comment that opens the thread a reply goes into. Replying to a reply joins its thread, keeping threads one level deep. */
 async function threadOf(parentCommentId: string, issueId: string) {
-    const parent = await db.query.issueComments.findFirst({ where: and(eq(issueComments.id, parentCommentId), eq(issueComments.issueId, issueId)), columns: { id: true, parentCommentId: true } });
+    const parent = await db.query.issueComments.findFirst({ where: and(eq(issueComments.id, parentCommentId), eq(issueComments.issueId, issueId), isNull(issueComments.deletedAt)), columns: { id: true, parentCommentId: true } });
     if (!parent) throw new HttpError(404, "Comment not found");
     return parent.parentCommentId ?? parent.id;
 }
@@ -382,7 +418,7 @@ export async function createIssueComment(identifier: string, input: CreateIssueC
     const threadId = input.parentCommentId ? await threadOf(input.parentCommentId, issue.id) : null;
     // Everyone who already wrote in the thread hears about the reply, followers of the issue or not.
     const threadParticipantIds = threadId
-        ? [...new Set((await db.query.issueComments.findMany({ where: or(eq(issueComments.id, threadId), eq(issueComments.parentCommentId, threadId)), columns: { authorId: true } })).map((row) => row.authorId))]
+        ? [...new Set((await db.query.issueComments.findMany({ where: and(or(eq(issueComments.id, threadId), eq(issueComments.parentCommentId, threadId)), isNull(issueComments.deletedAt)), columns: { authorId: true } })).map((row) => row.authorId))]
         : [];
     const [comment] = await db.insert(issueComments).values({ issueId: issue.id, authorId, parentCommentId: threadId, contentJson: input.contentJson }).returning();
     await recordIssueChange(issue, { actorId: authorId, comment: { id: comment.id, created: true }, mentionedIds: mentionedUserIds(input.contentJson), threadParticipantIds });
@@ -391,7 +427,8 @@ export async function createIssueComment(identifier: string, input: CreateIssueC
 }
 
 export async function updateIssueComment(commentId: string, input: UpdateIssueCommentInput, authorId: string) {
-    const comment = await db.query.issueComments.findFirst({ where: eq(issueComments.id, commentId) });
+    await commentForMember(commentId, authorId);
+    const comment = await db.query.issueComments.findFirst({ where: and(eq(issueComments.id, commentId), isNull(issueComments.deletedAt)) });
     if (!comment) throw new HttpError(404, "Comment not found");
     if (comment.authorId !== authorId) throw new HttpError(403, "Only the comment author can edit it");
     const [updated] = await db.update(issueComments).set({ contentJson: input.contentJson, updatedAt: new Date() }).where(eq(issueComments.id, commentId)).returning();
@@ -401,10 +438,23 @@ export async function updateIssueComment(commentId: string, input: UpdateIssueCo
 }
 
 export async function deleteIssueComment(commentId: string, authorId: string) {
-    const comment = await db.query.issueComments.findFirst({ where: eq(issueComments.id, commentId) });
+    await commentForMember(commentId, authorId);
+    const comment = await db.query.issueComments.findFirst({ where: and(eq(issueComments.id, commentId), isNull(issueComments.deletedAt)) });
     if (!comment) throw new HttpError(404, "Comment not found");
     if (comment.authorId !== authorId) throw new HttpError(403, "Only the comment author can delete it");
-    await db.delete(issueComments).where(eq(issueComments.id, commentId));
+    const deletedAt = new Date();
+    await db.update(issueComments).set({ deletedAt }).where(and(or(eq(issueComments.id, commentId), eq(issueComments.parentCommentId, commentId)), isNull(issueComments.deletedAt)));
+    return { deletedAt: deletedAt.toISOString() };
+}
+
+export async function restoreIssueComment(commentId: string, authorId: string, deletedAt: Date) {
+    requireUndoWindow(deletedAt);
+    const comment = await db.query.issueComments.findFirst({ where: and(eq(issueComments.id, commentId), eq(issueComments.deletedAt, deletedAt)), with: { issue: { columns: { projectId: true } } } });
+    if (!comment) throw new HttpError(404, "Comment not found or undo window expired");
+    if (comment.authorId !== authorId) throw new HttpError(403, "Only the comment author can restore it");
+    await ensureProjectMember(authorId, comment.issue.projectId);
+    await db.update(issueComments).set({ deletedAt: null }).where(and(or(eq(issueComments.id, commentId), eq(issueComments.parentCommentId, commentId)), eq(issueComments.deletedAt, deletedAt)));
+    return { restored: true };
 }
 
 export async function listIssueActivity(identifier: string, actorId: string) {
@@ -511,7 +561,7 @@ const BULK_FIELDS = [
 /** Each selected issue in the project, or a 404 when any is missing, so a bulk change never applies halfway. */
 async function issuesInProject(projectId: string, issueIds: string[]) {
     const rows = await db.query.issues.findMany({
-        where: and(eq(issues.projectId, projectId), inArray(issues.id, issueIds)),
+        where: and(eq(issues.projectId, projectId), inArray(issues.id, issueIds), isNull(issues.deletedAt)),
         with: { labels: LABELS_WITH },
     });
     if (rows.length !== issueIds.length) throw new HttpError(404, "Some issues were not found in this project");
@@ -580,12 +630,10 @@ export async function bulkUpdateIssues(projectId: string, input: BulkUpdateIssue
 export async function bulkDeleteIssues(projectId: string, issueIds: string[]) {
     await issuesInProject(projectId, issueIds);
     const selected = new Set(issueIds);
-    const children = await db.query.issues.findMany({ where: inArray(issues.parentIssueId, issueIds), columns: { id: true } });
+    const children = await db.query.issues.findMany({ where: and(inArray(issues.parentIssueId, issueIds), isNull(issues.deletedAt)), columns: { id: true } });
     if (children.some((child) => !selected.has(child.id))) throw new HttpError(409, "Reparent or delete the sub-issues before deleting this issue");
 
-    await db.transaction(async (tx) => {
-        // Sub-issues deleted together with their parent let go of it first, so the parent link never blocks the delete.
-        await tx.update(issues).set({ parentIssueId: null }).where(and(inArray(issues.id, issueIds), inArray(issues.parentIssueId, issueIds)));
-        await tx.delete(issues).where(and(eq(issues.projectId, projectId), inArray(issues.id, issueIds)));
-    });
+    const deletedAt = new Date();
+    await db.update(issues).set({ deletedAt }).where(and(eq(issues.projectId, projectId), inArray(issues.id, issueIds)));
+    return { deletedAt: deletedAt.toISOString() };
 }

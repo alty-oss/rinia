@@ -1,13 +1,15 @@
 import { resolveLocale, type CreateDocumentInput, type Locale, type UpdateDocumentInput } from "@rinia/shared";
-import { and, asc, eq, sql } from "drizzle-orm";
+import { and, asc, eq, isNull, sql } from "drizzle-orm";
 import { db } from "../../db";
 import { projectDocuments, projectMembers, users } from "../../db/schema";
 import { HttpError } from "../../lib/http-error";
+import { requireUndoWindow } from "../../lib/soft-delete";
 
 const matchingDocument = (projectId: string, documentId: string) =>
-  and(
+    and(
     eq(projectDocuments.projectId, projectId),
     eq(projectDocuments.id, documentId),
+    isNull(projectDocuments.deletedAt),
   );
 
 const EMPTY_DOCUMENT_TITLES: Record<Locale, string> = {
@@ -17,7 +19,7 @@ const EMPTY_DOCUMENT_TITLES: Record<Locale, string> = {
 
 export function listDocuments(projectId: string) {
   return db.query.projectDocuments.findMany({
-    where: eq(projectDocuments.projectId, projectId),
+    where: and(eq(projectDocuments.projectId, projectId), isNull(projectDocuments.deletedAt)),
     columns: { contentJson: false },
     orderBy: [asc(projectDocuments.createdAt), asc(projectDocuments.id)],
   });
@@ -98,7 +100,18 @@ export async function deleteDocument(
         "Only the author or project owner can delete this page",
       );
   }
-  await db
-    .delete(projectDocuments)
-    .where(matchingDocument(projectId, documentId));
+  const deletedAt = new Date();
+  await db.update(projectDocuments).set({ deletedAt }).where(matchingDocument(projectId, documentId));
+  return { deletedAt: deletedAt.toISOString() };
+}
+
+export async function restoreDocument(projectId: string, documentId: string, deletedAt: Date) {
+  requireUndoWindow(deletedAt);
+  const [document] = await db.update(projectDocuments).set({ deletedAt: null }).where(and(
+    eq(projectDocuments.projectId, projectId),
+    eq(projectDocuments.id, documentId),
+    eq(projectDocuments.deletedAt, deletedAt),
+  )).returning({ id: projectDocuments.id });
+  if (!document) throw new HttpError(404, "Document not found or undo window expired");
+  return { restored: true };
 }

@@ -20,6 +20,7 @@ export const issueComments = pgTable(
         contentJson: jsonb("content_json").$type<TiptapDocument>().notNull(),
         createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
         updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+        deletedAt: timestamp("deleted_at", { withTimezone: true }),
     },
-    (table) => [index("issue_comments_parent_comment_id_idx").on(table.parentCommentId)],
+    (table) => [index("issue_comments_parent_comment_id_idx").on(table.parentCommentId), index("issue_comments_deleted_at_idx").on(table.deletedAt)],
 );

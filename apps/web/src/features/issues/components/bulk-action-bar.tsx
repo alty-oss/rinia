@@ -1,5 +1,6 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { Menu } from "@base-ui/react/menu";
+import { useQueryClient } from "@tanstack/react-query";
 import { EstimateOutline, LabelsOutline } from "@makeplane/propel/icons";
 import { issueEstimateValues, type BulkIssuePatch } from "@rinia/shared";
 import { Trash2, X } from "lucide-react";
@@ -12,6 +13,7 @@ import { PRIORITY_OPTIONS, priorityLabelKey } from "@/features/issues/lib/priori
 import { translateStatusName } from "@/i18n/status-label";
 import { cx } from "@/utils/cx";
 import type { Issue } from "../api";
+import { restoreBulkIssues } from "../api";
 import { useBulkDeleteIssues, useBulkUpdateIssues } from "../hooks/use-issues";
 import { LabelsPicker, type LabelOption } from "./labels-picker";
 import { UnassignedIcon } from "./issue-property-menus";
@@ -83,6 +85,7 @@ export function BulkActionBar({
 }) {
     const { t } = useTranslation();
     const showToast = useToast();
+    const queryClient = useQueryClient();
     const update = useBulkUpdateIssues(projectId);
     const remove = useBulkDeleteIssues(projectId);
     const [confirmDelete, setConfirmDelete] = useState(false);
@@ -121,10 +124,28 @@ export function BulkActionBar({
     function deleteSelected() {
         const ids = issues.map((issue) => issue.id);
         remove.mutate(ids, {
-            onSuccess: () => {
+            onSuccess: ({ deletedAt }) => {
                 setConfirmDelete(false);
                 onClear();
-                showToast({ title: counted("issue.deletedOne", "issue.deletedMany", ids.length) });
+                showToast({
+                    title: counted("issue.deletedOne", "issue.deletedMany", ids.length),
+                    action: {
+                        label: t("issue.undo"),
+                        onClick: async () => {
+                            try {
+                                await restoreBulkIssues(projectId, ids, deletedAt);
+                                await Promise.all([
+                                    queryClient.invalidateQueries({ queryKey: ["projects", projectId, "issues"] }),
+                                    queryClient.invalidateQueries({ queryKey: ["my-issues"] }),
+                                    queryClient.invalidateQueries({ queryKey: ["issues"] }),
+                                ]);
+                                showToast({ title: t("issue.changesUndone") });
+                            } catch {
+                                showToast({ tone: "error", title: t("issue.couldNotUndo") });
+                            }
+                        },
+                    },
+                });
             },
             onError: () => {
                 setConfirmDelete(false);
@@ -145,7 +166,7 @@ export function BulkActionBar({
                 aria-label={t("issue.bulkActions")}
                 inert={!open}
                 className={cx(
-                    "absolute bottom-5 left-1/2 z-30 flex max-w-[calc(100%-2rem)] -translate-x-1/2 items-center gap-0.5 overflow-x-auto rounded-xl border border-subtle bg-layer-2 p-1 shadow-overlay-200 transition-[opacity,transform] duration-200 ease-[cubic-bezier(0.2,0,0,1)] motion-reduce:transition-none",
+                    "absolute bottom-5 left-4 right-4 z-30 mx-auto flex w-fit max-w-full flex-wrap justify-center items-center gap-0.5 overflow-hidden rounded-xl border border-subtle bg-layer-2 p-1 shadow-overlay-200 transition-[opacity,transform] duration-200 ease-[cubic-bezier(0.2,0,0,1)] motion-reduce:transition-none",
                     open ? "translate-y-0 opacity-100" : "pointer-events-none translate-y-3 opacity-0",
                 )}
             >

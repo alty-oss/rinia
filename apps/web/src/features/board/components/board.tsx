@@ -31,12 +31,12 @@ import { ApiError } from "@/lib/api-client";
 import { useColumns } from "../hooks/use-board";
 import { positionAtIndex } from "../position";
 import { Column } from "./column";
-import { HiddenColumns, useHiddenColumns } from "./hidden-columns";
 import { columnBucket } from "../column-bucket";
 import { resolveLabels } from "@/features/issues/components/labels-picker";
 import { useRegisterVisibleIssues } from "@/features/issues/selection";
 import { IssueCardContent } from "./issue-card";
 import { useTranslation } from "react-i18next";
+import { useToast } from "@/components/feedback/toaster";
 
 /**
  * On a board, what matters is literally beneath the cursor (`pointerWithin`) — much more
@@ -51,12 +51,18 @@ const collisionDetection: CollisionDetection = (args) => {
 /** Columns change size as issues enter and leave during a drag, so their rectangles must be measured continuously. */
 const measuring = { droppable: { strategy: MeasuringStrategy.Always } };
 
-export const Board = ({ projectId, filters = new URLSearchParams() }: { projectId: string; filters?: URLSearchParams }) => {
+export const Board = ({ projectId, filters = new URLSearchParams(), hidden, hideColumn, showColumn }: {
+    projectId: string;
+    filters?: URLSearchParams;
+    hidden: Set<string>;
+    hideColumn: (columnId: string) => void;
+    showColumn: (columnId: string) => void;
+}) => {
     const { t } = useTranslation();
+    const showToast = useToast();
     const navigate = useNavigate();
     const { projectKey } = useRouteProject();
     const { data: columns, isLoading: columnsLoading, isError: columnsError } = useColumns(projectId);
-    const { hidden, hideColumn, showColumn } = useHiddenColumns(projectId);
     const orderBy = readIssueOrder(filters.get("order"));
     const { data: issues, isLoading: issuesLoading, isError: issuesError } = useIssues(projectId, { orderBy });
     const closedColumnIds = useMemo(() => new Set((columns ?? []).filter((column) => columnBucket(column.name) === "closed").map((column) => column.id)), [columns]);
@@ -87,6 +93,14 @@ export const Board = ({ projectId, filters = new URLSearchParams() }: { projectI
     const board = useMemo(() => dragIssues ?? [...filtered].sort((a, b) => a.position - b.position || a.number - b.number), [dragIssues, filtered]);
 
     useRegisterVisibleIssues(useMemo(() => (columns ?? []).filter((column) => !hidden.has(column.id)).flatMap((column) => board.filter((issue) => issue.columnId === column.id).map((issue) => issue.id)), [board, columns, hidden]));
+
+    function hideColumnWithUndo(columnId: string) {
+        hideColumn(columnId);
+        showToast({
+            title: t("projects.columnHidden"),
+            action: { label: t("issue.undo"), onClick: () => showColumn(columnId) },
+        });
+    }
 
     /** Resolves the target column: `over` is the column itself (card area) or a card inside it. */
     function resolveColumnId(overId: string, list: Issue[]): string | undefined {
@@ -248,16 +262,11 @@ export const Board = ({ projectId, filters = new URLSearchParams() }: { projectI
                             onUpdateIssue={(identifier, input) => updateIssue.mutate({ identifier, input })}
                             onOpenIssue={(identifier) => navigate(urls.issue(identifier))}
                             onCreateIssue={(columnId) => setCreateColumnId(columnId)}
-                            onHide={hideColumn}
+                            onHide={hideColumnWithUndo}
                             onManageStates={() => navigate(urls.projectSettings(projectKey, "states"))}
                         />
                     ))}
                 </div>
-                    <HiddenColumns
-                        columns={(columns ?? []).filter((column) => hidden.has(column.id))}
-                        countFor={(columnId) => board.filter((issue) => issue.columnId === columnId).length}
-                        onShow={showColumn}
-                    />
                 </div>
 
                 <DragOverlay>

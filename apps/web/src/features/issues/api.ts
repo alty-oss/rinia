@@ -140,8 +140,12 @@ export function bulkUpdateIssues(projectId: string, issueIds: string[], patch: B
     return apiClient.patch<{ issues: Issue[] }>(`/projects/${projectId}/issues/bulk`, { issueIds, patch }).then((res) => res.issues);
 }
 
-export function bulkDeleteIssues(projectId: string, issueIds: string[]): Promise<void> {
-    return apiClient.post<void>(`/projects/${projectId}/issues/bulk-delete`, { issueIds });
+export function bulkDeleteIssues(projectId: string, issueIds: string[]): Promise<{ deletedAt: string }> {
+    return apiClient.post<{ deletedAt: string }>(`/projects/${projectId}/issues/bulk-delete`, { issueIds });
+}
+
+export function restoreBulkIssues(projectId: string, issueIds: string[], deletedAt: string): Promise<void> {
+    return apiClient.post<void>(`/projects/${projectId}/issues/bulk-restore`, { issueIds, deletedAt });
 }
 
 export function getIssue(identifier: string): Promise<IssueDetail> {
@@ -152,8 +156,12 @@ export function updateIssue(identifier: string, input: UpdateIssueInput): Promis
     return apiClient.patch<{ issue: Issue }>(`/issues/${encodeURIComponent(identifier)}`, input).then((res) => res.issue);
 }
 
-export function deleteIssue(identifier: string): Promise<void> {
-    return apiClient.delete<void>(`/issues/${encodeURIComponent(identifier)}`);
+export function deleteIssue(identifier: string): Promise<{ deletedAt: string }> {
+    return apiClient.delete<{ deletedAt: string }>(`/issues/${encodeURIComponent(identifier)}`);
+}
+
+export function restoreIssue(identifier: string, deletedAt: string): Promise<void> {
+    return apiClient.post<void>(`/issues/${encodeURIComponent(identifier)}/restore`, { deletedAt });
 }
 
 export function listIssueComments(identifier: string): Promise<IssueComment[]> {
@@ -168,8 +176,12 @@ export function updateIssueComment(commentId: string, input: UpdateIssueCommentI
     return apiClient.patch<{ comment: IssueComment }>(`/comments/${commentId}`, input).then((res) => res.comment);
 }
 
-export function deleteIssueComment(commentId: string): Promise<void> {
-    return apiClient.delete<void>(`/comments/${commentId}`);
+export function deleteIssueComment(commentId: string): Promise<{ deletedAt: string }> {
+    return apiClient.delete<{ deletedAt: string }>(`/comments/${commentId}`);
+}
+
+export function restoreIssueComment(commentId: string, deletedAt: string): Promise<void> {
+    return apiClient.post<void>(`/comments/${commentId}/restore`, { deletedAt });
 }
 
 export function addCommentReaction(commentId: string, emoji: string): Promise<ReactionGroup[]> {

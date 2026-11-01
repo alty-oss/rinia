@@ -1,14 +1,15 @@
 import type { CreateFavoriteInput } from "@rinia/shared";
-import { and, asc, eq, inArray } from "drizzle-orm";
+import { and, asc, eq, inArray, isNull } from "drizzle-orm";
 import { db } from "../../db";
 import { favorites, issues, projectDocuments, projectMembers } from "../../db/schema";
 import { HttpError } from "../../lib/http-error";
+import { requireUndoWindow } from "../../lib/soft-delete";
 import { assertProjectMembership } from "../../middleware/project-membership.middleware";
 
 const FAVORITE_WITH = {
     project: { columns: { id: true, name: true, issueKey: true, icon: true, iconAppearance: true } },
-    document: { columns: { id: true, title: true, iconAppearance: true } },
-    issue: { columns: { id: true, number: true, title: true } },
+    document: { columns: { id: true, title: true, iconAppearance: true, deletedAt: true } },
+    issue: { columns: { id: true, number: true, title: true, deletedAt: true } },
 } as const;
 
 type FavoriteRow = NonNullable<Awaited<ReturnType<typeof findFavorite>>>;
@@ -34,18 +35,19 @@ function toFavorite(row: FavoriteRow) {
 /** The user's favorites, oldest first, skipping projects they no longer belong to. */
 export async function listFavorites(userId: string, isAdmin: boolean) {
     const rows = await db.query.favorites.findMany({
-        where: eq(favorites.userId, userId),
+        where: and(eq(favorites.userId, userId), isNull(favorites.deletedAt)),
         orderBy: [asc(favorites.createdAt)],
         with: FAVORITE_WITH,
     });
-    if (isAdmin || rows.length === 0) return rows.map(toFavorite);
+    const activeTargets = rows.filter((row) => !row.document?.deletedAt && !row.issue?.deletedAt);
+    if (isAdmin || activeTargets.length === 0) return activeTargets.map(toFavorite);
 
     const memberships = await db.query.projectMembers.findMany({
-        where: and(eq(projectMembers.userId, userId), inArray(projectMembers.projectId, [...new Set(rows.map((row) => row.projectId))])),
+        where: and(eq(projectMembers.userId, userId), inArray(projectMembers.projectId, [...new Set(activeTargets.map((row) => row.projectId))])),
         columns: { projectId: true },
     });
     const allowed = new Set(memberships.map((membership) => membership.projectId));
-    return rows.filter((row) => allowed.has(row.projectId)).map(toFavorite);
+    return activeTargets.filter((row) => allowed.has(row.projectId)).map(toFavorite);
 }
 
 export async function addFavorite(userId: string, isAdmin: boolean, input: CreateFavoriteInput) {
@@ -54,11 +56,11 @@ export async function addFavorite(userId: string, isAdmin: boolean, input: Creat
     const issueId = input.kind === "issue" ? input.issueId : null;
 
     if (documentId) {
-        const document = await db.query.projectDocuments.findFirst({ where: and(eq(projectDocuments.id, documentId), eq(projectDocuments.projectId, input.projectId)), columns: { id: true } });
+        const document = await db.query.projectDocuments.findFirst({ where: and(eq(projectDocuments.id, documentId), eq(projectDocuments.projectId, input.projectId), isNull(projectDocuments.deletedAt)), columns: { id: true } });
         if (!document) throw new HttpError(404, "Document not found");
     }
     if (issueId) {
-        const issue = await db.query.issues.findFirst({ where: and(eq(issues.id, issueId), eq(issues.projectId, input.projectId)), columns: { id: true } });
+        const issue = await db.query.issues.findFirst({ where: and(eq(issues.id, issueId), eq(issues.projectId, input.projectId), isNull(issues.deletedAt)), columns: { id: true } });
         if (!issue) throw new HttpError(404, "Issue not found");
     }
 
@@ -66,7 +68,10 @@ export async function addFavorite(userId: string, isAdmin: boolean, input: Creat
     const [inserted] = await db
         .insert(favorites)
         .values({ userId, kind: input.kind, projectId: input.projectId, documentId, issueId })
-        .onConflictDoNothing({ target: [favorites.userId, favorites.kind, favorites.projectId, favorites.documentId, favorites.issueId] })
+        .onConflictDoUpdate({
+            target: [favorites.userId, favorites.kind, favorites.projectId, favorites.documentId, favorites.issueId],
+            set: { deletedAt: null },
+        })
         .returning({ id: favorites.id });
     const id =
         inserted?.id ??
@@ -87,6 +92,17 @@ export async function addFavorite(userId: string, isAdmin: boolean, input: Creat
 }
 
 export async function removeFavorite(userId: string, favoriteId: string) {
-    const [removed] = await db.delete(favorites).where(and(eq(favorites.id, favoriteId), eq(favorites.userId, userId))).returning({ id: favorites.id });
+    const deletedAt = new Date();
+    const [removed] = await db.update(favorites).set({ deletedAt }).where(and(eq(favorites.id, favoriteId), eq(favorites.userId, userId), isNull(favorites.deletedAt))).returning({ id: favorites.id });
     if (!removed) throw new HttpError(404, "Favorite not found");
+    return { deletedAt: deletedAt.toISOString() };
+}
+
+export async function restoreFavorite(userId: string, favoriteId: string, deletedAt: Date) {
+    requireUndoWindow(deletedAt);
+    const [restored] = await db.update(favorites).set({ deletedAt: null }).where(and(
+        eq(favorites.id, favoriteId), eq(favorites.userId, userId), eq(favorites.deletedAt, deletedAt),
+    )).returning({ id: favorites.id });
+    if (!restored) throw new HttpError(404, "Favorite not found or undo window expired");
+    return { restored: true };
 }

@@ -18,7 +18,7 @@ export function SettingsPage({ title, description, aside, back, children }: { ti
     const { t } = useTranslation();
     return (
         <div className="flex h-full min-h-0 flex-col">
-            <div className="flex h-11 shrink-0 items-center gap-1 px-3">
+            <div className="flex h-11 shrink-0 select-none items-center gap-1 px-3">
                 <span className="md:hidden">
                     <ButtonUtility icon={AppIcons.Menu} color="tertiary" tooltip={t("nav.expand")} onClick={openNavigation} />
                 </span>
@@ -33,7 +33,7 @@ export function SettingsPage({ title, description, aside, back, children }: { ti
             <div className="min-h-0 flex-1 overflow-y-auto">
                 <div className="mx-auto w-full max-w-[42rem] px-6 pt-6 pb-16">
                     {title && (
-                        <header className="mb-8 flex flex-wrap items-end justify-between gap-x-6 gap-y-2">
+                        <header className="mb-8 flex select-none flex-wrap items-end justify-between gap-x-6 gap-y-2">
                             <div className="min-w-0">
                                 <h1 className="truncate text-[26px] leading-8 font-semibold tracking-tight text-primary">{title}</h1>
                                 {description && <p className="mt-2 text-[13px] text-tertiary">{description}</p>}
@@ -53,7 +53,7 @@ export function SettingsGroup({ title, description, children }: { title?: string
     return (
         <section className="mt-10 first:mt-0">
             {title && (
-                <div className="mb-3 px-1">
+                <div className="mb-3 select-none px-1">
                     <h2 className="text-[15px] font-medium text-primary">{title}</h2>
                     {description && <p className="mt-1 text-[13px] text-tertiary">{description}</p>}
                 </div>
@@ -67,7 +67,7 @@ export function SettingsGroup({ title, description, children }: { title?: string
 export function SettingsHeading({ title, description, control }: { title: string; description?: string; control?: ReactNode }) {
     return (
         <header className="flex flex-col items-start justify-between gap-3 md:flex-row md:items-end">
-            <div className="flex min-w-0 flex-col gap-2">
+            <div className="flex min-w-0 flex-col gap-2 select-none">
                 <h1 className="text-[26px] leading-8 font-semibold tracking-tight text-primary">{title}</h1>
                 {description && <p className="text-[13px] text-tertiary">{description}</p>}
             </div>
@@ -80,7 +80,7 @@ export function SettingsHeading({ title, description, control }: { title: string
 export function SettingsControl({ title, description, children }: { title: string; description?: ReactNode; children: ReactNode }) {
     return (
         <div className="flex flex-col gap-3 py-3.5 sm:flex-row sm:items-center sm:justify-between sm:gap-8">
-            <div className="min-w-0 space-y-0.5">
+            <div className="min-w-0 space-y-0.5 select-none">
                 <h3 className="text-[13px] font-medium text-primary">{title}</h3>
                 {description && <p className="text-[13px] text-tertiary">{description}</p>}
             </div>
@@ -92,7 +92,7 @@ export function SettingsControl({ title, description, children }: { title: strin
 /** A row that opens another settings page, with an optional summary value before the chevron. */
 export function SettingsLinkRow({ to, icon: Icon, title, description, value }: { to: string; icon: ComponentType<SVGProps<SVGSVGElement>>; title: string; description: string; value?: ReactNode }) {
     return (
-        <Link to={to} className="group -mx-4 flex items-center gap-3.5 px-4 py-3.5 first:rounded-t-xl last:rounded-b-xl hover:bg-layer-transparent-hover">
+        <Link to={to} className="group -mx-4 flex select-none items-center gap-3.5 px-4 py-3.5 first:rounded-t-xl last:rounded-b-xl hover:bg-layer-transparent-hover">
             <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-layer-3 text-secondary">
                 <Icon className="size-4" />
             </span>

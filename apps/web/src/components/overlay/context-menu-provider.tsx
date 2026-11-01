@@ -6,10 +6,12 @@ import { useLocation, useNavigate } from "react-router";
 import { Button } from "@/components/base/buttons/button";
 import { useClipboard } from "@/hooks/use-clipboard";
 import { useAuth } from "@/features/auth/hooks/use-auth";
-import { deleteDocument } from "@/features/documents/api";
-import { clearDocumentSession, pauseDocumentSession } from "@/features/documents/sessions";
+import { deleteDocument, getDocument, restoreDocument } from "@/features/documents/api";
+import { pauseDocumentSession } from "@/features/documents/sessions";
 import { documentKey, documentsKey } from "@/features/documents/hooks/use-documents";
 import { useDeleteIssue } from "@/features/issues/hooks/use-issues";
+import { restoreIssue } from "@/features/issues/api";
+import { useToast } from "@/components/feedback/toaster";
 import { fetchIssueClipboardContent } from "@/features/issues/lib/issue-clipboard";
 import { DeleteProjectDialog } from "@/features/projects/components/delete-project-dialog";
 import { useProjectPermissions } from "@/features/projects/hooks/use-project-permissions";
@@ -85,6 +87,7 @@ export const ContextMenuProvider = ({ children }: { children: ReactNode }) => {
     const [notice, setNotice] = useState("");
     const menuRef = useRef<HTMLDivElement>(null);
     const { copy } = useClipboard();
+    const showToast = useToast();
     const { user } = useAuth();
     const location = useLocation();
     const navigate = useNavigate();
@@ -336,26 +339,65 @@ export const ContextMenuProvider = ({ children }: { children: ReactNode }) => {
         setDeleteError(null);
         try {
             if (confirmation.type === "issue") {
-                await deleteIssue.mutateAsync(confirmation.identifier);
+                const { deletedAt } = await deleteIssue.mutateAsync(confirmation.identifier);
+                const key = projects?.find((project) => project.id === confirmation.projectId)?.issueKey;
+                if (key) navigate(urls.issues(key));
+                showToast({
+                    title: t("issue.deletedOne"),
+                    action: {
+                        label: t("issue.undo"),
+                        onClick: async () => {
+                            try {
+                                await restoreIssue(confirmation.identifier, deletedAt);
+                                await Promise.all([
+                                    queryClient.invalidateQueries({ queryKey: ["projects", confirmation.projectId, "issues"] }),
+                                    queryClient.invalidateQueries({ queryKey: ["my-issues"] }),
+                                    queryClient.invalidateQueries({ queryKey: ["issues"] }),
+                                ]);
+                                navigate(urls.issue(confirmation.identifier, confirmation.title));
+                            } catch {
+                                showToast({ tone: "error", title: t("issue.couldNotUndo") });
+                            }
+                        },
+                    },
+                });
             } else if (confirmation.type === "document") {
                 if (!user) throw new Error(t("errors.invalidSession"));
                 const resume = await pauseDocumentSession(user.id, confirmation.projectId, confirmation.documentId);
+                let documentDeletedAt = "";
                 try {
-                    await deleteDocument(confirmation.projectId, confirmation.documentId);
+                    documentDeletedAt = (await deleteDocument(confirmation.projectId, confirmation.documentId)).deletedAt;
                 } catch (error) {
                     resume?.();
                     throw error;
                 }
-                await clearDocumentSession(user.id, confirmation.projectId, confirmation.documentId).catch(() => {
-                    setNotice(t("contextMenuExtra.pageDeletedDraftClearFailed"));
-                });
                 await queryClient.cancelQueries({ queryKey: documentKey(confirmation.projectId, confirmation.documentId) });
                 queryClient.removeQueries({ queryKey: documentKey(confirmation.projectId, confirmation.documentId) });
                 await queryClient.invalidateQueries({ queryKey: documentsKey(confirmation.projectId), exact: true });
+                await queryClient.invalidateQueries({ queryKey: ["favorites"] });
                 const deletedKey = projects?.find((project) => project.id === confirmation.projectId)?.issueKey;
                 if (deletedKey && location.pathname.startsWith(`${urls.documents(deletedKey)}/`) && location.pathname.endsWith(confirmation.documentId.replace(/-/g, "").slice(0, 12))) {
                     navigate(urls.documents(deletedKey), { replace: true });
                 }
+                showToast({
+                    title: t("documents.pageDeleted"),
+                    action: {
+                        label: t("issue.undo"),
+                        onClick: async () => {
+                            try {
+                                await restoreDocument(confirmation.projectId, confirmation.documentId, documentDeletedAt);
+                                resume?.();
+                                const restored = await getDocument(confirmation.projectId, confirmation.documentId);
+                                queryClient.setQueryData(documentKey(confirmation.projectId, confirmation.documentId), restored);
+                                await queryClient.invalidateQueries({ queryKey: documentsKey(confirmation.projectId), exact: true });
+                                await queryClient.invalidateQueries({ queryKey: ["favorites"] });
+                                if (deletedKey) navigate(urls.document(deletedKey, restored));
+                            } catch {
+                                showToast({ tone: "error", title: t("issue.couldNotUndo") });
+                            }
+                        },
+                    },
+                });
             }
             setConfirmation(null);
             setDeleteError(null);

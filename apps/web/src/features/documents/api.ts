@@ -18,7 +18,8 @@ export const listDocuments = (projectId: string) => apiClient.get<{ documents: D
 export const getDocument = (projectId: string, id: string) => apiClient.get<{ document: DocumentPage }>(`${base(projectId)}/${id}`).then((r) => r.document);
 export const createDocument = (projectId: string, input: Partial<CreateDocumentInput> = {}) =>
     apiClient.post<{ document: DocumentPage }>(base(projectId), input).then((r) => r.document);
-export const deleteDocument = (projectId: string, id: string) => apiClient.delete<void>(`${base(projectId)}/${id}`);
+export const deleteDocument = (projectId: string, id: string) => apiClient.delete<{ deletedAt: string }>(`${base(projectId)}/${id}`);
+export const restoreDocument = (projectId: string, id: string, deletedAt: string) => apiClient.post<void>(`${base(projectId)}/${id}/restore`, { deletedAt });
 export async function saveDocument(projectId: string, id: string, input: UpdateDocumentInput, signal?: AbortSignal): Promise<DocumentPage> {
     const { document } = await apiClient.patch<{ document: DocumentPage }>(`${base(projectId)}/${id}`, input, signal);
     return document;

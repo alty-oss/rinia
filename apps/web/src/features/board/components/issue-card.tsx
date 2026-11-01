@@ -8,7 +8,7 @@ import type { Issue, IssuePerson } from "@/features/issues/api";
 import { DueDateMenu } from "@/features/issues/components/due-date-picker";
 import { AssigneeMenu, EstimateMenu, LabelMenu, PriorityMenu } from "@/features/issues/components/issue-property-menus";
 import { cx } from "@/utils/cx";
-import { IssueCheckbox, useIssueSelection } from "@/features/issues/selection";
+import { useIssueSelection } from "@/features/issues/selection";
 
 interface IssueCardContentProps {
     issue: Issue;
@@ -110,7 +110,10 @@ export const IssueCard = ({ issue, categories, assignee, people, labels, onUpdat
                 data-peek-selected={selected || undefined}
                 onClick={(event) => {
                     // Shift-click selects a range of cards instead of opening this one.
-                    if (selection && event.shiftKey) selection.toggle(issue.id, { range: true });
+                    if (selection && event.shiftKey) {
+                        event.preventDefault();
+                        selection.toggle(issue.id, { range: true });
+                    }
                     else onClick();
                 }}
                 onFocus={() => selection?.setFocused(issue.id)}
@@ -121,14 +124,13 @@ export const IssueCard = ({ issue, categories, assignee, people, labels, onUpdat
                     } else listeners?.onKeyDown?.(event);
                 }}
                 className={cx(
-                    "block w-full cursor-pointer touch-none rounded-md border border-subtle bg-surface-1 px-3 py-2.5 pr-9 text-left outline-none transition-colors duration-200 ease-out hover:border-strong focus-visible:ring-2 focus-visible:ring-accent-strong md:pr-3",
+                    "block w-full cursor-pointer touch-none select-none rounded-md border border-subtle bg-surface-1 px-3 py-2.5 pr-9 text-left outline-none transition-colors duration-200 ease-out hover:border-strong focus-visible:ring-2 focus-visible:ring-accent-strong md:pr-3",
                     selected && "border-accent-strong",
                     checked && "border-accent-strong bg-accent-subtle/40",
                 )}
             >
                 <IssueCardContent issue={issue} categories={categories} assignee={assignee} people={people} labels={labels} onUpdate={onUpdate} closed={closed} />
             </div>
-            <IssueCheckbox issueId={issue.id} className="absolute top-2 right-9 z-10 bg-surface-1 group-hover/card:opacity-100" />
             <ContextMenuButton
                 entity={{ type: "issue", projectId, identifier: issue.identifier, title: issue.title }}
                 className="absolute top-1.5 right-1.5 z-10 rounded-md bg-layer-2"

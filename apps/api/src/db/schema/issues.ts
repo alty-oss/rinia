@@ -35,11 +35,13 @@ export const issues = pgTable(
         dueDate: date("due_date", { mode: "string" }),
         createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
         updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+        deletedAt: timestamp("deleted_at", { withTimezone: true }),
     },
     (table) => [
         index("issues_project_id_idx").on(table.projectId),
         index("issues_column_id_idx").on(table.columnId),
         index("issues_assignee_id_idx").on(table.assigneeId),
         index("issues_parent_issue_id_idx").on(table.parentIssueId),
+        index("issues_deleted_at_idx").on(table.deletedAt),
     ],
 );

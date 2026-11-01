@@ -176,6 +176,13 @@
       "when": 1790016000000,
       "tag": "0024_comment_replies",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1790017000000,
+      "tag": "0025_undoable_deletes",
+      "breakpoints": true
     }
   ]
 }

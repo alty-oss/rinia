@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { Menu } from "@base-ui/react/menu";
-import { ChevronDown, Eye, MoreHorizontal } from "lucide-react";
-import { Collapse } from "@/components/base/collapse";
+import { Eye, EyeOff } from "lucide-react";
 import { overlayChrome } from "@/components/overlay/overlay-chrome";
 import { translateStatusName } from "@/i18n/status-label";
 import { cx } from "@/utils/cx";
@@ -47,54 +46,68 @@ export function useHiddenColumns(projectId: string) {
         hidden,
         hideColumn: (columnId: string) => update((next) => next.add(columnId)),
         showColumn: (columnId: string) => update((next) => next.delete(columnId)),
+        showAllColumns: () => update((next) => next.clear()),
     };
 }
 
-/** Linear-style list of hidden columns at the end of the board, each with its issue count. */
-export function HiddenColumns({ columns, countFor, onShow }: { columns: BoardColumn[]; countFor: (columnId: string) => number; onShow: (columnId: string) => void }) {
+/** Compact board-toolbar control for restoring columns hidden on this project. */
+export function HiddenColumnsMenu({
+    columns,
+    countFor,
+    onShow,
+    onShowAll,
+}: {
+    columns: BoardColumn[];
+    countFor: (columnId: string) => number;
+    onShow: (columnId: string) => void;
+    onShowAll: () => void;
+}) {
     const { t } = useTranslation();
-    const [open, setOpen] = useState(true);
     return (
-        <div className={cx("shrink-0 overflow-hidden transition-[width,opacity] duration-200 ease-[cubic-bezier(0.2,0,0,1)]", columns.length ? "w-72 opacity-100" : "pointer-events-none w-0 opacity-0")} aria-hidden={!columns.length}>
-            <Collapse open={columns.length > 0} lazy={false}>
-                <section aria-label={t("projects.hiddenColumns")} className="w-72">
-                    <button type="button" aria-expanded={open} onClick={() => setOpen((value) => !value)} className="flex h-10 items-center gap-1.5 px-1 text-[13px] font-medium text-secondary hover:text-primary">
-                        <ChevronDown className={cx("size-3.5 text-tertiary transition-transform duration-200", !open && "-rotate-90")} />
-                        {t("projects.hiddenColumns")}
-                    </button>
-                    <Collapse open={open} lazy={false}>
-                        <ul className="flex flex-col gap-1.5">
-                            {columns.map((column) => {
-                                const label = translateStatusName(column.name, t);
-                                return (
-                                    <li key={column.id} className="animate-enter flex h-10 items-center gap-2.5 rounded-lg border border-subtle bg-surface-1 pr-1.5 pl-3 text-[13px]">
-                                        <button type="button" onClick={() => onShow(column.id)} title={t("projects.showColumn")} className="flex min-w-0 flex-1 items-center gap-2.5 text-left">
+        <Menu.Root>
+            <Menu.Trigger
+                type="button"
+                aria-label={`${t("projects.hiddenColumns")} (${columns.length})`}
+                title={t("projects.hiddenColumns")}
+                className="relative flex size-7 shrink-0 items-center justify-center rounded-md text-tertiary outline-none transition-colors hover:bg-layer-transparent-hover hover:text-primary focus-visible:bg-layer-transparent-hover data-[popup-open]:bg-layer-transparent-hover data-[popup-open]:text-primary"
+            >
+                <EyeOff className="size-4" />
+                {columns.length > 0 && (
+                    <span aria-hidden="true" className="absolute -top-0.5 -right-0.5 grid min-w-3.5 place-items-center rounded-full bg-layer-3 px-0.5 text-[9px] leading-3 text-secondary tabular-nums">
+                        {columns.length}
+                    </span>
+                )}
+            </Menu.Trigger>
+            <Menu.Portal>
+                <Menu.Positioner side="bottom" align="end" sideOffset={6} className="z-50">
+                    <Menu.Popup className={cx("max-h-80 w-64 origin-[var(--transform-origin)] overflow-y-auto transition-[opacity,transform] duration-150 data-[ending-style]:scale-95 data-[ending-style]:opacity-0 data-[starting-style]:scale-95 data-[starting-style]:opacity-0", overlayChrome.menu)}>
+                        <div className="px-2 py-1 text-[11px] text-placeholder">{t("projects.hiddenColumns")}</div>
+                        {columns.length === 0 ? (
+                            <div className="px-2 py-2 text-[13px] text-tertiary">{t("projects.noHiddenColumns")}</div>
+                        ) : (
+                            <>
+                                {columns.length > 1 && (
+                                    <Menu.Item onClick={onShowAll} className="flex h-8 cursor-pointer items-center gap-2 rounded px-2 text-[13px] text-secondary outline-none data-highlighted:bg-layer-2-hover data-highlighted:text-primary">
+                                        <Eye className="size-4 text-tertiary" />
+                                        {t("projects.showAllColumns")}
+                                    </Menu.Item>
+                                )}
+                                {columns.map((column) => {
+                                    const label = translateStatusName(column.name, t);
+                                    return (
+                                        <Menu.Item key={column.id} onClick={() => onShow(column.id)} className="flex h-8 cursor-pointer items-center gap-2 rounded px-2 text-[13px] text-secondary outline-none data-highlighted:bg-layer-2-hover data-highlighted:text-primary">
                                             <StateIcon name={column.name} color={column.color} className="size-4" />
-                                            <span className="min-w-0 flex-1 truncate font-medium text-primary">{label}</span>
+                                            <span className="min-w-0 flex-1 truncate">{label}</span>
                                             <span className="text-tertiary tabular-nums">{countFor(column.id)}</span>
-                                        </button>
-                                        <Menu.Root>
-                                            <Menu.Trigger aria-label={`${t("projects.columnActions")} · ${label}`} className="grid size-6 place-items-center rounded text-tertiary outline-none hover:bg-layer-transparent-hover hover:text-primary data-[popup-open]:bg-layer-transparent-hover">
-                                                <MoreHorizontal className="size-4" />
-                                            </Menu.Trigger>
-                                            <Menu.Portal>
-                                                <Menu.Positioner sideOffset={4} align="end" className="z-50">
-                                                    <Menu.Popup className={cx("w-48 origin-[var(--transform-origin)] transition-[opacity,transform] duration-150 data-[ending-style]:scale-95 data-[ending-style]:opacity-0 data-[starting-style]:scale-95 data-[starting-style]:opacity-0", overlayChrome.menu)}>
-                                                        <Menu.Item onClick={() => onShow(column.id)} className="flex h-8 cursor-pointer items-center gap-2.5 rounded px-2 text-[13px] text-secondary outline-none data-highlighted:bg-layer-2-hover data-highlighted:text-primary">
-                                                            <Eye className="size-4 text-tertiary" />
-                                                            {t("projects.showColumn")}
-                                                        </Menu.Item>
-                                                    </Menu.Popup>
-                                                </Menu.Positioner>
-                                            </Menu.Portal>
-                                        </Menu.Root>
-                                    </li>
-                                );
-                            })}
-                        </ul>
-                    </Collapse>
-                </section>
-            </Collapse>
-        </div>
+                                            <Eye className="size-3.5 text-tertiary" />
+                                        </Menu.Item>
+                                    );
+                                })}
+                            </>
+                        )}
+                    </Menu.Popup>
+                </Menu.Positioner>
+            </Menu.Portal>
+        </Menu.Root>
     );
 }

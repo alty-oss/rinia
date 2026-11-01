@@ -32,6 +32,7 @@ export const projectDocuments = pgTable(
     updatedAt: timestamp("updated_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
+    deletedAt: timestamp("deleted_at", { withTimezone: true }),
   },
   (table) => ({
     projectCreated: index("project_documents_project_created_idx").on(
@@ -39,5 +40,6 @@ export const projectDocuments = pgTable(
       table.createdAt,
       table.id,
     ),
+      deletedAt: index("project_documents_deleted_at_idx").on(table.deletedAt),
   }),
 );

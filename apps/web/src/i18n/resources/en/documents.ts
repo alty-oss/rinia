@@ -14,7 +14,7 @@ const documents = {
         createFromDraft: "Create page from draft", openSavedVersion: "Open saved version", couldNotLoad: "This page could not be loaded. It may have been deleted or you may no longer have access.",
         couldNotRefresh: "Could not refresh this page. Your local work is still available.", couldNotSave: "Could not save the page.",
         retrySave: "Press Ctrl/Cmd+S to retry.", deleteTitle: "Delete this page?", openSavedTitle: "Open the saved version?",
-        deleteWarning: "This permanently deletes the page and its local draft. This cannot be undone.",
+        deleteWarning: "The page will be removed. You can undo this while the confirmation is shown.",
         openSavedWarning: "This replaces your local draft with the saved version. Create a page from your draft first if you want to keep both.",
         couldNotComplete: "Could not complete the action.", couldNotCopy: "Could not create a copy.", localCopy: "(local copy)",
         slashNoResults: "No results", slashCommands: "Editor commands", mentions: "Mention suggestions", text: "Text", paragraph: "Plain paragraph",
