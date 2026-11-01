@@ -169,6 +169,13 @@
       "when": 1790015000000,
       "tag": "0023_issue_labels",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1790016000000,
+      "tag": "0024_comment_replies",
+      "breakpoints": true
     }
   ]
 }

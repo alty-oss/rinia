@@ -69,6 +69,8 @@ export interface IssueComment {
     id: string;
     issueId: string;
     authorId: string;
+    /** The comment whose thread this reply is in, or null for a comment that opens a thread. */
+    parentCommentId: string | null;
     contentJson: TiptapDocument;
     createdAt: string;
     updatedAt: string;

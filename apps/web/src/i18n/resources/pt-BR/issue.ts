@@ -37,6 +37,8 @@ const issue = {
         updatedOne: "1 tarefa atualizada", updatedMany: "{{count}} tarefas atualizadas", deletedOne: "1 tarefa excluída", deletedMany: "{{count}} tarefas excluídas",
         undo: "Desfazer", changesUndone: "Alterações desfeitas", couldNotUndo: "Não foi possível desfazer as alterações.", couldNotUpdateSelected: "Não foi possível atualizar as tarefas selecionadas.", couldNotDeleteSelected: "Não foi possível excluir as tarefas selecionadas.",
         deleteSelectedOne: "Excluir 1 tarefa?", deleteSelectedMany: "Excluir {{count}} tarefas?", deleteSelectedDescription: "Elas são removidas com os comentários e o histórico. Isso não pode ser desfeito.", deleteAction: "Excluir",
+        leaveReply: "Deixe uma resposta…", replyAction: "Responder", couldNotAddReply: "Não foi possível adicionar a resposta.",
+        deleteThreadTitle: "Excluir este comentário e as respostas?", deleteThreadDescription: "As {{count}} respostas desta conversa são excluídas junto.", deleteThreadDescriptionOne: "A resposta desta conversa é excluída junto.",
         conditionDueOverdue: "data de entrega vencida", conditionDueThisWeek: "entrega nesta semana", changedDueDate: "mudou a data de entrega",
     } as const;
 

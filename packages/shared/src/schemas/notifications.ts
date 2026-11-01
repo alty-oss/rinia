@@ -2,7 +2,7 @@ import { z } from "zod";
 import { issueOrderValues } from "./issues";
 
 /** Why someone got a notification. When one action has several reasons for the same person, the first listed wins. */
-export const notificationTypeValues = ["assigned", "mentioned", "commented", "status_changed"] as const;
+export const notificationTypeValues = ["assigned", "mentioned", "replied", "commented", "status_changed"] as const;
 export type NotificationType = (typeof notificationTypeValues)[number];
 
 export const updateNotificationSchema = z.object({ read: z.boolean() }).strict();

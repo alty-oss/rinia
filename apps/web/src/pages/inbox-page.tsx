@@ -142,6 +142,7 @@ function describe(notification: InboxNotification, t: TFunction) {
     const actor = notification.actor.name;
     if (notification.type === "assigned") return t("inbox.assigned", { actor });
     if (notification.type === "mentioned") return t("inbox.mentioned", { actor });
+    if (notification.type === "replied") return t("inbox.replied", { actor });
     if (notification.type === "commented") return t("inbox.commented", { actor });
     const to = notification.status?.to;
     return to ? t("inbox.statusChanged", { actor, status: translateStatusName(to.name, t) }) : t("inbox.statusChangedUnknown", { actor });

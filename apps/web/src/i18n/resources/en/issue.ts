@@ -37,6 +37,8 @@ const issue = {
         updatedOne: "1 issue updated", updatedMany: "{{count}} issues updated", deletedOne: "1 issue deleted", deletedMany: "{{count}} issues deleted",
         undo: "Undo", changesUndone: "Changes undone", couldNotUndo: "Could not undo the changes.", couldNotUpdateSelected: "Could not update the selected issues.", couldNotDeleteSelected: "Could not delete the selected issues.",
         deleteSelectedOne: "Delete 1 issue?", deleteSelectedMany: "Delete {{count}} issues?", deleteSelectedDescription: "They are removed with their comments and history. This cannot be undone.", deleteAction: "Delete",
+        leaveReply: "Leave a reply…", replyAction: "Reply", couldNotAddReply: "Could not add the reply.",
+        deleteThreadTitle: "Delete this comment and its replies?", deleteThreadDescription: "The {{count}} replies in this thread are deleted with it.", deleteThreadDescriptionOne: "The reply in this thread is deleted with it.",
         conditionDueOverdue: "a past due date", conditionDueThisWeek: "a due date this week", changedDueDate: "changed the due date",
     } as const;
 

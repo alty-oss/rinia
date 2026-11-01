@@ -1,7 +1,7 @@
 const inbox = {
         title: "Inbox", all: "All", unread: "Unread", filter: "Show",
         markAllRead: "Mark all as read", markRead: "Mark as read", markUnread: "Mark as unread",
-        assigned: "{{actor}} assigned you", mentioned: "{{actor}} mentioned you", commented: "{{actor}} commented",
+        assigned: "{{actor}} assigned you", mentioned: "{{actor}} mentioned you", replied: "{{actor}} replied to a thread you're in", commented: "{{actor}} commented",
         statusChanged: "{{actor}} moved it to {{status}}", statusChangedUnknown: "{{actor}} changed its state",
         emptyTitle: "You're all caught up", empty: "When someone assigns you an issue, mentions you, or updates an issue you follow, it shows up here.",
         emptyUnreadTitle: "No unread notifications", emptyUnread: "Everything here has been read.", showAll: "Show all",

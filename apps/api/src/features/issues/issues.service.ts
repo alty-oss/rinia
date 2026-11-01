@@ -369,11 +369,23 @@ export async function removeCommentReaction(commentId: string, emoji: string, us
     return commentReactionGroups(commentId);
 }
 
+/** The comment that opens the thread a reply goes into. Replying to a reply joins its thread, keeping threads one level deep. */
+async function threadOf(parentCommentId: string, issueId: string) {
+    const parent = await db.query.issueComments.findFirst({ where: and(eq(issueComments.id, parentCommentId), eq(issueComments.issueId, issueId)), columns: { id: true, parentCommentId: true } });
+    if (!parent) throw new HttpError(404, "Comment not found");
+    return parent.parentCommentId ?? parent.id;
+}
+
 export async function createIssueComment(identifier: string, input: CreateIssueCommentInput, authorId: string) {
     const issue = await getIssueOrThrow(identifier);
     await ensureProjectMember(authorId, issue.projectId);
-    const [comment] = await db.insert(issueComments).values({ issueId: issue.id, authorId, contentJson: input.contentJson }).returning();
-    await recordIssueChange(issue, { actorId: authorId, comment: { id: comment.id, created: true }, mentionedIds: mentionedUserIds(input.contentJson) });
+    const threadId = input.parentCommentId ? await threadOf(input.parentCommentId, issue.id) : null;
+    // Everyone who already wrote in the thread hears about the reply, followers of the issue or not.
+    const threadParticipantIds = threadId
+        ? [...new Set((await db.query.issueComments.findMany({ where: or(eq(issueComments.id, threadId), eq(issueComments.parentCommentId, threadId)), columns: { authorId: true } })).map((row) => row.authorId))]
+        : [];
+    const [comment] = await db.insert(issueComments).values({ issueId: issue.id, authorId, parentCommentId: threadId, contentJson: input.contentJson }).returning();
+    await recordIssueChange(issue, { actorId: authorId, comment: { id: comment.id, created: true }, mentionedIds: mentionedUserIds(input.contentJson), threadParticipantIds });
     const created = await db.query.issueComments.findFirst({ where: eq(issueComments.id, comment.id), with: { author: { columns: PERSON } } });
     return created && { ...created, reactions: [] };
 }

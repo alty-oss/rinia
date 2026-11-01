@@ -122,8 +122,9 @@ export const issueListQuerySchema = z.object({
 });
 export type IssueListQuery = z.infer<typeof issueListQuerySchema>;
 
-export const createIssueCommentSchema = z.object({ contentJson: tiptapDocumentSchema });
-export const updateIssueCommentSchema = createIssueCommentSchema;
+/** A new comment, or with `parentCommentId`, a reply in that comment's thread. */
+export const createIssueCommentSchema = z.object({ contentJson: tiptapDocumentSchema, parentCommentId: z.string().uuid().optional() });
+export const updateIssueCommentSchema = z.object({ contentJson: tiptapDocumentSchema });
 export type CreateIssueCommentInput = z.infer<typeof createIssueCommentSchema>;
 export type UpdateIssueCommentInput = z.infer<typeof updateIssueCommentSchema>;
 

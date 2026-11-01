@@ -662,6 +662,10 @@ export const IssueView = () => {
                                 currentUserId={user?.id}
                                 mentionItems={mentionItems}
                                 onReact={(commentId, emoji, add) => toggleReaction.mutate({ commentId, emoji, add })}
+                                currentUser={user ? { name: user.name, avatarUrl: user.avatarUrl } : null}
+                                onReply={async (parentCommentId, contentJson) => {
+                                    await createComment.mutateAsync({ contentJson, parentCommentId });
+                                }}
                                 value={comment}
                                 onChange={(value) => {
                                     commentDraftOwner.current = issue.id;
@@ -1270,7 +1274,7 @@ function IssueRelations({
 }
 
 type ActivityEntry = { id: string; type: string; createdAt: string; actor: { name: string; avatarUrl: string | null }; payload: Record<string, unknown> };
-type CommentEntry = { id: string; contentJson: TiptapDocument; authorId: string; author: { name: string; username?: string; avatarUrl: string | null }; createdAt: string; updatedAt: string; reactions: ReactionGroup[] };
+type CommentEntry = { id: string; contentJson: TiptapDocument; authorId: string; author: { name: string; username?: string; avatarUrl: string | null }; createdAt: string; updatedAt: string; reactions: ReactionGroup[]; parentCommentId: string | null };
 interface TimelineLookups {
     columns: Array<{ id: string; name: string; color?: string | null }>;
     members: Array<{ id: string; name: string }>;
@@ -1286,8 +1290,10 @@ function IssueTimeline({
     loadFailed,
     lookups,
     currentUserId,
+    currentUser,
     mentionItems,
     onReact,
+    onReply,
     value,
     onChange,
     isSubmitting,
@@ -1305,6 +1311,8 @@ function IssueTimeline({
     /** Project members, for @mentions in comments. */
     mentionItems: MentionItem[];
     onReact: (commentId: string, emoji: string, add: boolean) => void;
+    currentUser: { name: string; avatarUrl: string | null } | null;
+    onReply: (parentCommentId: string, contentJson: TiptapDocument) => Promise<void>;
     value: TiptapDocument;
     onChange: (value: TiptapDocument) => void;
     isSubmitting: boolean;
@@ -1314,9 +1322,15 @@ function IssueTimeline({
     onEdit: (id: string, contentJson: TiptapDocument) => void | Promise<void>;
 }) {
     const { t } = useTranslation();
+    // Replies sit inside their thread, oldest first; only the comments that open a thread join the timeline.
+    const replies = new Map<string, CommentEntry[]>();
+    for (const comment of comments) {
+        if (comment.parentCommentId) replies.set(comment.parentCommentId, [...(replies.get(comment.parentCommentId) ?? []), comment]);
+    }
+    for (const thread of replies.values()) thread.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
     const entries = [
         ...activity.map((entry) => ({ kind: "activity" as const, at: entry.createdAt, entry })),
-        ...comments.map((entry) => ({ kind: "comment" as const, at: entry.createdAt, entry })),
+        ...comments.filter((entry) => !entry.parentCommentId).map((entry) => ({ kind: "comment" as const, at: entry.createdAt, entry })),
     ].sort((a, b) => new Date(a.at).getTime() - new Date(b.at).getTime());
     const canSend = hasMeaningfulTiptapContent(value) && !isSubmitting;
 
@@ -1331,7 +1345,19 @@ function IssueTimeline({
                 <ol className="mt-3 flex flex-col">
                     {entries.map((item) =>
                         item.kind === "comment" ? (
-                            <TimelineComment key={`c-${item.entry.id}`} entry={item.entry} mine={item.entry.authorId === currentUserId} currentUserId={currentUserId} onReact={onReact} mentionItems={mentionItems} isSubmitting={isSubmitting} onDelete={onDelete} onEdit={onEdit} />
+                            <TimelineThread
+                                key={`c-${item.entry.id}`}
+                                entry={item.entry}
+                                replies={replies.get(item.entry.id) ?? []}
+                                currentUser={currentUser}
+                                onReply={onReply}
+                                currentUserId={currentUserId}
+                                onReact={onReact}
+                                mentionItems={mentionItems}
+                                isSubmitting={isSubmitting}
+                                onDelete={onDelete}
+                                onEdit={onEdit}
+                            />
                         ) : (
                             <TimelineActivity key={`a-${item.entry.id}`} entry={item.entry} lookups={lookups} />
                         ),
@@ -1378,13 +1404,102 @@ function TimelineActivity({ entry, lookups }: { entry: ActivityEntry; lookups: T
     );
 }
 
-function TimelineComment({ entry, mine, currentUserId, onReact, mentionItems, isSubmitting, onDelete, onEdit }: { entry: CommentEntry; mine: boolean; currentUserId?: string; onReact: (commentId: string, emoji: string, add: boolean) => void; mentionItems: MentionItem[]; isSubmitting: boolean; onDelete: (id: string) => void | Promise<void>; onEdit: (id: string, contentJson: TiptapDocument) => void | Promise<void> }) {
+type CommentActions = {
+    currentUserId?: string;
+    mentionItems: MentionItem[];
+    isSubmitting: boolean;
+    onReact: (commentId: string, emoji: string, add: boolean) => void;
+    onDelete: (id: string) => void | Promise<void>;
+    onEdit: (id: string, contentJson: TiptapDocument) => void | Promise<void>;
+};
+
+/**
+ * A comment and its replies in one card, with a box at the bottom to reply. Threads are one level deep: replying
+ * from the card always adds to the end of it.
+ */
+function TimelineThread({ entry, replies, currentUser, onReply, ...actions }: CommentActions & {
+    entry: CommentEntry;
+    replies: CommentEntry[];
+    currentUser: { name: string; avatarUrl: string | null } | null;
+    onReply: (parentCommentId: string, contentJson: TiptapDocument) => Promise<void>;
+}) {
+    return (
+        <li className="animate-enter my-2 overflow-hidden rounded-xl border border-subtle bg-layer-1">
+            <CommentItem entry={entry} replyCount={replies.length} {...actions} />
+            {replies.map((reply) => (
+                <div key={reply.id} className="animate-enter border-t border-subtle">
+                    <CommentItem entry={reply} replyCount={0} {...actions} />
+                </div>
+            ))}
+            <ReplyComposer currentUser={currentUser} mentionItems={actions.mentionItems} onSubmit={(contentJson) => onReply(entry.id, contentJson)} />
+        </li>
+    );
+}
+
+/** "Leave a reply…" under a thread. It grows as you type and sends with the arrow or Cmd/Ctrl+Enter. */
+function ReplyComposer({ currentUser, mentionItems, onSubmit }: { currentUser: { name: string; avatarUrl: string | null } | null; mentionItems: MentionItem[]; onSubmit: (contentJson: TiptapDocument) => Promise<void> }) {
+    const { t } = useTranslation();
+    const [value, setValue] = useState<TiptapDocument>(EMPTY_TIPTAP_DOCUMENT);
+    // Remounting the editor clears it once a reply is sent.
+    const [editorKey, setEditorKey] = useState(0);
+    const [sending, setSending] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+    const canSend = hasMeaningfulTiptapContent(value) && !sending;
+    const send = async () => {
+        if (!canSend) return;
+        setSending(true);
+        setError(null);
+        try {
+            await onSubmit(value);
+            setValue(EMPTY_TIPTAP_DOCUMENT);
+            setEditorKey((key) => key + 1);
+        } catch (reason) {
+            setError(errorMessage(reason, t("issue.couldNotAddReply")));
+        } finally {
+            setSending(false);
+        }
+    };
+    return (
+        <div className="border-t border-subtle">
+            <div className="flex items-start gap-2.5 px-4 py-2.5">
+                {currentUser && <IssueAvatar name={currentUser.name} avatarUrl={currentUser.avatarUrl} className="mt-1 size-5 shrink-0 text-[10px]" />}
+                <RichTextEditor
+                    key={editorKey}
+                    toolbar={false}
+                    variant="comment"
+                    content={value}
+                    onChange={setValue}
+                    onSubmitShortcut={() => void send()}
+                    placeholder={t("issue.leaveReply")}
+                    mentionItems={mentionItems}
+                    className="issue-reply-composer min-w-0 flex-1"
+                />
+                <button
+                    type="button"
+                    aria-label={t("issue.replyAction")}
+                    title={t("issue.replyAction")}
+                    disabled={!canSend}
+                    onClick={() => void send()}
+                    className="mt-0.5 grid size-6 shrink-0 place-items-center rounded-full bg-layer-2 text-tertiary transition-colors duration-150 enabled:bg-accent-primary enabled:text-white enabled:hover:opacity-90 disabled:cursor-not-allowed"
+                >
+                    <ArrowUp className="size-3.5" />
+                </button>
+            </div>
+            {error && <p role="alert" className="animate-enter px-4 pb-2.5 text-xs text-danger-primary">{error}</p>}
+        </div>
+    );
+}
+
+function CommentItem({ entry, replyCount, currentUserId, onReact, mentionItems, isSubmitting, onDelete, onEdit }: CommentActions & { entry: CommentEntry; replyCount: number }) {
     const { t, i18n } = useTranslation();
     const [editing, setEditing] = useState(false);
+    const [confirmDelete, setConfirmDelete] = useState(false);
     const [draft, setDraft] = useState<TiptapDocument>(entry.contentJson);
+    const mine = entry.authorId === currentUserId;
     const edited = new Date(entry.updatedAt).getTime() > new Date(entry.createdAt).getTime();
+    const remove = () => void Promise.resolve(onDelete(entry.id)).catch(() => undefined);
     return (
-        <li className="group/comment animate-enter my-2 rounded-xl border border-subtle bg-layer-1 px-4 py-3">
+        <div className="group/comment px-4 py-3">
             <div className="mb-1.5 flex items-center gap-2 text-[13px]">
                 <IssueAvatar name={entry.author.name} avatarUrl={entry.author.avatarUrl} className="size-5 text-[10px]" />
                 <span className="font-medium text-primary">{entry.author.name}</span>
@@ -1396,7 +1511,8 @@ function TimelineComment({ entry, mine, currentUserId, onReact, mentionItems, is
                         <ReactionPicker onPick={(emoji) => onReact(entry.id, emoji, !entry.reactions.find((group) => group.emoji === emoji)?.users.some((user) => user.id === currentUserId))} />
                         {mine && <>
                         <ButtonUtility icon={Pencil} size="xs" color="tertiary" tooltip={t("common.edit")} onClick={() => { setDraft(entry.contentJson); setEditing(true); }} />
-                        <ButtonUtility icon={Trash2} size="xs" color="tertiary" tooltip={t("common.delete")} isDisabled={isSubmitting} onClick={() => void Promise.resolve(onDelete(entry.id)).catch(() => undefined)} />
+                        {/* Deleting the comment that opens a thread deletes its replies too, so that asks first. */}
+                        <ButtonUtility icon={Trash2} size="xs" color="tertiary" tooltip={t("common.delete")} isDisabled={isSubmitting} onClick={() => (replyCount > 0 ? setConfirmDelete(true) : remove())} />
                         </>}
                     </div>
                 )}
@@ -1422,7 +1538,21 @@ function TimelineComment({ entry, mine, currentUserId, onReact, mentionItems, is
                     <ReactionChips reactions={entry.reactions} currentUserId={currentUserId} onToggle={(emoji, add) => onReact(entry.id, emoji, add)} />
                 </>
             )}
-        </li>
+            {replyCount > 0 && (
+                <ConfirmDialog
+                    open={confirmDelete}
+                    onOpenChange={setConfirmDelete}
+                    title={t("issue.deleteThreadTitle")}
+                    description={replyCount === 1 ? t("issue.deleteThreadDescriptionOne") : t("issue.deleteThreadDescription", { count: replyCount })}
+                    confirmLabel={t("common.delete")}
+                    isPending={isSubmitting}
+                    onConfirm={() => {
+                        setConfirmDelete(false);
+                        remove();
+                    }}
+                />
+            )}
+        </div>
     );
 }
 

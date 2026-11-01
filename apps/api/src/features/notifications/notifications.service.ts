@@ -61,6 +61,8 @@ export interface IssueChange {
     comment?: { id: string; created: boolean };
     /** The issue moved from one state (column) to another. */
     status?: { from: string; to: string };
+    /** For a reply: who wrote the thread's comment or replied before. */
+    threadParticipantIds?: string[];
 }
 
 export interface PlannedNotification {
@@ -73,7 +75,8 @@ export interface PlannedNotification {
 /**
  * Who starts following the issue and who gets notified. Only people in `audience` (those who can still see the
  * project) are considered, the actor is never notified, and each person gets at most one notification per action:
- * being assigned beats being mentioned, which beats hearing about a comment or a state change as a follower.
+ * being assigned beats being mentioned, which beats a reply in a thread you are in, which beats hearing about a
+ * comment or a state change as a follower.
  */
 export function planIssueChange(change: IssueChange, followers: string[], audience: Set<string>) {
     const follow = new Set<string>();
@@ -84,10 +87,11 @@ export function planIssueChange(change: IssueChange, followers: string[], audien
     const planned = new Map<string, PlannedNotification>();
     const notify = (userId: string, type: NotificationType, payload: Record<string, unknown> = {}) => {
         if (userId === change.actorId || !audience.has(userId) || planned.has(userId)) return;
-        planned.set(userId, { userId, type, commentId: type === "mentioned" || type === "commented" ? (change.comment?.id ?? null) : null, payload });
+        planned.set(userId, { userId, type, commentId: type === "mentioned" || type === "replied" || type === "commented" ? (change.comment?.id ?? null) : null, payload });
     };
     if (change.assigneeId) notify(change.assigneeId, "assigned");
     for (const id of change.mentionedIds ?? []) notify(id, "mentioned");
+    if (change.comment?.created) for (const id of change.threadParticipantIds ?? []) notify(id, "replied");
     if (change.comment?.created) for (const id of followers) notify(id, "commented");
     if (change.status) for (const id of followers) notify(id, "status_changed", { from: change.status.from, to: change.status.to });
 
@@ -111,7 +115,7 @@ export async function recordIssueChange(issue: { id: string; projectId: string }
     if (!relevant) return;
     try {
         const followers = (await db.select({ userId: issueSubscriptions.userId }).from(issueSubscriptions).where(eq(issueSubscriptions.issueId, issue.id))).map((row) => row.userId);
-        const candidates = new Set([change.actorId, ...followers, ...(change.assigneeId ? [change.assigneeId] : []), ...(change.mentionedIds ?? [])]);
+        const candidates = new Set([change.actorId, ...followers, ...(change.assigneeId ? [change.assigneeId] : []), ...(change.mentionedIds ?? []), ...(change.threadParticipantIds ?? [])]);
         const plan = planIssueChange(change, followers, await projectAudience(issue.projectId, [...candidates]));
         if (plan.follow.length > 0) {
             await db.insert(issueSubscriptions).values(plan.follow.map((userId) => ({ userId, issueId: issue.id }))).onConflictDoNothing();

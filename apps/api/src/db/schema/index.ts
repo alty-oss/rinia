@@ -96,6 +96,8 @@ export const issueCommentsRelations = relations(issueComments, ({ one, many }) =
     issue: one(issues, { fields: [issueComments.issueId], references: [issues.id] }),
     author: one(users, { fields: [issueComments.authorId], references: [users.id] }),
     reactions: many(commentReactions),
+    parent: one(issueComments, { fields: [issueComments.parentCommentId], references: [issueComments.id], relationName: "commentReplies" }),
+    replies: many(issueComments, { relationName: "commentReplies" }),
 }));
 
 export const commentReactionsRelations = relations(commentReactions, ({ one }) => ({
