@@ -12,7 +12,7 @@ const documents = {
         deletedMessage: "This page was deleted.", newerVersion: "A newer version was saved elsewhere.",
         draftPreserved: "Your local draft is preserved. Create a separate page to keep these changes.",
         createFromDraft: "Create page from draft", openSavedVersion: "Open saved version", couldNotLoad: "This page could not be loaded. It may have been deleted or you may no longer have access.",
-        couldNotRefresh: "Could not refresh this page. Your local work is still available.", couldNotSave: "Could not save the page.",
+        couldNotOpen: "Could not open this page for editing. It will be tried again when the connection comes back.", couldNotRefresh: "Could not refresh this page. Your local work is still available.", couldNotSave: "Could not save the page.",
         retrySave: "Press Ctrl/Cmd+S to retry.", deleteTitle: "Delete this page?", openSavedTitle: "Open the saved version?",
         deleteWarning: "The page will be removed. You can undo this while the confirmation is shown.",
         openSavedWarning: "This replaces your local draft with the saved version. Create a page from your draft first if you want to keep both.",

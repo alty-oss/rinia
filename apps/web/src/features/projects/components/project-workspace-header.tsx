@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import type { PresenceViewer } from "@rinia/shared";
 import { ChevronRight } from "lucide-react";
 import { Link } from "react-router";
 import { ButtonUtility } from "@/components/base/buttons/button-utility";
@@ -10,6 +11,7 @@ import { FavoriteStar } from "@/features/favorites/components/favorite-star";
 import { useProject } from "@/features/projects/hooks/use-project";
 import { useProjectPermissions } from "@/features/projects/hooks/use-project-permissions";
 import { useProjects } from "@/features/projects/hooks/use-projects";
+import { PresenceAvatars } from "@/features/realtime/components/presence-avatars";
 import { ProjectIcon } from "./project-icon";
 import { useTranslation } from "react-i18next";
 import { urls } from "@/lib/urls";
@@ -21,6 +23,7 @@ export function ProjectWorkspaceHeader({
     hideSection = false,
     favorite,
     crumb,
+    viewers,
 }: {
     projectId: string;
     actions?: ReactNode;
@@ -30,6 +33,8 @@ export function ProjectWorkspaceHeader({
     favorite?: FavoriteTarget | null;
     /** A page inside the section, such as a saved view, named after it. */
     crumb?: ReactNode;
+    /** Other people on the same page, shown before the actions. */
+    viewers?: PresenceViewer[];
     activeView: "overview" | "members" | "issues" | "board" | "documents" | "settings" | "views";
 }) {
     const { data: projectData } = useProject(projectId);
@@ -75,6 +80,7 @@ export function ProjectWorkspaceHeader({
                 {project && <ContextMenuButton entity={{ type: "project", projectId, name: project.name, issueKey: project.issueKey }} className="size-6" />}
             </div>
             <div className="flex shrink-0 items-center gap-2">
+                {viewers && <PresenceAvatars viewers={viewers} />}
                 {actions}
                 {!actions && project?.repositoryUrl && (
                     <ButtonUtility icon={AppIcons.ExternalLink} color="tertiary" tooltip={t("projects.openRepository")} href={project.repositoryUrl} target="_blank" rel="noopener noreferrer" />

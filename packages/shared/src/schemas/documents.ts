@@ -2,6 +2,13 @@ import { z } from "zod";
 import { entityIconSchema } from "./appearance";
 import { tiptapDocumentSchema } from "./issues";
 
+/** Page images load from the web only. An empty source is an image block still being filled in. */
+export function isAllowedImageSource(src: unknown): boolean {
+  if (src === undefined || src === null || src === "") return true;
+  const url = z.string().url().safeParse(String(src));
+  return url.success && /^https?:\/\//i.test(url.data);
+}
+
 const documentTitle = z
     .string()
     .trim()
@@ -17,9 +24,7 @@ const documentContentSchema = tiptapDocumentSchema.superRefine(
       if (Array.isArray(node.content)) pending.push(...node.content);
       if (node.type !== "image") continue;
       const attrs = node.attrs as Record<string, unknown> | undefined;
-      if (!attrs?.src) continue; // An unfinished image block can be saved and completed later.
-      const src = z.string().url().safeParse(String(attrs.src));
-      if (!src.success || !/^https?:\/\//i.test(src.data)) {
+      if (!isAllowedImageSource(attrs?.src)) {
         context.addIssue({
           code: z.ZodIssueCode.custom,
           message: "Images require an HTTP or HTTPS URL.",
@@ -34,11 +39,10 @@ export const createDocumentSchema = z.object({
   contentJson: documentContentSchema.default({ type: "doc", content: [] }),
   iconAppearance: entityIconSchema.nullable().optional(),
 });
+/** The title and icon. The content is edited through the realtime socket, together with whoever else has the page open. */
 export const updateDocumentSchema = z.object({
   title: documentTitle,
-  contentJson: documentContentSchema,
   iconAppearance: entityIconSchema.nullable().optional(),
-  expectedRevision: z.number().int().positive(),
 });
 export const documentParamsSchema = z.object({
   projectId: z.string().uuid(),

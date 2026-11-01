@@ -4,6 +4,7 @@ import { db } from "../../db";
 import { views } from "../../db/schema";
 import { HttpError } from "../../lib/http-error";
 import { requireUndoWindow } from "../../lib/soft-delete";
+import { publishChange } from "../realtime/realtime.service";
 
 /** Who is acting on a view. `isProjectOwner` is true for project owners and site admins. */
 export interface ViewActor {
@@ -76,6 +77,7 @@ export async function createView(projectId: string, actor: ViewActor, input: Cre
         .returning({ id: views.id });
     const row = inserted && (await findView(projectId, inserted.id));
     if (!row) throw new HttpError(500, "Could not save the view");
+    publishChange("view.created", { projectId, id: row.id });
     return toView(row, actor);
 }
 
@@ -91,6 +93,7 @@ export async function updateView(projectId: string, viewId: string, actor: ViewA
         .where(and(eq(views.id, viewId), eq(views.projectId, projectId), isNull(views.deletedAt)));
     const row = await findView(projectId, viewId);
     if (!row) throw new HttpError(404, "View not found");
+    publishChange("view.updated", { projectId, id: viewId });
     return toView(row, actor);
 }
 
@@ -110,6 +113,7 @@ export async function deleteView(projectId: string, viewId: string, actor: ViewA
         .where(and(eq(views.id, viewId), eq(views.projectId, projectId), isNull(views.deletedAt)))
         .returning({ id: views.id });
     if (!removed) throw new HttpError(404, "View not found");
+    publishChange("view.deleted", { projectId, id: viewId });
     return { deletedAt: deletedAt.toISOString() };
 }
 
@@ -122,5 +126,6 @@ export async function restoreView(projectId: string, viewId: string, actor: View
         .where(and(eq(views.id, viewId), eq(views.projectId, projectId), eq(views.deletedAt, deletedAt)))
         .returning({ id: views.id });
     if (!restored) throw new HttpError(404, "View not found or undo window expired");
+    publishChange("view.restored", { projectId, id: viewId });
     return { restored: true };
 }

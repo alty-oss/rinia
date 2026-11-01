@@ -9,6 +9,7 @@ import { issueCommentsRouter, issueRelationsRouter, issuesRouter } from "./featu
 import { myIssuesRouter, notificationsRouter } from "./features/notifications/notifications.routes";
 import { projectsRouter } from "./features/projects/projects.routes";
 import { usersRouter } from "./features/users/users.routes";
+import { requestContext } from "./lib/request-context";
 import { errorHandler } from "./middleware/error-handler.middleware";
 
 export const app = express();
@@ -26,6 +27,8 @@ app.use(helmet({ contentSecurityPolicy: false }));
 app.use("/api/projects/:projectId/documents", express.json({ limit: "2mb" }));
 app.use(express.json());
 app.use(cookieParser());
+// Lets services tag realtime events with who made the change.
+app.use(requestContext);
 
 app.get("/api/health", (_req, res) => {
     res.json({ status: "ok" });

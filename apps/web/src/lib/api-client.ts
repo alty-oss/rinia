@@ -1,4 +1,6 @@
+import { REALTIME_CLIENT_HEADER } from "@rinia/shared";
 import i18n from "@/i18n/i18n";
+import { TAB_ID } from "./tab-id";
 
 export class ApiError extends Error {
     status: number;
@@ -29,6 +31,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
         ...init,
         credentials: "include",
         headers: {
+            [REALTIME_CLIENT_HEADER]: TAB_ID,
             ...(init?.body ? { "Content-Type": "application/json" } : {}),
             ...init?.headers,
         },

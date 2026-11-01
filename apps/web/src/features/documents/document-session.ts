@@ -1,31 +1,25 @@
-import type { EntityIcon, TiptapDocument, UpdateDocumentInput } from "@rinia/shared";
+import type { EntityIcon, UpdateDocumentInput } from "@rinia/shared";
 import type { DocumentPage } from "./api";
-import type { DocumentDraft } from "./draft-store";
 
-export type SaveStatus = "loading" | "saved" | "pending" | "saving" | "offline" | "error" | "conflict" | "deleted";
+export type SaveStatus = "saved" | "pending" | "saving" | "offline" | "error" | "deleted";
 export interface SessionState {
     title: string;
-    contentJson: TiptapDocument;
     iconAppearance: EntityIcon | null;
     revision: number;
-    contentVersion: number;
     status: SaveStatus;
     dirty: boolean;
     error?: string;
-    storageError?: string;
 }
 interface Dependencies {
-    read: () => Promise<DocumentDraft | undefined>;
-    write: (value: Pick<DocumentDraft, "title" | "contentJson" | "iconAppearance" | "revision">) => Promise<unknown>;
-    remove: () => Promise<unknown>;
     save: (input: UpdateDocumentInput, signal: AbortSignal) => Promise<DocumentPage>;
     online: () => boolean;
     onSaved: (page: DocumentPage) => void;
 }
-const equivalent = (a: { title: string; contentJson: TiptapDocument; iconAppearance: EntityIcon | null }, b: { title: string; contentJson: TiptapDocument; iconAppearance: EntityIcon | null }) =>
-    a.title === b.title && JSON.stringify(a.contentJson) === JSON.stringify(b.contentJson) && JSON.stringify(a.iconAppearance) === JSON.stringify(b.iconAppearance);
 
-/** Route-independent single-flight saves. The revision always belongs to the last server acknowledgement. */
+/**
+ * Saves a page's title and icon with single-flight requests. The content is not here: it is edited through the
+ * collaborative document, which keeps itself in step with the server. The last title saved wins.
+ */
 export class DocumentSession {
     private state: SessionState;
     private listeners = new Set<() => void>();
@@ -36,14 +30,12 @@ export class DocumentSession {
     private changes = 0;
     private lastEditAt = Date.now();
     private suspended = false;
-    readonly ready: Promise<void>;
 
     constructor(
         page: DocumentPage,
         private deps: Dependencies,
     ) {
-        this.state = { title: page.title, contentJson: page.contentJson, iconAppearance: page.iconAppearance, revision: page.revision, contentVersion: 0, status: "loading", dirty: false };
-        this.ready = this.restore(page);
+        this.state = { title: page.title, iconAppearance: page.iconAppearance, revision: page.revision, status: "saved", dirty: false };
     }
     getSnapshot = () => this.state;
     subscribe = (listener: () => void) => {
@@ -56,46 +48,16 @@ export class DocumentSession {
         this.state = { ...this.state, ...patch };
         this.listeners.forEach((listener) => listener());
     }
-    private async restore(page: DocumentPage) {
-        try {
-            const draft = await this.deps.read();
-            if (this.suspended) return;
-            const restored = draft && { ...draft, iconAppearance: draft.iconAppearance ?? page.iconAppearance };
-            if (restored && !equivalent(restored, page)) {
-                this.emit({
-                    title: draft.title,
-                    contentJson: draft.contentJson,
-                    iconAppearance: restored.iconAppearance,
-                    revision: draft.revision,
-                    dirty: true,
-                    status: draft.revision === page.revision ? "pending" : "conflict",
-                });
-                if (this.state.status === "pending") this.schedule();
-            } else {
-                if (draft) await this.deps.remove();
-                this.emit({ status: "saved" });
-            }
-        } catch {
-            this.emit({ status: "saved", storageError: "documents.localDraftUnavailable" });
-        }
-    }
-    private persist() {
-        const { title, contentJson, iconAppearance, revision } = this.state;
-        void this.deps
-            .write({ title, contentJson, iconAppearance, revision })
-            .catch(() => this.emit({ storageError: "documents.localDraftFailed" }));
-    }
-    edit(patch: { title?: string; contentJson?: TiptapDocument; iconAppearance?: EntityIcon | null }) {
-        if (this.suspended || this.state.status === "loading" || this.state.status === "deleted") return;
+    edit(patch: { title?: string; iconAppearance?: EntityIcon | null }) {
+        if (this.suspended || this.state.status === "deleted") return;
         this.changes++;
         this.lastEditAt = Date.now();
-        this.emit({ ...patch, dirty: true, error: undefined, status: this.state.status === "conflict" ? "conflict" : this.flight ? "saving" : "pending" });
-        this.persist();
+        this.emit({ ...patch, dirty: true, error: undefined, status: this.flight ? "saving" : "pending" });
         this.schedule();
     }
     private schedule() {
         clearTimeout(this.timer);
-        if (this.state.status === "conflict" || this.suspended) return;
+        if (this.suspended) return;
         if (!this.deps.online()) {
             this.emit({ status: "offline" });
             return;
@@ -108,14 +70,13 @@ export class DocumentSession {
         );
     }
     async flush(immediate = true): Promise<void> {
-        await this.ready;
         clearTimeout(this.timer);
         if (this.flight) {
             await this.flight;
             if (this.state.status === "pending") return this.flush(immediate);
             return;
         }
-        if (this.suspended || !this.state.dirty || this.state.status === "conflict" || this.state.status === "deleted") return;
+        if (this.suspended || !this.state.dirty || this.state.status === "deleted") return;
         if (!immediate && Date.now() - this.lastEditAt < 1000) {
             this.schedule();
             return;
@@ -126,7 +87,7 @@ export class DocumentSession {
         }
         const changes = this.changes,
             generation = this.generation;
-        const input = { title: this.state.title, contentJson: this.state.contentJson, iconAppearance: this.state.iconAppearance, expectedRevision: this.state.revision };
+        const input = { title: this.state.title, iconAppearance: this.state.iconAppearance };
         this.controller = new AbortController();
         this.emit({ status: "saving", error: undefined });
         this.flight = (async () => {
@@ -134,21 +95,15 @@ export class DocumentSession {
                 const page = await this.deps.save(input, this.controller!.signal);
                 if (generation !== this.generation) return;
                 this.deps.onSaved(page);
-                if (changes === this.changes) {
-                    this.emit({ title: page.title, contentJson: page.contentJson, iconAppearance: page.iconAppearance, revision: page.revision, dirty: false, status: "saved" });
-                    await this.deps.remove().catch(() => this.emit({ storageError: "documents.draftClearFailed" }));
-                } else {
-                    this.emit({ revision: page.revision, status: "pending" });
-                    this.persist();
-                }
+                // Edits made while the request was in flight stay as they are and save next.
+                if (changes === this.changes) this.emit({ title: page.title, iconAppearance: page.iconAppearance, revision: page.revision, dirty: false, status: "saved" });
+                else this.emit({ revision: page.revision, status: "pending" });
             } catch (error) {
                 if (generation !== this.generation) return;
                 const status = (error as { status?: number }).status;
                 this.emit({
-                    status: status === 409 ? "conflict" : status === 404 ? "deleted" : !this.deps.online() ? "offline" : "error",
-                    error: typeof error === "object" && error !== null && "code" in error && typeof error.code === "string"
-                        ? error.code
-                        : "documents.couldNotSave",
+                    status: status === 404 ? "deleted" : !this.deps.online() ? "offline" : "error",
+                    error: typeof error === "object" && error !== null && "code" in error && typeof error.code === "string" ? error.code : "documents.couldNotSave",
                 });
             } finally {
                 this.flight = undefined;
@@ -159,7 +114,6 @@ export class DocumentSession {
         await this.flight;
     }
     async pause() {
-        await this.ready;
         this.suspended = true;
         clearTimeout(this.timer);
         this.generation++;
@@ -170,18 +124,12 @@ export class DocumentSession {
         this.suspended = false;
         if (this.state.dirty) this.schedule();
     }
+    /** A newer title or icon from someone else replaces this one, unless this tab is in the middle of changing it. */
     observe(page: DocumentPage) {
-        if (this.suspended || this.flight || this.state.status === "loading" || page.revision <= this.state.revision) return;
-        if (this.state.dirty) this.emit({ status: "conflict" });
-        else this.emit({ title: page.title, contentJson: page.contentJson, iconAppearance: page.iconAppearance, revision: page.revision, contentVersion: JSON.stringify(page.contentJson) === JSON.stringify(this.state.contentJson) ? this.state.contentVersion : this.state.contentVersion + 1, status: "saved" });
-    }
-    async discard(page: DocumentPage) {
-        await this.pause();
-        await this.deps.remove();
-        this.emit({ title: page.title, contentJson: page.contentJson, iconAppearance: page.iconAppearance, revision: page.revision, contentVersion: this.state.contentVersion + 1, dirty: false, status: "saved", error: undefined });
-        this.suspended = false;
+        if (this.suspended || this.flight || this.state.dirty || page.revision <= this.state.revision) return;
+        this.emit({ title: page.title, iconAppearance: page.iconAppearance, revision: page.revision, status: "saved" });
     }
     networkChanged() {
-        if (!this.suspended && this.state.dirty && this.state.status !== "conflict" && this.state.status !== "deleted") this.schedule();
+        if (!this.suspended && this.state.dirty && this.state.status !== "deleted") this.schedule();
     }
 }

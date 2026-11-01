@@ -18,6 +18,7 @@ import appearance from "./appearance";
 import inbox from "./inbox";
 import myIssues from "./myIssues";
 import views from "./views";
+import realtime from "./realtime";
 
 export const ptBR = {
     common,
@@ -40,4 +41,5 @@ export const ptBR = {
     inbox,
     myIssues,
     views,
+    realtime,
 } as const;

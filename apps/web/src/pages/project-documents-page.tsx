@@ -15,6 +15,7 @@ import { ContextMenuButton } from "@/components/overlay/context-menu-provider";
 import { AppearancePicker, appearancePopupClass } from "@/components/appearance/appearance-picker";
 import { useAuth } from "@/features/auth/hooks/use-auth";
 import { type DocumentPage, deleteDocument, getDocument, restoreDocument } from "@/features/documents/api";
+import { DocumentProvider, type DocumentProviderState } from "@/features/documents/collab/document-provider";
 import { DocumentEditor } from "@/features/documents/components/document-editor";
 import { documentKey, documentsKey, useCreateDocument, useDocument, useDocuments } from "@/features/documents/hooks/use-documents";
 import { getDocumentSession } from "@/features/documents/sessions";
@@ -23,6 +24,8 @@ import { ProjectWorkspaceHeader } from "@/features/projects/components/project-w
 import { ProjectIcon } from "@/features/projects/components/project-icon";
 import { useProjectMembers } from "@/features/projects/hooks/use-project-members";
 import { useProjectPermissions } from "@/features/projects/hooks/use-project-permissions";
+import { realtimeClient } from "@/features/realtime/realtime-client";
+import { useChannelPresence } from "@/features/realtime/use-realtime";
 import { ApiError } from "@/lib/api-client";
 import { useTranslation } from "react-i18next";
 
@@ -124,6 +127,7 @@ export function ProjectDocumentPage() {
     const { data: page, isError: pageFailed } = useDocument(projectId, documentId);
     const isError = pageFailed || listFailed || (!!documents && !documentId);
     const { user } = useAuth();
+    const viewers = useChannelPresence(documentId ? `document:${documentId}` : null);
     // The slug follows the title, so renaming a page updates the address bar without reloading the editor.
     const canonicalUrl = page ? urls.document(projectKey, page) : null;
     useEffect(() => {
@@ -131,7 +135,7 @@ export function ProjectDocumentPage() {
     }, [canonicalUrl, location.pathname, location.search, navigate]);
     return (
         <div className="flex h-full min-h-0 flex-col bg-surface-1">
-            <ProjectWorkspaceHeader projectId={projectId} activeView="documents" favorite={documentId ? { kind: "document", projectId, documentId } : null} />
+            <ProjectWorkspaceHeader projectId={projectId} activeView="documents" favorite={documentId ? { kind: "document", projectId, documentId } : null} viewers={viewers} />
             {isError && page && <ErrorMessage message={t("documents.couldNotRefresh")} />}
             {page && user ? (
                 <DocumentWorkspace key={`${user.id}:${projectId}:${documentId}`} page={page} userId={user.id} />
@@ -158,16 +162,20 @@ function DocumentWorkspace({ page, userId }: { page: DocumentPage; userId: strin
     const client = useQueryClient();
     const showToast = useToast();
     const navigate = useNavigate();
+    const { user } = useAuth();
     const { isProjectOwner } = useProjectPermissions(page.projectId);
     const { data: members = [] } = useProjectMembers(page.projectId);
-    const create = useCreateDocument(page.projectId);
     const session = useMemo(() => getDocumentSession(userId, page, client), [userId, page.id, page.projectId, client]);
     const state = useSyncExternalStore(session.subscribe, session.getSnapshot);
-    const [confirm, setConfirm] = useState<"delete" | "discard" | null>(null);
+    const provider = useDocumentProvider(userId, page);
+    const collab = useSyncExternalStore(provider?.subscribe ?? noSubscribe, provider?.getSnapshot ?? (() => OFFLINE));
+    const [confirmingDelete, setConfirmingDelete] = useState(false);
     const [busy, setBusy] = useState(false);
     const [actionError, setActionError] = useState("");
     const [iconPickerOpen, setIconPickerOpen] = useState(false);
     const titleRef = useRef<HTMLTextAreaElement>(null);
+    // Cursors show who is typing where; the avatars in the header also mark who is typing right now.
+    useChannelPresence(`document:${page.id}`, useRecentlyEdited(provider));
     useEffect(() => session.observe(page), [session, page]);
     useEffect(() => {
         const save = (event: KeyboardEvent) => {
@@ -198,44 +206,38 @@ function DocumentWorkspace({ page, userId }: { page: DocumentPage; userId: strin
         // Observe the parent width, not the textarea height changed by resize().
         observer.observe(title.parentElement!);
         return () => observer.disconnect();
-    }, [state.title, state.status === "loading"]);
-    async function confirmAction() {
+    }, [state.title, collab.ready]);
+    async function confirmDelete() {
         setBusy(true);
         setActionError("");
         try {
-            if (confirm === "delete") {
-                await session.pause();
-                const { deletedAt } = await deleteDocument(page.projectId, page.id);
-                await client.cancelQueries({ queryKey: documentKey(page.projectId, page.id) });
-                client.removeQueries({ queryKey: documentKey(page.projectId, page.id) });
-                void client.invalidateQueries({ queryKey: documentsKey(page.projectId), exact: true });
-                void client.invalidateQueries({ queryKey: ["favorites"] });
-                navigate(urls.documents(projectKey), { replace: true });
-                showToast({
-                    title: t("documents.pageDeleted"),
-                    action: {
-                        label: t("issue.undo"),
-                        onClick: async () => {
-                            try {
-                                await restoreDocument(page.projectId, page.id, deletedAt);
-                                session.resume();
-                                const restored = await getDocument(page.projectId, page.id);
-                                client.setQueryData(documentKey(page.projectId, page.id), restored);
-                                await client.invalidateQueries({ queryKey: documentsKey(page.projectId), exact: true });
-                                await client.invalidateQueries({ queryKey: ["favorites"] });
-                                navigate(urls.document(projectKey, restored));
-                            } catch {
-                                showToast({ tone: "error", title: t("issue.couldNotUndo") });
-                            }
-                        },
+            await session.pause();
+            const { deletedAt } = await deleteDocument(page.projectId, page.id);
+            await client.cancelQueries({ queryKey: documentKey(page.projectId, page.id) });
+            client.removeQueries({ queryKey: documentKey(page.projectId, page.id) });
+            void client.invalidateQueries({ queryKey: documentsKey(page.projectId), exact: true });
+            void client.invalidateQueries({ queryKey: ["favorites"] });
+            navigate(urls.documents(projectKey), { replace: true });
+            showToast({
+                title: t("documents.pageDeleted"),
+                action: {
+                    label: t("issue.undo"),
+                    onClick: async () => {
+                        try {
+                            await restoreDocument(page.projectId, page.id, deletedAt);
+                            session.resume();
+                            const restored = await getDocument(page.projectId, page.id);
+                            client.setQueryData(documentKey(page.projectId, page.id), restored);
+                            await client.invalidateQueries({ queryKey: documentsKey(page.projectId), exact: true });
+                            await client.invalidateQueries({ queryKey: ["favorites"] });
+                            navigate(urls.document(projectKey, restored));
+                        } catch {
+                            showToast({ tone: "error", title: t("issue.couldNotUndo") });
+                        }
                     },
-                });
-            } else {
-                const saved = await getDocument(page.projectId, page.id);
-                await session.discard(saved);
-                client.setQueryData(documentKey(page.projectId, page.id), saved);
-            }
-            setConfirm(null);
+                },
+            });
+            setConfirmingDelete(false);
         } catch (error) {
             session.resume();
             setActionError(error instanceof ApiError ? error.message : t("documents.couldNotComplete"));
@@ -243,27 +245,14 @@ function DocumentWorkspace({ page, userId }: { page: DocumentPage; userId: strin
             setBusy(false);
         }
     }
-    async function copyDraft() {
-        setActionError("");
-        try {
-            const draft = session.getSnapshot();
-            const copy = await create.mutateAsync({ title: `${draft.title || t("documents.untitled")} ${t("documents.localCopy")}`.slice(0, 200), contentJson: draft.contentJson, iconAppearance: draft.iconAppearance });
-            // The source draft remains intact until the user explicitly opens the saved version.
-            navigate(urls.document(projectKey, copy));
-        } catch (error) {
-            setActionError(error instanceof ApiError ? error.message : t("documents.couldNotCopy"));
-        }
-    }
     const status = {
-        loading: t("common.loading"),
         saved: t("documents.saved"),
         pending: t("documents.unsaved"),
         saving: t("documents.saving"),
         offline: t("documents.offline"),
         error: t("documents.saveFailed"),
-        conflict: t("documents.resolveChanges"),
         deleted: t("documents.pageDeleted"),
-    }[state.status];
+    }[state.status === "saved" ? (collab.ready && !collab.connected ? "offline" : collab.unsynced ? "pending" : "saved") : state.status];
     return (
         <>
             <div className="flex h-[45px] shrink-0 items-center justify-between gap-3 border-b border-subtle px-4 lg:px-5">
@@ -284,51 +273,29 @@ function DocumentWorkspace({ page, userId }: { page: DocumentPage; userId: strin
                             isDisabled={busy}
                             onClick={() => {
                                 setActionError("");
-                                setConfirm("delete");
+                                setConfirmingDelete(true);
                             }}
                         />
                     )}
                 </div>
             </div>
             <main data-document-scroll className="document-scroll min-h-0 flex-1 overflow-y-auto">
-                {state.status === "loading" ? (
+                {!provider || !collab.ready ? (
                     <div className="px-5 py-6 lg:px-8">
-                        <DocumentSkeleton />
+                        {collab.failed ? <ErrorMessage message={t("documents.couldNotOpen")} /> : <DocumentSkeleton />}
                     </div>
                 ) : (
                     <div className="document-writing-surface">
-                        {state.storageError && <ErrorMessage message={t(state.storageError as "documents.localDraftUnavailable")} />}
                         {state.status === "error" && (
-                            <ErrorMessage message={`${t((state.error || "documents.couldNotSave") as "documents.couldNotSave")} ${t("documents.keepDraft")} ${t("documents.retrySave")}`} />
+                            <ErrorMessage message={`${t((state.error || "documents.couldNotSave") as "documents.couldNotSave")} ${t("documents.retrySave")}`} />
                         )}
-                        {state.status === "offline" && (
-                            <p className="mb-4 text-sm text-tertiary">{t("documents.offlineHint")}</p>
-                        )}
-                        {(state.status === "conflict" || state.status === "deleted") && (
+                        {!collab.connected && <p className="mb-4 text-sm text-tertiary">{t("documents.offlineHint")}</p>}
+                        {state.status === "deleted" && (
                             <div role="alert" className="mb-5 rounded-md border border-strong bg-layer-1 p-4">
-                                <p className="text-sm font-medium">
-                                    {state.status === "deleted" ? t("documents.deletedMessage") : t("documents.newerVersion")}
-                                </p>
-                                <p className="mt-1 text-sm text-tertiary">{t("documents.draftPreserved")}</p>
-                                <div className="mt-3 flex flex-wrap gap-2">
-                                    <Button color="secondary" isLoading={create.isPending} onClick={copyDraft}>
-                                        {t("documents.createFromDraft")}
-                                    </Button>
-                                    {state.status === "conflict" && (
-                                        <Button
-                                            color="tertiary"
-                                            onClick={() => {
-                                                setActionError("");
-                                                setConfirm("discard");
-                                            }}
-                                        >
-                                            {t("documents.openSavedVersion")}
-                                        </Button>
-                                    )}
-                                </div>
+                                <p className="text-sm font-medium">{t("documents.deletedMessage")}</p>
                             </div>
                         )}
-                        {actionError && !confirm && <ErrorMessage message={actionError} />}
+                        {actionError && !confirmingDelete && <ErrorMessage message={actionError} />}
                         <div className="relative z-10 mb-5 flex flex-wrap items-end gap-2">
                             <Popover.Root open={iconPickerOpen} onOpenChange={setIconPickerOpen}>
                                 <Popover.Trigger disabled={busy || state.status === "deleted"} aria-label={state.iconAppearance ? t("appearance.changePageIcon") : t("appearance.addPageIcon")} className={`flex items-center justify-center rounded-md border border-subtle bg-layer-2 text-secondary hover:bg-layer-2-hover ${state.iconAppearance ? "size-12" : "h-7 gap-1.5 px-2 text-xs font-medium"}`}>
@@ -362,9 +329,8 @@ function DocumentWorkspace({ page, userId }: { page: DocumentPage; userId: strin
                             }}
                         />
                         <DocumentEditor
-                            content={state.contentJson}
-                            contentVersion={state.contentVersion}
-                            onChange={(contentJson) => session.edit({ contentJson })}
+                            provider={provider}
+                            user={{ id: userId, name: user?.name ?? "" }}
                             members={members}
                             disabled={busy || state.status === "deleted"}
                         />
@@ -372,30 +338,24 @@ function DocumentWorkspace({ page, userId }: { page: DocumentPage; userId: strin
                 )}
             </main>
             <Dialog.Root
-                open={!!confirm}
+                open={confirmingDelete}
                 onOpenChange={(open) => {
-                    if (!busy && !open) setConfirm(null);
+                    if (!busy && !open) setConfirmingDelete(false);
                 }}
             >
                 <Dialog.Portal>
                     <Dialog.Backdrop className="fixed inset-0 z-50 bg-backdrop" />
                     <Dialog.Viewport className="fixed inset-0 z-50 flex items-center justify-center p-4">
                         <Dialog.Popup className="w-full max-w-md rounded-lg border border-subtle bg-layer-2 p-6 shadow-overlay-200">
-                            <Dialog.Title className="text-lg font-semibold">
-                                {confirm === "delete" ? t("documents.deleteTitle") : t("documents.openSavedTitle")}
-                            </Dialog.Title>
-                            <Dialog.Description className="mt-2 text-sm text-tertiary">
-                                {confirm === "delete"
-                                    ? t("documents.deleteWarning")
-                                    : t("documents.openSavedWarning")}
-                            </Dialog.Description>
+                            <Dialog.Title className="text-lg font-semibold">{t("documents.deleteTitle")}</Dialog.Title>
+                            <Dialog.Description className="mt-2 text-sm text-tertiary">{t("documents.deleteWarning")}</Dialog.Description>
                             {actionError && <ErrorMessage message={actionError} />}
                             <div className="mt-6 flex justify-end gap-2">
-                                <Button color="secondary" isDisabled={busy} onClick={() => setConfirm(null)}>
+                                <Button color="secondary" isDisabled={busy} onClick={() => setConfirmingDelete(false)}>
                                     {t("common.cancel")}
                                 </Button>
-                                <Button color={confirm === "delete" ? "primary-destructive" : "primary"} isLoading={busy} onClick={confirmAction}>
-                                    {confirm === "delete" ? t("documents.deletePage") : t("documents.openSavedVersion")}
+                                <Button color="primary-destructive" isLoading={busy} onClick={confirmDelete}>
+                                    {t("documents.deletePage")}
                                 </Button>
                             </div>
                         </Dialog.Popup>
@@ -404,6 +364,47 @@ function DocumentWorkspace({ page, userId }: { page: DocumentPage; userId: strin
             </Dialog.Root>
         </>
     );
+}
+
+/** How long after the last keystroke someone still counts as editing the page, for the avatars other people see. */
+const EDITING_IDLE_MS = 10_000;
+const OFFLINE: DocumentProviderState = { connected: false, synced: false, restored: false, unsynced: false, failed: false, ready: false };
+const noSubscribe = () => () => {};
+
+/** True from this tab's last edit of the page content until it has been idle for a while. */
+function useRecentlyEdited(provider: DocumentProvider | null) {
+    const [editing, setEditing] = useState(false);
+    useEffect(() => {
+        if (!provider) return;
+        let timer: ReturnType<typeof setTimeout> | undefined;
+        // Only changes made here are local; edits from other people and the copy kept in this browser arrive as updates.
+        const onTransaction = (transaction: { local: boolean }) => {
+            if (!transaction.local) return;
+            setEditing(true);
+            clearTimeout(timer);
+            timer = setTimeout(() => setEditing(false), EDITING_IDLE_MS);
+        };
+        provider.doc.on("afterTransaction", onTransaction);
+        return () => {
+            clearTimeout(timer);
+            provider.doc.off("afterTransaction", onTransaction);
+        };
+    }, [provider]);
+    return editing;
+}
+
+/** The page's collaborative document, joined for as long as the page is open. Null until the first render has committed. */
+function useDocumentProvider(userId: string, page: DocumentPage) {
+    const [provider, setProvider] = useState<DocumentProvider | null>(null);
+    useEffect(() => {
+        const created = new DocumentProvider(userId, page.projectId, page.id, realtimeClient);
+        setProvider(created);
+        return () => {
+            created.destroy();
+            setProvider(null);
+        };
+    }, [userId, page.projectId, page.id]);
+    return provider;
 }
 
 function DocumentSkeleton() {

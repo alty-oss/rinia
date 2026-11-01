@@ -6,6 +6,7 @@ import type { TiptapDocument as StoredDocument } from "../../db/schema";
 import { HttpError } from "../../lib/http-error";
 import { requireUndoWindow } from "../../lib/soft-delete";
 import { mentionedUserIds, newMentions, recordIssueChange } from "../notifications/notifications.service";
+import { publishChange } from "../realtime/realtime.service";
 
 const EMPTY_DOCUMENT = { type: "doc" as const, content: [] };
 const PERSON = { id: true, name: true, username: true, avatarUrl: true } as const;
@@ -248,6 +249,7 @@ export async function createIssue(projectId: string, input: CreateIssueInput, ac
         await recordDescriptionRevision({ issueId: issue.id, revision: issue.descriptionRevision, authorId: actorId, contentJson: input.descriptionJson });
     }
     await recordIssueChange(issue, { actorId, created: true, assigneeId: issue.assigneeId, mentionedIds: mentionedUserIds(input.descriptionJson) });
+    publishChange("issue.created", { projectId, id: issue.id });
     return { ...issue, identifier: issueIdentifier(issue) };
 }
 
@@ -302,6 +304,7 @@ export async function updateIssue(identifier: string, input: UpdateIssueInput, a
         status: input.columnId && input.columnId !== current.columnId ? { from: current.columnId, to: input.columnId } : undefined,
         mentionedIds: writesDescription ? newMentions(current.descriptionJson, values.descriptionJson) : undefined,
     });
+    publishChange("issue.updated", { projectId: current.projectId, id: current.id });
 
     const project = await db.query.projects.findFirst({ where: eq(projects.id, current.projectId), columns: { issueKey: true } });
     return { ...updated, categoryIds: categoryIds ?? current.categoryIds, identifier: `${project?.issueKey}-${updated.number}` };
@@ -318,6 +321,7 @@ export async function deleteIssue(identifier: string, actorId: string) {
     }
     const deletedAt = new Date();
     await db.update(issues).set({ deletedAt }).where(inArray(issues.id, [...ids]));
+    for (const id of ids) publishChange("issue.deleted", { projectId: issue.projectId, id });
     return { deletedAt: deletedAt.toISOString() };
 }
 
@@ -336,6 +340,7 @@ export async function restoreIssue(identifier: string, actorId: string, deletedA
         for (const child of descendants) if (child.parentIssueId && ids.has(child.parentIssueId) && !ids.has(child.id)) { ids.add(child.id); changed = true; }
     }
     await db.update(issues).set({ deletedAt: null }).where(and(inArray(issues.id, [...ids]), eq(issues.projectId, row.projectId), eq(issues.deletedAt, deletedAt)));
+    for (const id of ids) publishChange("issue.restored", { projectId: row.projectId, id });
     return { restored: true };
 }
 
@@ -345,6 +350,7 @@ export async function restoreBulkIssues(projectId: string, issueIds: string[], a
     const rows = await db.query.issues.findMany({ where: and(eq(issues.projectId, projectId), inArray(issues.id, issueIds), eq(issues.deletedAt, deletedAt)), columns: { id: true } });
     if (rows.length !== issueIds.length) throw new HttpError(404, "Some issues could not be restored");
     await db.update(issues).set({ deletedAt: null }).where(and(eq(issues.projectId, projectId), inArray(issues.id, issueIds), eq(issues.deletedAt, deletedAt)));
+    for (const id of issueIds) publishChange("issue.restored", { projectId, id });
     return { restored: true };
 }
 
@@ -374,7 +380,7 @@ export function groupReactions(rows: Array<{ emoji: string; user: { id: string; 
 }
 
 async function commentForMember(commentId: string, userId: string) {
-    const comment = await db.query.issueComments.findFirst({ where: and(eq(issueComments.id, commentId), isNull(issueComments.deletedAt)), columns: { id: true }, with: { issue: { columns: { projectId: true, deletedAt: true } } } });
+    const comment = await db.query.issueComments.findFirst({ where: and(eq(issueComments.id, commentId), isNull(issueComments.deletedAt)), columns: { id: true, issueId: true }, with: { issue: { columns: { projectId: true, deletedAt: true } } } });
     if (!comment) throw new HttpError(404, "Comment not found");
     if (comment.issue.deletedAt) throw new HttpError(404, "Issue not found");
     await ensureProjectMember(userId, comment.issue.projectId);
@@ -393,15 +399,17 @@ async function commentReactionGroups(commentId: string) {
 
 /** Adds the user's reaction. Reacting twice with the same emoji keeps one. Returns the comment's reactions. */
 export async function addCommentReaction(commentId: string, emoji: string, userId: string) {
-    await commentForMember(commentId, userId);
+    const comment = await commentForMember(commentId, userId);
     await db.insert(commentReactions).values({ commentId, userId, emoji }).onConflictDoNothing();
+    publishChange("comment.reacted", { projectId: comment.issue.projectId, id: commentId, issueId: comment.issueId });
     return commentReactionGroups(commentId);
 }
 
 /** Removes the user's own reaction; other people's stay. Returns the comment's reactions. */
 export async function removeCommentReaction(commentId: string, emoji: string, userId: string) {
-    await commentForMember(commentId, userId);
+    const comment = await commentForMember(commentId, userId);
     await db.delete(commentReactions).where(and(eq(commentReactions.commentId, commentId), eq(commentReactions.userId, userId), eq(commentReactions.emoji, emoji)));
+    publishChange("comment.reacted", { projectId: comment.issue.projectId, id: commentId, issueId: comment.issueId });
     return commentReactionGroups(commentId);
 }
 
@@ -422,6 +430,7 @@ export async function createIssueComment(identifier: string, input: CreateIssueC
         : [];
     const [comment] = await db.insert(issueComments).values({ issueId: issue.id, authorId, parentCommentId: threadId, contentJson: input.contentJson }).returning();
     await recordIssueChange(issue, { actorId: authorId, comment: { id: comment.id, created: true }, mentionedIds: mentionedUserIds(input.contentJson), threadParticipantIds });
+    publishChange("comment.created", { projectId: issue.projectId, id: comment.id, issueId: issue.id });
     const created = await db.query.issueComments.findFirst({ where: eq(issueComments.id, comment.id), with: { author: { columns: PERSON } } });
     return created && { ...created, reactions: [] };
 }
@@ -434,16 +443,18 @@ export async function updateIssueComment(commentId: string, input: UpdateIssueCo
     const [updated] = await db.update(issueComments).set({ contentJson: input.contentJson, updatedAt: new Date() }).where(eq(issueComments.id, commentId)).returning();
     const issue = await db.query.issues.findFirst({ where: eq(issues.id, comment.issueId), columns: { id: true, projectId: true } });
     if (issue) await recordIssueChange(issue, { actorId: authorId, comment: { id: commentId, created: false }, mentionedIds: newMentions(comment.contentJson, input.contentJson) });
+    if (issue) publishChange("comment.updated", { projectId: issue.projectId, id: commentId, issueId: issue.id });
     return updated;
 }
 
 export async function deleteIssueComment(commentId: string, authorId: string) {
-    await commentForMember(commentId, authorId);
+    const { issue } = await commentForMember(commentId, authorId);
     const comment = await db.query.issueComments.findFirst({ where: and(eq(issueComments.id, commentId), isNull(issueComments.deletedAt)) });
     if (!comment) throw new HttpError(404, "Comment not found");
     if (comment.authorId !== authorId) throw new HttpError(403, "Only the comment author can delete it");
     const deletedAt = new Date();
     await db.update(issueComments).set({ deletedAt }).where(and(or(eq(issueComments.id, commentId), eq(issueComments.parentCommentId, commentId)), isNull(issueComments.deletedAt)));
+    publishChange("comment.deleted", { projectId: issue.projectId, id: commentId, issueId: comment.issueId });
     return { deletedAt: deletedAt.toISOString() };
 }
 
@@ -454,6 +465,7 @@ export async function restoreIssueComment(commentId: string, authorId: string, d
     if (comment.authorId !== authorId) throw new HttpError(403, "Only the comment author can restore it");
     await ensureProjectMember(authorId, comment.issue.projectId);
     await db.update(issueComments).set({ deletedAt: null }).where(and(or(eq(issueComments.id, commentId), eq(issueComments.parentCommentId, commentId)), eq(issueComments.deletedAt, deletedAt)));
+    publishChange("comment.restored", { projectId: comment.issue.projectId, id: commentId, issueId: comment.issueId });
     return { restored: true };
 }
 
@@ -490,6 +502,8 @@ export async function createIssueRelation(identifier: string, input: CreateIssue
     if (existing) throw new HttpError(409, "This relation already exists");
     const [relation] = await db.insert(issueRelations).values({ sourceIssueId: source.id, targetIssueId: target.id, type: input.type }).returning();
     await db.insert(issueActivities).values({ issueId: source.id, actorId, type: "relation_added", payload: { relationId: relation.id, targetIssueId: target.id, relationType: input.type } });
+    // Both issues list the relation, so both pages hear about it.
+    for (const issueId of [source.id, target.id]) publishChange("relation.created", { projectId: source.projectId, id: relation.id, issueId });
     return relation;
 }
 
@@ -500,6 +514,7 @@ export async function deleteIssueRelation(relationId: string, actorId: string) {
     await ensureProjectMember(actorId, source.projectId);
     await db.delete(issueRelations).where(eq(issueRelations.id, relationId));
     await db.insert(issueActivities).values({ issueId: source.id, actorId, type: "relation_removed", payload: { relationId, targetIssueId: relation.targetIssueId, relationType: relation.type } });
+    for (const issueId of [relation.sourceIssueId, relation.targetIssueId]) publishChange("relation.deleted", { projectId: source.projectId, id: relationId, issueId });
 }
 
 /**
@@ -546,6 +561,7 @@ export async function restoreDescriptionRevision(identifier: string, revisionId:
     if (!updated) throw new HttpError(404, "Issue not found");
     await recordDescriptionRevision({ issueId: current.id, revision: updated.descriptionRevision, authorId: actorId, contentJson: version.contentJson, restoredFromId: version.id });
     await recordIssueChange(current, { actorId, mentionedIds: newMentions(current.descriptionJson, version.contentJson) });
+    publishChange("issue.updated", { projectId: current.projectId, id: current.id });
     return { ...updated, identifier: issueIdentifier(current) };
 }
 
@@ -608,6 +624,7 @@ export async function bulkUpdateIssues(projectId: string, input: BulkUpdateIssue
         if (labelsToAdd.length > 0) await tx.insert(issueLabels).values(labelsToAdd).onConflictDoNothing();
         if (activities.length > 0) await tx.insert(issueActivities).values(activities);
     });
+    for (const issueId of issueIds) publishChange("issue.updated", { projectId, id: issueId });
 
     // Notifications follow the saved change; a failure there is logged, not reported, like single edits.
     for (const issue of current) {
@@ -635,5 +652,6 @@ export async function bulkDeleteIssues(projectId: string, issueIds: string[]) {
 
     const deletedAt = new Date();
     await db.update(issues).set({ deletedAt }).where(and(eq(issues.projectId, projectId), inArray(issues.id, issueIds)));
+    for (const issueId of issueIds) publishChange("issue.deleted", { projectId, id: issueId });
     return { deletedAt: deletedAt.toISOString() };
 }

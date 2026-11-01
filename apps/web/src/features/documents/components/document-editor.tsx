@@ -1,14 +1,11 @@
 import { useEffect, useRef } from "react";
-import type { TiptapDocument } from "@rinia/shared";
-import Link from "@tiptap/extension-link";
-import Mention from "@tiptap/extension-mention";
-import { TableKit } from "@tiptap/extension-table";
-import TaskItem from "@tiptap/extension-task-item";
-import TaskList from "@tiptap/extension-task-list";
+import { DOCUMENT_FRAGMENT, documentExtensions } from "@rinia/shared/src/document-extensions";
+import Collaboration from "@tiptap/extension-collaboration";
+import CollaborationCaret from "@tiptap/extension-collaboration-caret";
 import { Placeholder } from "@tiptap/extensions";
 import { EditorContent, Extension, useEditor } from "@tiptap/react";
-import StarterKit from "@tiptap/starter-kit";
 import Suggestion from "@tiptap/suggestion";
+import type { DocumentProvider } from "../collab/document-provider";
 import { DocumentBlockControls } from "./document-block-controls";
 import "./document-editor.css";
 import { DocumentFormatMenu } from "./document-format-menu";
@@ -78,55 +75,75 @@ const HeadingEnter = Extension.create({
     },
 });
 
+/** Cursors of up to five colours repeat across people; the same person has the same colour for everyone. */
+const CURSOR_COLORS = ["var(--brand-600)", "var(--blue-600)", "var(--green-600)", "var(--amber-600)", "var(--red-600)"];
+export function cursorColor(userId: string) {
+    let hash = 0;
+    for (const character of userId) hash = (hash * 31 + character.charCodeAt(0)) >>> 0;
+    return CURSOR_COLORS[hash % CURSOR_COLORS.length];
+}
+
+function renderCaret(user: Record<string, unknown>) {
+    const caret = document.createElement("span");
+    caret.classList.add("collaboration-carets__caret");
+    caret.style.setProperty("--caret-color", cursorColor(String(user.id)));
+    const label = document.createElement("div");
+    label.classList.add("collaboration-carets__label");
+    label.textContent = String(user.name ?? "");
+    caret.append(label);
+    return caret;
+}
+
+function renderSelection(user: Record<string, unknown>) {
+    return { nodeName: "span", class: "collaboration-carets__selection", style: `--caret-color: ${cursorColor(String(user.id))}` };
+}
+
 export function DocumentEditor({
-    content,
-    contentVersion,
-    onChange,
+    provider,
+    user,
     members,
     disabled = false,
 }: {
-    content: TiptapDocument;
-    /** Changes only when an authoritative external version replaces the local editor state. */
-    contentVersion: number;
-    onChange: (content: TiptapDocument) => void;
+    /** The page's collaborative document. Edits go straight into it, and other people's edits and cursors come out of it. */
+    provider: DocumentProvider;
+    user: { id: string; name: string };
     members: { id: string; name: string }[];
     disabled?: boolean;
 }) {
     const { t } = useTranslation();
-    const onChangeRef = useRef(onChange),
-        membersRef = useRef(members),
-        appliedContentVersion = useRef(contentVersion);
-    onChangeRef.current = onChange;
+    const membersRef = useRef(members);
     membersRef.current = members;
-    const editor = useEditor({
-        immediatelyRender: false,
-        content,
-        editorProps: { attributes: { "aria-label": t("editor.documentContent"), role: "textbox", "aria-multiline": "true", spellcheck: "true" } },
-        extensions: [
-            StarterKit.configure({ heading: { levels: [1, 2, 3] }, link: false, dropcursor: { color: "var(--bg-accent-primary)", width: 2 } }),
-            Link.configure({ openOnClick: false, autolink: true, defaultProtocol: "https" }),
-            TaskList,
-            TaskItem.configure({ nested: true }),
-            DocumentImage,
-            TableKit.configure({ table: { resizable: true, allowTableNodeSelection: true } }),
-            Placeholder.configure({ placeholder: () => i18n.t("editor.writeOrSlash") }),
-            Mention.configure({
-                HTMLAttributes: { class: "mention" },
-                suggestion: {
-                    pluginKey: documentMentionKey,
-                    items: ({ query }) =>
-                        membersRef.current
-                            .filter((member) => member.name.toLowerCase().includes(query.toLowerCase()))
-                            .slice(0, 8)
-                            .map((member) => ({ id: member.id, label: member.name })),
-                    render: () => documentSuggestions(documentMentionKey),
-                },
-            }),
-            SlashCommands,
-            HeadingEnter,
-        ],
-        onUpdate: ({ editor: current }) => onChangeRef.current(current.getJSON() as TiptapDocument),
-    });
+    const editor = useEditor(
+        {
+            immediatelyRender: false,
+            editorProps: { attributes: { "aria-label": t("editor.documentContent"), role: "textbox", "aria-multiline": "true", spellcheck: "true" } },
+            extensions: [
+                documentExtensions.starterKit.configure({ dropcursor: { color: "var(--bg-accent-primary)", width: 2 } }),
+                documentExtensions.link,
+                documentExtensions.taskList,
+                documentExtensions.taskItem,
+                DocumentImage,
+                documentExtensions.table,
+                Placeholder.configure({ placeholder: () => i18n.t("editor.writeOrSlash") }),
+                documentExtensions.mention.configure({
+                    suggestion: {
+                        pluginKey: documentMentionKey,
+                        items: ({ query }) =>
+                            membersRef.current
+                                .filter((member) => member.name.toLowerCase().includes(query.toLowerCase()))
+                                .slice(0, 8)
+                                .map((member) => ({ id: member.id, label: member.name })),
+                        render: () => documentSuggestions(documentMentionKey),
+                    },
+                }),
+                SlashCommands,
+                HeadingEnter,
+                Collaboration.configure({ document: provider.doc, field: DOCUMENT_FRAGMENT }),
+                CollaborationCaret.configure({ provider, user: { id: user.id, name: user.name }, render: renderCaret, selectionRender: renderSelection }),
+            ],
+        },
+        [provider],
+    );
     useEffect(() => {
         editor?.setEditable(!disabled, false);
     }, [editor, disabled]);
@@ -135,11 +152,6 @@ export function DocumentEditor({
         editor.view.dom.setAttribute("aria-label", t("editor.documentContent"));
         editor.view.dispatch(editor.state.tr.setMeta("document-language-changed", true));
     }, [editor, t]);
-    useEffect(() => {
-        if (!editor || appliedContentVersion.current === contentVersion) return;
-        appliedContentVersion.current = contentVersion;
-        if (JSON.stringify(content) !== JSON.stringify(editor.getJSON())) editor.commands.setContent(content, { emitUpdate: false });
-    }, [content, contentVersion, editor]);
     // Native ProseMirror dragging supplies the drop cursor; keep long pages scrolling near the edges.
     useEffect(() => {
         if (!editor) return;
@@ -182,8 +194,8 @@ export function DocumentEditor({
         >
             {editor && !disabled && (
                 <>
-                    <DocumentBlockControls key={`blocks:${contentVersion}`} editor={editor} />
-                    <DocumentFormatMenu key={`format:${contentVersion}`} editor={editor} />
+                    <DocumentBlockControls editor={editor} />
+                    <DocumentFormatMenu editor={editor} />
                 </>
             )}
             <EditorContent editor={editor} className="document-editor-content" />

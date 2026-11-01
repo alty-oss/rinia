@@ -3,6 +3,7 @@ import { and, asc, count, desc, eq } from "drizzle-orm";
 import { db } from "../../db";
 import { boardColumns, issues } from "../../db/schema";
 import { HttpError } from "../../lib/http-error";
+import { publishChange } from "../realtime/realtime.service";
 
 async function nextColumnPosition(projectId: string): Promise<number> {
     const [last] = await db
@@ -26,6 +27,7 @@ export async function createColumn(projectId: string, input: CreateColumnInput) 
     const position = await nextColumnPosition(projectId);
 
     const [column] = await db.insert(boardColumns).values({ projectId, name: input.name, color: input.color, position }).returning();
+    publishChange("column.created", { projectId, id: column.id });
 
     return column;
 }
@@ -41,6 +43,7 @@ export async function updateColumn(projectId: string, columnId: string, input: U
         throw new HttpError(404, "Column not found");
     }
 
+    publishChange("column.updated", { projectId, id: columnId });
     return column;
 }
 
@@ -61,4 +64,5 @@ export async function deleteColumn(projectId: string, columnId: string) {
     }
 
     await db.delete(boardColumns).where(eq(boardColumns.id, columnId));
+    publishChange("column.deleted", { projectId, id: columnId });
 }
