@@ -1,4 +1,6 @@
+import { nextLabels } from "@rinia/shared";
 import type {
+    BulkIssuePatch,
     CreateIssueCommentInput,
     CreateIssueInput,
     CreateIssueRelationInput,
@@ -13,6 +15,8 @@ import { issueDescriptionDrafts } from "../lib/issue-description-drafts";
 import { useAuth } from "@/features/auth/hooks/use-auth";
 import {
     addCommentReaction,
+    bulkDeleteIssues,
+    bulkUpdateIssues,
     createIssue,
     createIssueComment,
     createIssueRelation,
@@ -81,6 +85,8 @@ export function useCreateIssue(projectId: string) {
 export function useUpdateIssue(projectId: string) {
     const queryClient = useQueryClient();
     return useMutation({
+        // Edits to a project's issues are sent one after another, so a slower request never lands after a newer one.
+        scope: { id: `issues:${projectId}` },
         mutationFn: ({ identifier, input }: { identifier: string; input: UpdateIssueInput }) => updateIssue(identifier, input),
         onMutate: async ({ identifier, input }) => {
             const { expectedDescriptionRevision: _expectedDescriptionRevision, ...inputValues } = input;
@@ -254,6 +260,58 @@ export function useRestoreDescriptionRevision(identifier: string) {
         onSuccess: (issue) => {
             queryClient.invalidateQueries({ queryKey: issueKey(identifier) });
             queryClient.invalidateQueries({ queryKey: ["projects", issue.projectId, "issues"] });
+        },
+    });
+}
+
+/** An issue as a bulk change leaves it, for showing the change before the server confirms it. */
+export function applyBulkPatch<T extends Issue>(issue: T, patch: BulkIssuePatch): T {
+    const { categoryIds, addCategoryIds, removeCategoryIds, ...values } = patch;
+    const touchesLabels = categoryIds !== undefined || addCategoryIds !== undefined || removeCategoryIds !== undefined;
+    return { ...issue, ...values, ...(touchesLabels ? { categoryIds: nextLabels(issue.categoryIds, patch) } : {}) };
+}
+
+/** Changes many issues in one request. Every cached list shows the change at once and rolls back if it fails. */
+export function useBulkUpdateIssues(projectId: string) {
+    const queryClient = useQueryClient();
+    const lists = ["projects", projectId, "issues"];
+    return useMutation({
+        // Shares the queue of single edits (see `useUpdateIssue`), so bulk and single changes land in the order made.
+        scope: { id: `issues:${projectId}` },
+        mutationFn: ({ issueIds, patch }: { issueIds: string[]; patch: BulkIssuePatch }) => bulkUpdateIssues(projectId, issueIds, patch),
+        onMutate: async ({ issueIds, patch }) => {
+            await queryClient.cancelQueries({ queryKey: lists });
+            const previous = queryClient.getQueriesData<Issue[]>({ queryKey: lists });
+            const ids = new Set(issueIds);
+            queryClient.setQueriesData<Issue[]>({ queryKey: lists }, (current) => current?.map((issue) => (ids.has(issue.id) ? applyBulkPatch(issue, patch) : issue)));
+            return { previous };
+        },
+        onError: (_error, _variables, context) => context?.previous.forEach(([queryKey, data]) => queryClient.setQueryData(queryKey, data)),
+        onSettled: () => {
+            queryClient.invalidateQueries({ queryKey: lists });
+            queryClient.invalidateQueries({ queryKey: MY_ISSUES_QUERY_KEY });
+            queryClient.invalidateQueries({ queryKey: ["issues"] });
+        },
+    });
+}
+
+/** Deletes many issues in one request. They leave every cached list at once and come back if it fails. */
+export function useBulkDeleteIssues(projectId: string) {
+    const queryClient = useQueryClient();
+    const lists = ["projects", projectId, "issues"];
+    return useMutation({
+        mutationFn: (issueIds: string[]) => bulkDeleteIssues(projectId, issueIds),
+        onMutate: async (issueIds) => {
+            await queryClient.cancelQueries({ queryKey: lists });
+            const previous = queryClient.getQueriesData<Issue[]>({ queryKey: lists });
+            const ids = new Set(issueIds);
+            queryClient.setQueriesData<Issue[]>({ queryKey: lists }, (current) => current?.filter((issue) => !ids.has(issue.id)));
+            return { previous };
+        },
+        onError: (_error, _variables, context) => context?.previous.forEach(([queryKey, data]) => queryClient.setQueryData(queryKey, data)),
+        onSettled: () => {
+            queryClient.invalidateQueries({ queryKey: lists });
+            queryClient.invalidateQueries({ queryKey: MY_ISSUES_QUERY_KEY });
         },
     });
 }

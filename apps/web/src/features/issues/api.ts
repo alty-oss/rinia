@@ -1,4 +1,4 @@
-import type { EntityIcon, IssuePriority, IssueView, MyIssuesQuery } from "@rinia/shared";
+import type { BulkIssuePatch, EntityIcon, IssuePriority, IssueView, MyIssuesQuery } from "@rinia/shared";
 import type {
     CreateIssueCommentInput,
     CreateIssueInput,
@@ -10,6 +10,12 @@ import type {
     UpdateViewPreferenceInput,
 } from "@rinia/shared";
 import { apiClient } from "@/lib/api-client";
+
+export interface IssueLabel {
+    id: string;
+    name: string;
+    color: string | null;
+}
 
 export interface IssuePerson {
     id: string;
@@ -28,7 +34,10 @@ export interface Issue {
     descriptionJson: TiptapDocument;
     descriptionRevision: number;
     assigneeId: string | null;
-    categoryId: string | null;
+    /** The issue's labels, in the order they were added. */
+    categoryIds: string[];
+    /** The labels with names and colors, sorted by name. Edits update `categoryIds` first; lists resolve names from it. */
+    categories?: IssueLabel[];
     priority: IssuePriority;
     createdBy: string;
     position: number;
@@ -44,7 +53,7 @@ export type IssueDetail = Omit<Issue, "createdBy"> & {
     project: { id: string; name: string; issueKey: string };
     assignee: IssuePerson | null;
     createdBy: IssuePerson;
-    category: { id: string; name: string; color: string | null } | null;
+    categories: IssueLabel[];
     column: { id: string; name: string };
     parent: { id: string; number: number; title: string } | null;
     children: Array<{ id: string; number: number; title: string; columnId: string; priority: Issue["priority"] }>;
@@ -109,7 +118,7 @@ function queryString(query: IssueListQuery) {
 export type MyIssue = Issue & {
     project: { id: string; name: string; issueKey: string; icon: string | null; iconAppearance: EntityIcon | null };
     column: { id: string; name: string; color: string | null; position: number };
-    category: { id: string; name: string; color: string | null } | null;
+    categories: IssueLabel[];
     assignee: IssuePerson | null;
 };
 
@@ -123,6 +132,14 @@ export function listIssues(projectId: string, query: IssueListQuery = { orderBy:
 
 export function createIssue(projectId: string, input: CreateIssueInput): Promise<Issue> {
     return apiClient.post<{ issue: Issue }>(`/projects/${projectId}/issues`, input).then((res) => res.issue);
+}
+
+export function bulkUpdateIssues(projectId: string, issueIds: string[], patch: BulkIssuePatch): Promise<Issue[]> {
+    return apiClient.patch<{ issues: Issue[] }>(`/projects/${projectId}/issues/bulk`, { issueIds, patch }).then((res) => res.issues);
+}
+
+export function bulkDeleteIssues(projectId: string, issueIds: string[]): Promise<void> {
+    return apiClient.post<void>(`/projects/${projectId}/issues/bulk-delete`, { issueIds });
 }
 
 export function getIssue(identifier: string): Promise<IssueDetail> {

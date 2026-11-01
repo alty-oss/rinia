@@ -61,6 +61,7 @@ import { DescriptionHistorySheet } from "./description-history";
 import { fetchIssueClipboardContent } from "../lib/issue-clipboard";
 import { issueDescriptionDrafts, issueDraftKey } from "../lib/issue-description-drafts";
 import { DueDatePopover } from "./due-date-picker";
+import { LabelChip, LabelsPicker, resolveLabels, useLabelToggle } from "./labels-picker";
 import { EMPTY_TIPTAP_DOCUMENT, RichTextEditor, type MentionItem } from "./rich-text-editor";
 import { useTranslation } from "react-i18next";
 import { translateStatusName } from "@/i18n/status-label";
@@ -85,6 +86,8 @@ const activityLabelKeys: Record<string, TranslationKey> = {
     parent_changed: "issue.changedParent",
     relation_added: "issue.addedRelation",
     relation_removed: "issue.removedRelation",
+    label_added: "issue.addedLabel",
+    label_removed: "issue.removedLabel",
 };
 
 export const IssueView = () => {
@@ -618,7 +621,7 @@ export const IssueView = () => {
                                             title: `${currentTitle.slice(0, 200 - suffix.length)}${suffix}`,
                                             descriptionJson: latestDescription.current,
                                             assigneeId: issue.assigneeId,
-                                            categoryId: issue.categoryId,
+                                            categoryIds: issue.categoryIds,
                                             priority: issue.priority,
                                             estimate: issue.estimate,
                                         });
@@ -950,7 +953,9 @@ function IssueProperties({
     const { t, i18n } = useTranslation();
     const column = columns.find((candidate) => candidate.id === issue.columnId);
     const assignee = members.find((member) => member.id === issue.assigneeId);
-    const category = categories.find((candidate) => candidate.id === issue.categoryId);
+    const labelById = new Map(categories.map((candidate) => [candidate.id, candidate]));
+    const issueLabels = resolveLabels(issue.categoryIds, labelById);
+    const labelEditor = useLabelToggle(issue.categoryIds, (categoryIds) => save({ categoryIds }));
     const parent = projectIssues.find((candidate) => candidate.id === issue.parent?.id);
     const menu = (id: PropertyMenuId) => ({ open: openMenu === id, onOpenChange: (open: boolean) => onOpenMenuChange(open ? id : null), disabled: isPending });
     const avatar = (person: { name: string; avatarUrl: string | null }) => <IssueAvatar name={person.name} avatarUrl={person.avatarUrl} className="size-4 text-[9px]" />;
@@ -1035,27 +1040,24 @@ function IssueProperties({
             </PropertyGroup>
 
             <PropertyGroup title={t("issue.labels")}>
-                <PropertyMenu
+                <LabelsPicker
                     {...menu("label")}
-                    label={t("issue.label")}
-                    placeholder={t("issue.addLabelPlaceholder")}
-                    shortcut="L"
-                    value={issue.categoryId ?? ""}
-                    options={[{ value: "", label: t("issue.noLabel"), icon: <LabelsOutline className="size-3.5 text-tertiary" /> }, ...categories.map((candidate) => ({ value: candidate.id, label: candidate.name, icon: <span className="size-2 rounded-full" style={{ backgroundColor: candidate.color ?? "#7a5af8" }} /> }))]}
-                    onSelect={(value) => save({ categoryId: value || null })}
+                    labels={categories}
+                    state={labelEditor.state}
+                    onToggle={labelEditor.toggle}
+                    onClose={labelEditor.reset}
+                    triggerLabel={t("issue.labels")}
+                    triggerClassName={cx(propertyButton, issueLabels.length > 0 && "h-auto min-h-8 flex-wrap gap-1 py-1")}
                 >
-                    {category ? (
-                        <span className="flex h-6 min-w-0 items-center gap-1.5 rounded-full border border-subtle px-2 text-[12px]">
-                            <span className="size-2 shrink-0 rounded-full" style={{ backgroundColor: category.color ?? "#7a5af8" }} />
-                            <span className="truncate">{category.name}</span>
-                        </span>
+                    {issueLabels.length > 0 ? (
+                        issueLabels.map((label) => <LabelChip key={label.id} label={label} className="h-6 max-w-full px-2 text-[12px]" />)
                     ) : (
                         <>
                             <PropertyIcon><LabelsOutline className="size-3.5 text-tertiary" /></PropertyIcon>
                             <span className="truncate text-tertiary">{t("issue.addLabel")}</span>
                         </>
                     )}
-                </PropertyMenu>
+                </LabelsPicker>
             </PropertyGroup>
 
             <PropertyGroup title={t("issue.project")}>
@@ -1272,7 +1274,7 @@ type CommentEntry = { id: string; contentJson: TiptapDocument; authorId: string;
 interface TimelineLookups {
     columns: Array<{ id: string; name: string; color?: string | null }>;
     members: Array<{ id: string; name: string }>;
-    categories: Array<{ id: string; name: string }>;
+    categories: Array<{ id: string; name: string; color: string | null }>;
     projectIssues: Array<{ id: string; identifier: string; title: string }>;
 }
 
@@ -1359,6 +1361,7 @@ function IssueTimeline({
 function TimelineActivity({ entry, lookups }: { entry: ActivityEntry; lookups: TimelineLookups }) {
     const { t, i18n } = useTranslation();
     const statusTo = entry.type === "status_changed" ? lookups.columns.find((column) => column.id === entry.payload.to) : undefined;
+    const label = entry.type === "label_added" || entry.type === "label_removed" ? lookups.categories.find((category) => category.id === entry.payload.categoryId) : undefined;
     return (
         <li className="animate-enter flex items-center gap-2.5 py-1.5 pl-1 text-[13px] text-tertiary">
             <span className="grid size-5 shrink-0 place-items-center">
@@ -1366,6 +1369,7 @@ function TimelineActivity({ entry, lookups }: { entry: ActivityEntry; lookups: T
             </span>
             <p className="min-w-0 flex-1">
                 <span className="font-medium text-secondary">{entry.actor.name}</span> {activityLabelKeys[entry.type] ? t(activityLabelKeys[entry.type]) : entry.type}
+                {label && <> <LabelChip label={label} className="inline-flex max-w-40 align-middle" /></>}
                 {formatActivityChange(entry.payload, { ...lookups, columns: lookups.columns.map((column) => ({ ...column, name: translateStatusName(column.name, t) })) }, t("issue.noneValue"), i18n.language)}
                 <span className="text-placeholder"> · </span>
                 <time className="text-placeholder" title={formatFullIssueDate(entry.createdAt, i18n.language)} dateTime={entry.createdAt}>{formatDistanceToNow(entry.createdAt, i18n.language)}</time>

@@ -23,12 +23,16 @@ import { IssueListRow } from "@/features/issues/components/issue-list-row";
 import { useCreateIssue, useIssues, useUpdateIssue } from "@/features/issues/hooks/use-issues";
 import { ProjectWorkspaceHeader } from "@/features/projects/components/project-workspace-header";
 import { IssueToolbar } from "@/features/issues/components/issue-toolbar";
+import { BulkActionBar } from "@/features/issues/components/bulk-action-bar";
+import { IssueSelectionProvider, useIssueSelection, useRegisterVisibleIssues } from "@/features/issues/selection";
 import { useIssueView } from "@/features/issues/hooks/use-issue-view";
 import { listGroupKey, useListReorder, type ListGroupBy } from "@/features/issues/hooks/use-list-reorder";
 import { issueViews } from "@/features/issues/views";
 import { useProjectMembers } from "@/features/projects/hooks/use-project-members";
 import { useCategories } from "@/features/categories/hooks/use-categories";
 import { matchesDueFilter } from "@/features/issues/lib/due-date";
+import { matchesLabels, readLabels } from "@/features/issues/lib/issue-filters";
+import { resolveLabels } from "@/features/issues/components/labels-picker";
 import { priorityLabelKey } from "@/features/issues/lib/priority";
 import { ApiError } from "@/lib/api-client";
 import { useTranslation } from "react-i18next";
@@ -38,9 +42,20 @@ type OrderBy = IssueOrder;
 type GroupBy = ListGroupBy;
 type Scope = "active" | "backlog" | "all";
 
+/** Each project keeps its own selection; moving to another project starts empty. */
 export const ProjectIssuesPage = () => {
+    const { projectId } = useRouteProject();
+    return (
+        <IssueSelectionProvider key={projectId}>
+            <ProjectIssues />
+        </IssueSelectionProvider>
+    );
+};
+
+const ProjectIssues = () => {
     const { t, i18n } = useTranslation();
     const { projectId, projectKey } = useRouteProject();
+    const selection = useIssueSelection()!;
     const params = useParams<{ scope: string }>();
     const navigate = useNavigate();
     const [searchParams, setSearchParams] = useSearchParams();
@@ -50,7 +65,7 @@ export const ProjectIssuesPage = () => {
     const priority = searchParams.get("priority") ?? "";
     const status = searchParams.get("status") ?? "";
     const assignee = searchParams.get("assignee") ?? "";
-    const category = searchParams.get("label") ?? "";
+    const labelFilter = useMemo(() => readLabels(searchParams.get("label")), [searchParams]);
     const due = searchParams.get("due") ?? "";
     const scope = readScope(params.scope ?? null);
     const { view, setView } = useIssueView(projectId!);
@@ -72,6 +87,7 @@ export const ProjectIssuesPage = () => {
     // so its tab only shows when the project has such a column (or a link already opened it).
     const showBacklog = scope === "backlog" || (columns ?? []).some((column) => columnBucket(column.name) === "backlog");
     const memberById = useMemo(() => new Map((members ?? []).map((member) => [member.id, member])), [members]);
+    const categoryById = useMemo(() => new Map((categories ?? []).map((item) => [item.id, item])), [categories]);
     const filteredIssues = useMemo(
         () =>
             (issues ?? []).filter((issue) => {
@@ -86,10 +102,10 @@ export const ProjectIssuesPage = () => {
                     (!priority || issue.priority === priority) &&
                     (!status || issue.columnId === status) &&
                     (!assignee || issue.assigneeId === assignee) &&
-                    (!category || issue.categoryId === category)
+                    matchesLabels(issue.categoryIds, labelFilter)
                 );
             }),
-        [assignee, category, columnById, due, issues, priority, scope, search, status],
+        [assignee, columnById, due, issues, labelFilter, priority, scope, search, status],
     );
     // In manual order the list sorts by position itself, so a moved issue lands in place before the server answers.
     const manualOrder = orderBy === "position";
@@ -131,6 +147,9 @@ export const ProjectIssuesPage = () => {
         }));
     }, [columnById, columns, listIssues, groupBy, memberById, t]);
     const orderedIssues = useMemo(() => groups.flatMap((group) => group.issues), [groups]);
+    // Collapsed groups hide their issues, so they are not selected by Cmd/Ctrl+A or included in ranges.
+    useRegisterVisibleIssues(view === "list" ? groups.flatMap((group) => (collapsedGroups.has(group.key) ? [] : group.issues.map((issue) => issue.id))) : null);
+    const selectedIssues = useMemo(() => (issues ?? []).filter((issue) => selection.selected.has(issue.id)), [issues, selection.selected]);
 
     useEffect(() => {
         if (selectedIssueId && !orderedIssues.some((issue) => issue.id === selectedIssueId)) setSelectedIssueId(null);
@@ -189,7 +208,8 @@ export const ProjectIssuesPage = () => {
 
         const statusColumn = status ? columnById.get(status) : undefined;
         const assigneeName = assignee ? memberById.get(assignee)?.name : undefined;
-        const labelName = category ? categories?.find((item) => item.id === category)?.name : undefined;
+        const labelNames = resolveLabels(labelFilter, categoryById).map((item) => item.name);
+        const labelName = labelNames.length ? new Intl.ListFormat(i18n.language, { type: "disjunction" }).format(labelNames) : undefined;
         const conditions = ([
             priority && t("issue.conditionPriority", { value: t(priorityLabelKey(priority)) }),
             statusColumn && t("issue.conditionStatus", { value: statusName(statusColumn) }),
@@ -267,7 +287,7 @@ export const ProjectIssuesPage = () => {
 
 
     return (
-        <div className="flex h-full min-h-0 flex-col bg-surface-1">
+        <div className="relative flex h-full min-h-0 flex-col bg-surface-1">
             <ProjectWorkspaceHeader
                 projectId={projectId!}
                 activeView="issues"
@@ -402,6 +422,8 @@ export const ProjectIssuesPage = () => {
                                             columns={columns ?? []}
                                             member={issue.assigneeId ? memberById.get(issue.assigneeId) : undefined}
                                             members={members ?? []}
+                                            categories={resolveLabels(issue.categoryIds, categoryById)}
+                                            labels={categories ?? []}
                                             selected={selectedIssueId === issue.id}
                                             onSelect={() => setSelectedIssueId(issue.id)}
                                             onUpdate={(input) => updateIssue.mutate({ identifier: issue.identifier, input })}
@@ -428,6 +450,7 @@ export const ProjectIssuesPage = () => {
                 </div>
             </main>
             )}
+            <BulkActionBar projectId={projectId!} issues={selectedIssues} columns={columns ?? []} members={members ?? []} labels={categories ?? []} onClear={selection.clear} />
         </div>
     );
 };

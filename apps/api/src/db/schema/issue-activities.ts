@@ -14,6 +14,8 @@ export const issueActivityTypeEnum = pgEnum("issue_activity_type", [
     "parent_changed",
     "relation_added",
     "relation_removed",
+    "label_added",
+    "label_removed",
 ]);
 
 export const issueActivities = pgTable("issue_activities", {

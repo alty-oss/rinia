@@ -14,7 +14,8 @@ import { Select } from "@/components/base/select/select";
 import { useColumns } from "@/features/board/hooks/use-board";
 import { useCategories } from "@/features/categories/hooks/use-categories";
 import { useProjectMembers } from "@/features/projects/hooks/use-project-members";
-import { readIssueOrder } from "../lib/issue-filters";
+import { readIssueOrder, readLabels } from "../lib/issue-filters";
+import { CheckboxBase } from "@/components/base/checkbox/checkbox";
 import { useTranslation } from "react-i18next";
 import { PRIORITY_OPTIONS, priorityLabelKey } from "@/features/issues/lib/priority";
 import { translateStatusName } from "@/i18n/status-label";
@@ -31,7 +32,8 @@ export function dueFilter(t: TFunction): IssueFilter {
     };
 }
 
-export type IssueFilter = { key: string; label: string; items: Array<{ id: string; name: string; icon?: ReactNode; avatarUrl?: string | null }> };
+/** A filter in the popover. A `multiple` filter keeps several comma-separated ids and matches issues with any of them. */
+export type IssueFilter = { key: string; label: string; multiple?: boolean; items: Array<{ id: string; name: string; icon?: ReactNode; avatarUrl?: string | null }> };
 type DisplayOption = { id: string; label: string; icon: FC<{ className?: string }> };
 
 export function IssueToolbar({
@@ -77,7 +79,7 @@ export function IssueToolbar({
         { key: "status", label: t("issue.status"), items: (columns ?? []).map((item) => ({ id: item.id, name: translateStatusName(item.name, t), icon: <StateIcon name={item.name} color={item.color} /> })) },
         { key: "priority", label: t("issue.priority"), items: PRIORITY_OPTIONS.map((id) => ({ id, name: t(priorityLabelKey(id)), icon: <PriorityIcon priority={id} /> })) },
         { key: "assignee", label: t("issue.assignee"), items: (members ?? []).map((member) => ({ id: member.id, name: member.name, avatarUrl: member.avatarUrl, icon: member.avatarUrl ? undefined : <IssueAvatar name={member.name} avatarUrl={member.avatarUrl} /> })) },
-        { key: "label", label: t("issue.label"), items: (categories ?? []).map((item) => ({ id: item.id, name: item.name, icon: <LabelsOutline className="size-3.5" style={{ color: item.color ?? "#7a5af8" }} /> })) },
+        { key: "label", label: t("issue.label"), multiple: true, items: (categories ?? []).map((item) => ({ id: item.id, name: item.name, icon: <LabelsOutline className="size-3.5" style={{ color: item.color ?? "#7a5af8" }} /> })) },
         dueFilter(t),
     ];
     const count = filters.filter((filter) => query.get(filter.key)).length;
@@ -97,7 +99,9 @@ export function IssueToolbar({
                         <Popover.Positioner sideOffset={8} align="start" className="z-30">
                             <Popover.Popup className={popup}>
                                 <Popover.Title className="text-sm font-medium">{t("issue.filterTitle")}</Popover.Title>
-                                {filters.map((filter) => (
+                                {filters.map((filter) => filter.multiple ? (
+                                    <MultiFilter key={filter.key} filter={filter} selected={readLabels(query.get(filter.key))} onChange={(ids) => update(filter.key, ids.join(","))} />
+                                ) : (
                                     <Select
                                         key={filter.key}
                                         label={filter.label}
@@ -180,7 +184,9 @@ export function IssueToolbar({
                     {filters
                         .filter((filter) => query.get(filter.key))
                         .map((filter) => {
-                            const selected = filter.items.find((item) => item.id === query.get(filter.key));
+                            const ids = readLabels(query.get(filter.key));
+                            const chosen = filter.items.filter((item) => ids.includes(item.id));
+                            const selected = chosen.length > 1 ? { icon: chosen[0].icon, name: chosen.map((item) => item.name).join(", ") } : chosen[0];
                             return (
                             <button
                                 key={filter.key}
@@ -196,6 +202,34 @@ export function IssueToolbar({
                         })}
                 </div>
             )}
+        </div>
+    );
+}
+
+/** A filter where any number of values can be on at once, as a checklist. */
+function MultiFilter({ filter, selected, onChange }: { filter: IssueFilter; selected: string[]; onChange: (ids: string[]) => void }) {
+    return (
+        <div role="group" aria-label={filter.label} className="grid gap-1.5">
+            <span className="text-sm font-medium text-secondary">{filter.label}</span>
+            <div className="flex max-h-40 flex-col overflow-y-auto rounded-md border border-subtle p-1">
+                {filter.items.map((item) => {
+                    const on = selected.includes(item.id);
+                    return (
+                        <button
+                            key={item.id}
+                            type="button"
+                            role="checkbox"
+                            aria-checked={on}
+                            onClick={() => onChange(on ? selected.filter((id) => id !== item.id) : [...selected, item.id])}
+                            className="flex h-7 items-center gap-2 rounded px-1.5 text-left text-[13px] text-secondary transition-colors duration-100 hover:bg-layer-2-hover hover:text-primary"
+                        >
+                            <CheckboxBase isSelected={on} />
+                            {item.icon}
+                            <span className="truncate">{item.name}</span>
+                        </button>
+                    );
+                })}
+            </div>
         </div>
     );
 }

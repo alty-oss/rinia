@@ -47,7 +47,7 @@ function call(method: string, path: string, userId: string, body?: unknown) {
 }
 
 function stubIssue(overrides: Record<string, unknown> = {}) {
-    const issue = { id: issueId, projectId, number: 4, columnId: "todo", assigneeId: null, descriptionJson: doc("Before"), descriptionRevision: 3, dueDate: null, project: { id: projectId, name: "Rinia", issueKey: "RIN" }, ...overrides };
+    const issue = { id: issueId, projectId, number: 4, columnId: "todo", labels: [], assigneeId: null, descriptionJson: doc("Before"), descriptionRevision: 3, dueDate: null, project: { id: projectId, name: "Rinia", issueKey: "RIN" }, ...overrides };
     spyOn(db.query.issues, "findFirst").mockImplementation(async () => issue as never);
     return issue;
 }

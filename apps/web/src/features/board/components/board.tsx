@@ -33,6 +33,8 @@ import { positionAtIndex } from "../position";
 import { Column } from "./column";
 import { HiddenColumns, useHiddenColumns } from "./hidden-columns";
 import { columnBucket } from "../column-bucket";
+import { resolveLabels } from "@/features/issues/components/labels-picker";
+import { useRegisterVisibleIssues } from "@/features/issues/selection";
 import { IssueCardContent } from "./issue-card";
 import { useTranslation } from "react-i18next";
 
@@ -83,6 +85,8 @@ export const Board = ({ projectId, filters = new URLSearchParams() }: { projectI
      * issue will land instead of making the user drag blindly.
      */
     const board = useMemo(() => dragIssues ?? [...filtered].sort((a, b) => a.position - b.position || a.number - b.number), [dragIssues, filtered]);
+
+    useRegisterVisibleIssues(useMemo(() => (columns ?? []).filter((column) => !hidden.has(column.id)).flatMap((column) => board.filter((issue) => issue.columnId === column.id).map((issue) => issue.id)), [board, columns, hidden]));
 
     /** Resolves the target column: `over` is the column itself (card area) or a card inside it. */
     function resolveColumnId(overId: string, list: Issue[]): string | undefined {
@@ -214,7 +218,7 @@ export const Board = ({ projectId, filters = new URLSearchParams() }: { projectI
         return <ErrorMessage message={t("errors.requestFailed")} />;
     }
 
-    const activeCategory = activeIssue?.categoryId ? categoriesById.get(activeIssue.categoryId) : undefined;
+    const activeCategories = activeIssue ? resolveLabels(activeIssue.categoryIds, categoriesById) : [];
     const activeAssignee = activeIssue?.assigneeId ? membersById.get(activeIssue.assigneeId) : undefined;
 
     return (
@@ -264,7 +268,7 @@ export const Board = ({ projectId, filters = new URLSearchParams() }: { projectI
                         >
                             <IssueCardContent
                                 issue={activeIssue}
-                                category={activeCategory}
+                                categories={activeCategories}
                                 assignee={activeAssignee}
                                 closed={closedColumnIds.has(activeIssue.columnId)}
                             />

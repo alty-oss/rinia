@@ -162,6 +162,13 @@
       "when": 1790014000000,
       "tag": "0022_reactions_and_description_history",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1790015000000,
+      "tag": "0023_issue_labels",
+      "breakpoints": true
     }
   ]
 }

@@ -1,9 +1,11 @@
-import { commentReactionSchema, reactionEmojiSchema, createIssueCommentSchema, createIssueRelationSchema, createIssueSchema, issueListQuerySchema, updateIssueCommentSchema, updateIssueSchema } from "@rinia/shared";
+import { bulkDeleteIssuesSchema, bulkUpdateIssuesSchema, commentReactionSchema, reactionEmojiSchema, createIssueCommentSchema, createIssueRelationSchema, createIssueSchema, issueListQuerySchema, updateIssueCommentSchema, updateIssueSchema } from "@rinia/shared";
 import { z } from "zod";
 import { asyncHandler } from "../../middleware/async-handler";
 import { assertProjectMembership } from "../../middleware/project-membership.middleware";
 import {
     addCommentReaction,
+    bulkDeleteIssues,
+    bulkUpdateIssues,
     createIssue,
     createIssueComment,
     createIssueRelation,
@@ -98,4 +100,13 @@ export const descriptionRevisions = asyncHandler<{ issueIdentifier: string }>(as
 
 export const restoreDescription = asyncHandler<{ issueIdentifier: string; revisionId: string }>(async (req, res) => {
     res.json({ issue: await restoreDescriptionRevision(req.params.issueIdentifier, z.string().uuid().parse(req.params.revisionId), req.user!.sub) });
+});
+
+export const bulkUpdate = asyncHandler<{ projectId: string }>(async (req, res) => {
+    res.json({ issues: await bulkUpdateIssues(req.params.projectId, bulkUpdateIssuesSchema.parse(req.body), req.user!.sub) });
+});
+
+export const bulkDelete = asyncHandler<{ projectId: string }>(async (req, res) => {
+    await bulkDeleteIssues(req.params.projectId, bulkDeleteIssuesSchema.parse(req.body).issueIds);
+    res.status(204).send();
 });

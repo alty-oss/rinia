@@ -8,6 +8,8 @@ export interface ToastInput {
     title: string;
     description?: string;
     tone?: ToastTone;
+    /** A button in the toast, such as "Undo". Using it closes the toast. */
+    action?: { label: string; onClick: () => void };
 }
 
 interface ToastEntry extends ToastInput {
@@ -21,6 +23,8 @@ const ToastContext = createContext<(toast: ToastInput) => void>(() => {});
 export const useToast = () => useContext(ToastContext);
 
 const VISIBLE_MS = 4000;
+/** Toasts with an action stay longer, so there is time to use it. */
+const VISIBLE_WITH_ACTION_MS = 8000;
 const EXIT_MS = 180;
 
 export function ToastProvider({ children }: { children: ReactNode }) {
@@ -37,7 +41,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
             const id = nextId.current++;
             // Keep at most three on screen; the oldest leaves first.
             setToasts((current) => [...current.filter((entry) => !entry.leaving).slice(-2), { ...toast, id, leaving: false }]);
-            window.setTimeout(() => dismiss(id), VISIBLE_MS);
+            window.setTimeout(() => dismiss(id), toast.action ? VISIBLE_WITH_ACTION_MS : VISIBLE_MS);
         },
         [dismiss],
     );
@@ -76,6 +80,18 @@ function ToastCard({ toast, onDismiss }: { toast: ToastEntry; onDismiss: () => v
                 <p className="text-[13px] font-medium break-words text-primary">{toast.title}</p>
                 {toast.description && <p className="mt-0.5 text-[13px] text-tertiary">{toast.description}</p>}
             </div>
+            {toast.action && (
+                <button
+                    type="button"
+                    onClick={() => {
+                        toast.action?.onClick();
+                        onDismiss();
+                    }}
+                    className="-my-0.5 shrink-0 rounded-md px-2 py-0.5 text-[13px] font-medium text-accent-primary transition-colors duration-150 hover:bg-layer-transparent-hover"
+                >
+                    {toast.action.label}
+                </button>
+            )}
             <button type="button" aria-label={t("common.close")} onClick={onDismiss} className="grid size-5 shrink-0 place-items-center rounded text-tertiary hover:bg-layer-transparent-hover hover:text-primary">
                 <X className="size-3.5" />
             </button>

@@ -16,7 +16,7 @@ const issueId = "4d2e6f80-0000-4000-8000-0000000000bb";
 const render = (condition: SQL) => new PgDialect().sqlToQuery(condition);
 
 function stubIssue(overrides: Record<string, unknown> = {}) {
-    const issue = { id: issueId, projectId, number: 4, columnId: "todo", assigneeId: null, descriptionRevision: 3, dueDate: null, project: { id: projectId, name: "Rinia", issueKey: "RIN" }, ...overrides };
+    const issue = { id: issueId, projectId, number: 4, columnId: "todo", labels: [], assigneeId: null, descriptionRevision: 3, dueDate: null, project: { id: projectId, name: "Rinia", issueKey: "RIN" }, ...overrides };
     spyOn(db.query.issues, "findFirst").mockImplementation(async () => issue as never);
     return issue;
 }

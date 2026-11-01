@@ -118,7 +118,7 @@ test("editing a comment only notifies people it newly mentions", () => {
 });
 
 test("commenting through the API notifies the right people and records who follows", async () => {
-    spyOn(db.query.issues, "findFirst").mockImplementation(async () => ({ id: issueId, projectId, number: 1, project: { id: projectId, name: "Rinia", issueKey: "RIN" } }) as never);
+    spyOn(db.query.issues, "findFirst").mockImplementation(async () => ({ id: issueId, projectId, number: 1, labels: [], project: { id: projectId, name: "Rinia", issueKey: "RIN" } }) as never);
     spyOn(db.query.projectMembers, "findFirst").mockImplementation(async () => ({ id: "membership" }) as never);
     spyOn(db.query.issueComments, "findFirst").mockImplementation(async () => ({ id: commentId }) as never);
     // Followers of the issue, then who among the candidates can see the project (the outsider cannot).
@@ -166,7 +166,7 @@ test("people cannot read or unread someone else's notification", async () => {
 });
 
 test("only project members can follow an issue", async () => {
-    spyOn(db.query.issues, "findFirst").mockImplementation(async () => ({ id: issueId, projectId, number: 1, project: { id: projectId, name: "Rinia", issueKey: "RIN" } }) as never);
+    spyOn(db.query.issues, "findFirst").mockImplementation(async () => ({ id: issueId, projectId, number: 1, labels: [], project: { id: projectId, name: "Rinia", issueKey: "RIN" } }) as never);
     const membership = spyOn(db.query.projectMembers, "findFirst").mockImplementation(async () => undefined);
     const writes = stubInserts();
     spyOn(db, "delete").mockImplementation(() => { throw new Error("Must not delete"); });

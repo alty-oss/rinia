@@ -19,6 +19,9 @@ import { IssueListRow } from "@/features/issues/components/issue-list-row";
 import { IssueToolbar, dueFilter, type IssueFilter } from "@/features/issues/components/issue-toolbar";
 import { useMyIssues, useUpdateMyIssue } from "@/features/issues/hooks/use-issues";
 import { matchesDueFilter } from "@/features/issues/lib/due-date";
+import { matchesLabels, readLabels } from "@/features/issues/lib/issue-filters";
+import { resolveLabels } from "@/features/issues/components/labels-picker";
+import { useCategories } from "@/features/categories/hooks/use-categories";
 import { PRIORITY_OPTIONS, priorityLabelKey } from "@/features/issues/lib/priority";
 import { ProjectIcon } from "@/features/projects/components/project-icon";
 import { useProjectMembers } from "@/features/projects/hooks/use-project-members";
@@ -46,7 +49,7 @@ export const MyIssuesPage = () => {
     const priority = searchParams.get("priority") ?? "";
     const status = searchParams.get("status") ?? "";
     const assignee = searchParams.get("assignee") ?? "";
-    const label = searchParams.get("label") ?? "";
+    const labelFilter = useMemo(() => readLabels(searchParams.get("label")), [searchParams]);
     const project = searchParams.get("project") ?? "";
     const due = searchParams.get("due") ?? "";
     const { data: issues, isLoading, isError } = useMyIssues({ filter, orderBy });
@@ -63,11 +66,11 @@ export const MyIssuesPage = () => {
                     (!priority || issue.priority === priority) &&
                     (!status || nameKey(issue.column.name) === status) &&
                     (!assignee || issue.assigneeId === assignee) &&
-                    (!label || (issue.category && nameKey(issue.category.name) === label)) &&
+                    matchesLabels(issue.categories.map((item) => nameKey(item.name)), labelFilter) &&
                     (!project || issue.projectId === project) &&
                     matchesDueFilter(issue.dueDate, due, columnBucket(issue.column.name) === "closed"),
             ),
-        [assignee, due, issues, label, priority, project, search, status],
+        [assignee, due, issues, labelFilter, priority, project, search, status],
     );
     const rows = usePresence(filtered, (issue) => issue.id);
     const identifierWidth = useMemo(() => Math.max(4, ...(issues ?? []).map((issue) => issue.identifier.length)), [issues]);
@@ -121,7 +124,7 @@ export const MyIssuesPage = () => {
         { key: "status", label: t("issue.status"), items: options.statuses.map((column) => ({ id: nameKey(column.name), name: translateStatusName(column.name, t), icon: <StateIcon name={column.name} color={column.color} /> })) },
         { key: "priority", label: t("issue.priority"), items: PRIORITY_OPTIONS.map((id) => ({ id, name: t(priorityLabelKey(id)), icon: <PriorityIcon priority={id} /> })) },
         { key: "assignee", label: t("issue.assignee"), items: options.assignees.map((person) => ({ id: person.id, name: person.name, avatarUrl: person.avatarUrl, icon: person.avatarUrl ? undefined : <IssueAvatar name={person.name} avatarUrl={person.avatarUrl} /> })) },
-        { key: "label", label: t("issue.label"), items: options.labels.map((item) => ({ id: nameKey(item.name), name: item.name, icon: <LabelsOutline className="size-3.5" style={{ color: item.color ?? "#7a5af8" }} /> })) },
+        { key: "label", label: t("issue.label"), multiple: true, items: options.labels.map((item) => ({ id: nameKey(item.name), name: item.name, icon: <LabelsOutline className="size-3.5" style={{ color: item.color ?? "#7a5af8" }} /> })) },
         { key: "project", label: t("myIssues.project"), items: options.projects.map((item) => ({ id: item.id, name: item.name, icon: <ProjectIcon icon={item.iconAppearance ?? item.icon} className="size-3.5" /> })) },
         dueFilter(t),
     ];
@@ -143,8 +146,9 @@ export const MyIssuesPage = () => {
     function emptyState() {
         const conditions: string[] = toolbarFilters.flatMap((item) => {
             const value = searchParams.get(item.key);
-            const name = value ? item.items.find((option) => option.id === value)?.name : undefined;
-            if (!name) return [];
+            const names = (value ?? "").split(",").flatMap((id) => item.items.find((option) => option.id === id)?.name ?? []);
+            if (names.length === 0) return [];
+            const name = new Intl.ListFormat(i18n.language, { type: "disjunction" }).format(names);
             if (item.key === "due") return [value === "overdue" ? t("issue.conditionDueOverdue") : t("issue.conditionDueThisWeek")];
             const key = { status: "issue.conditionStatus", priority: "issue.conditionPriority", assignee: "issue.conditionAssignee", label: "issue.conditionLabel", project: "myIssues.conditionProject" }[item.key] as "issue.conditionStatus";
             return [t(key, { value: name })];
@@ -251,6 +255,8 @@ export const MyIssuesPage = () => {
 function MyIssueRow({ issue, identifierWidth, selected, onSelect, onUpdate }: { issue: MyIssue; identifierWidth: number; selected: boolean; onSelect: () => void; onUpdate: Parameters<typeof IssueListRow>[0]["onUpdate"] }) {
     const { data: columns } = useColumns(issue.projectId);
     const { data: members } = useProjectMembers(issue.projectId);
+    const { data: labels } = useCategories(issue.projectId);
+    const labelById = useMemo(() => new Map((labels ?? issue.categories).map((item) => [item.id, item])), [issue.categories, labels]);
     const column = columns?.find((candidate) => candidate.id === issue.columnId) ?? issue.column;
     const member = members?.find((candidate) => candidate.id === issue.assigneeId) ?? issue.assignee ?? undefined;
     return (
@@ -263,6 +269,8 @@ function MyIssueRow({ issue, identifierWidth, selected, onSelect, onUpdate }: { 
             columns={columns ?? [issue.column]}
             member={member}
             members={members ?? []}
+            categories={resolveLabels(issue.categoryIds, labelById)}
+            labels={labels ?? []}
             selected={selected}
             onSelect={onSelect}
             onUpdate={onUpdate}
@@ -274,12 +282,12 @@ function MyIssueRow({ issue, identifierWidth, selected, onSelect, onUpdate }: { 
 function collectOptions(issues: MyIssue[]) {
     const statuses = new Map<string, MyIssue["column"]>();
     const assignees = new Map<string, NonNullable<MyIssue["assignee"]>>();
-    const labels = new Map<string, NonNullable<MyIssue["category"]>>();
+    const labels = new Map<string, MyIssue["categories"][number]>();
     const projects = new Map<string, MyIssue["project"]>();
     for (const issue of issues) {
         if (!statuses.has(nameKey(issue.column.name))) statuses.set(nameKey(issue.column.name), issue.column);
         if (issue.assignee) assignees.set(issue.assignee.id, issue.assignee);
-        if (issue.category && !labels.has(nameKey(issue.category.name))) labels.set(nameKey(issue.category.name), issue.category);
+        for (const item of issue.categories) if (!labels.has(nameKey(item.name))) labels.set(nameKey(item.name), item);
         projects.set(issue.project.id, issue.project);
     }
     const byName = <T extends { name: string }>(items: Iterable<T>) => [...items].sort((left, right) => left.name.localeCompare(right.name));

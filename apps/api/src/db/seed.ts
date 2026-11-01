@@ -248,7 +248,7 @@ async function main() {
                     columnId: columns.find((column) => column.name === SEED_COLUMNS[issue.column])!.id,
                     title: issue.title,
                     priority: issue.priority,
-                    categoryId: issue.label ? labelId.get(issue.label) : null,
+                    categoryIds: issue.label ? [labelId.get(issue.label)!] : [],
                     assigneeId: issue.assignee ? userId[issue.assignee] : null,
                     estimate: issue.estimate ?? null,
                     parentIssueId: issue.parent ? issueByTitle.get(issue.parent)?.id : null,

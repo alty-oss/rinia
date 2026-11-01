@@ -100,3 +100,5 @@ bun run typecheck
 bun run test
 bun run build
 ```
+
+`bun run test` never touches a database. Migrations and transactions are tested against PostgreSQL with `bun run test:db`: point `TEST_DATABASE_URL` at a local server where you can create databases, for example the `postgres` database of the container above. Each run creates its own database and drops it afterwards; without the variable those tests are skipped.

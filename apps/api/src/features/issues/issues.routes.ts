@@ -2,12 +2,14 @@ import { Router } from "express";
 import { requireAuth } from "../../middleware/auth.middleware";
 import { requireProjectMember } from "../../middleware/project-membership.middleware";
 import { follow, subscription, unfollow } from "../notifications/notifications.controller";
-import { addComment, addReaction, addRelation, activity, comments, create, descriptionRevisions, getOne, list, patchComment, relations, remove, removeComment, removeReaction, removeRelation, restoreDescription, update } from "./issues.controller";
+import { addComment, addReaction, bulkDelete, bulkUpdate, addRelation, activity, comments, create, descriptionRevisions, getOne, list, patchComment, relations, remove, removeComment, removeReaction, removeRelation, restoreDescription, update } from "./issues.controller";
 
 export const projectIssuesRouter = Router({ mergeParams: true });
 projectIssuesRouter.use(requireProjectMember);
 projectIssuesRouter.get("/", list);
 projectIssuesRouter.post("/", create);
+projectIssuesRouter.patch("/bulk", bulkUpdate);
+projectIssuesRouter.post("/bulk-delete", bulkDelete);
 
 export const issuesRouter = Router();
 issuesRouter.use(requireAuth);

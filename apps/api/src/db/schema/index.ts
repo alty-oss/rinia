@@ -6,6 +6,7 @@ import { favorites } from "./favorites";
 import { issueActivities } from "./issue-activities";
 import { issueComments } from "./issue-comments";
 import { issueDescriptionRevisions } from "./issue-description-revisions";
+import { issueLabels } from "./issue-labels";
 import { issueRelations } from "./issue-relations";
 import { issues } from "./issues";
 import { issueSubscriptions, notifications } from "./notifications";
@@ -22,6 +23,7 @@ export * from "./favorites";
 export * from "./issue-activities";
 export * from "./issue-comments";
 export * from "./issue-description-revisions";
+export * from "./issue-labels";
 export * from "./issue-relations";
 export * from "./issues";
 export * from "./notifications";
@@ -60,7 +62,7 @@ export const projectMembersRelations = relations(projectMembers, ({ one }) => ({
 export const categoriesRelations = relations(categories, ({ one, many }) => ({
     project: one(projects, { fields: [categories.projectId], references: [projects.id] }),
     createdBy: one(users, { fields: [categories.createdBy], references: [users.id] }),
-    issues: many(issues),
+    issueLabels: many(issueLabels),
 }));
 
 export const boardColumnsRelations = relations(boardColumns, ({ one, many }) => ({
@@ -81,7 +83,7 @@ export const issuesRelations = relations(issues, ({ one, many }) => ({
         references: [users.id],
         relationName: "issueCreatedBy",
     }),
-    category: one(categories, { fields: [issues.categoryId], references: [categories.id] }),
+    labels: many(issueLabels),
     parent: one(issues, { fields: [issues.parentIssueId], references: [issues.id], relationName: "issueParent" }),
     children: many(issues, { relationName: "issueParent" }),
     comments: many(issueComments),
@@ -142,4 +144,9 @@ export const notificationsRelations = relations(notifications, ({ one }) => ({
 export const issueSubscriptionsRelations = relations(issueSubscriptions, ({ one }) => ({
     user: one(users, { fields: [issueSubscriptions.userId], references: [users.id] }),
     issue: one(issues, { fields: [issueSubscriptions.issueId], references: [issues.id] }),
+}));
+
+export const issueLabelsRelations = relations(issueLabels, ({ one }) => ({
+    issue: one(issues, { fields: [issueLabels.issueId], references: [issues.id] }),
+    category: one(categories, { fields: [issueLabels.categoryId], references: [categories.id] }),
 }));
