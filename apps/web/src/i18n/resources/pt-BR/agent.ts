@@ -1,0 +1,27 @@
+const agent = {
+        mcpDescription: "Conecte o Claude Code e outras ferramentas de IA ao Rinia. Elas agem como você: veem os projetos de que você é membro e podem fazer o que você pode.",
+        connect: "Conectar", connectDescription: "O Rinia fala MCP por HTTP. Qualquer ferramenta compatível se conecta com um token de API.",
+        serverAddress: "Endereço do servidor", serverAddressHint: "O endpoint MCP deste Rinia",
+        claudeCodeCommand: "Claude Code", claudeCodeCommandHint: "Rode no terminal. Adicione --scope user para usar o Rinia em qualquer pasta.",
+        tokenPlaceholderHint: "Troque rinia_... por um token. Você pode criar um em", copy: "Copiar", copied: "Copiado",
+        tools: "O que o agente pode fazer", toolsDescription: "Cada ação fica registrada como sua, com as mesmas notificações e atualizações ao vivo do app.",
+        read: "Ler", write: "Alterar",
+        toolListProjects: "Projetos com chave, estados, etiquetas e membros",
+        toolListIssues: "Tarefas filtradas por projeto, estado, responsável, prioridade ou etiqueta",
+        toolGetIssue: "Uma tarefa com descrição, subtarefas, relações e comentários",
+        toolSearch: "Tarefas e páginas que contêm algumas palavras",
+        toolGetDocument: "Uma página em Markdown",
+        toolCreateIssue: "Cria uma tarefa",
+        toolUpdateIssue: "Altera estado, responsável, prioridade, etiquetas, título, descrição, prazo ou tarefa principal",
+        toolAddComment: "Comenta em uma tarefa ou responde a um comentário",
+        toolCreateDocument: "Cria uma página a partir de Markdown",
+        apiTokens: "Tokens de API", apiTokensDescription: "Deixe ferramentas como o Claude Code ler e alterar o Rinia por você. Um token pode fazer tudo o que você pode.",
+        tokenName: "Nome do token", tokenNameHint: "Onde ele será usado, para reconhecê-lo depois", tokenNamePlaceholder: "Claude Code no notebook", createToken: "Criar token",
+        newToken: "Copie seu novo token", newTokenHint: "Ele não será mostrado de novo. Guarde-o em um lugar seguro, como uma senha.", hideToken: "Já copiei",
+        newTokenCommand: "Ou conecte o Claude Code com ele agora:",
+        tokenCreatedOn: "Criado em {{date}}", tokenLastUsed: "usado pela última vez em {{date}}", tokenNeverUsed: "nunca usado", noApiTokens: "Nenhum token ainda.",
+        revokeToken: "Revogar token", revokeTokenNamed: "Revogar {{name}}", revokeTokenDescription: "O que estiver usando “{{name}}” perde o acesso na hora. Isso não pode ser desfeito.",
+        couldNotLoadTokens: "Não foi possível carregar seus tokens.", couldNotCreateToken: "Não foi possível criar o token.", couldNotRevokeToken: "Não foi possível revogar o token.",
+    } as const;
+
+export default agent;

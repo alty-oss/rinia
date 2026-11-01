@@ -82,7 +82,7 @@ Set these in `apps/api/.env`, or pass them to the container.
 
 Rinia has an [MCP](https://modelcontextprotocol.io) server at `/api/mcp`, so Claude Code and other AI tools can read and change your projects. They act as you: they see the projects you are a member of and can do what you can do.
 
-1. In Rinia, open **Settings → Profile → API tokens**, give the token a name and create it. Copy it right away; it is shown only once.
+1. In Rinia, open **Settings → Agent → API tokens**, give the token a name and create it. Copy it right away; it is shown only once. The page also shows the full `claude mcp add` command with the token filled in, and **Settings → Agent → MCP** shows the server address for other tools.
 2. Add the server to Claude Code:
 
    ```bash
@@ -104,7 +104,7 @@ Rinia has an [MCP](https://modelcontextprotocol.io) server at `/api/mcp`, so Cla
 | `add_comment` | Comments on an issue, or replies to a comment |
 | `create_document` | Creates a page from Markdown |
 
-Results name issues by identifier (`RIN-4`) and link to them in Rinia. Revoking a token in the same settings page cuts off whatever uses it at once. The same token also works with the REST API as `Authorization: Bearer <token>`.
+Results name issues by identifier (`RIN-4`) and link to them in Rinia. Revoking a token on the API tokens page cuts off whatever uses it at once. The same token also works with the REST API as `Authorization: Bearer <token>`.
 
 ## ⚙️ Built with
 

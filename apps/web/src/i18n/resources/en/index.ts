@@ -19,6 +19,7 @@ import inbox from "./inbox";
 import myIssues from "./myIssues";
 import views from "./views";
 import realtime from "./realtime";
+import agent from "./agent";
 
 export const en = {
     common,
@@ -42,4 +43,5 @@ export const en = {
     myIssues,
     views,
     realtime,
+    agent,
 } as const;

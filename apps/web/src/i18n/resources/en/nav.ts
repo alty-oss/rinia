@@ -7,7 +7,7 @@ const nav = {
         account: "Account", signOut: "Sign out", search: "Search",
         applications: "Applications", resizeSidebar: "Resize sidebar", navigation: "Navigation",
         home: "Home",
-        backToApp: "Back to app", preferences: "Preferences", personal: "Personal",
+        backToApp: "Back to app", preferences: "Preferences", personal: "Personal", agent: "Agent", mcp: "MCP", apiTokens: "API tokens",
         favorite: "Favorite",
         searchSettings: "Search settings", yourProjects: "Your projects", administration: "Administration", noSettingsFound: "No settings found.",
         resizeDrag: "Drag", resizeDragHint: "to resize",

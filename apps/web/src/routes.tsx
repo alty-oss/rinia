@@ -26,6 +26,8 @@ const ProjectViewsPage = lazy(() => import("@/pages/project-views-page").then((m
 const ProjectViewPage = lazy(() => import("@/pages/project-view-page").then((module) => ({ default: module.ProjectViewPage })));
 const ProjectIssuesPage = lazy(() => import("@/pages/project-issues-page").then((module) => ({ default: module.ProjectIssuesPage })));
 const ProjectOverviewPage = lazy(() => import("@/pages/project-overview-page").then((module) => ({ default: module.ProjectOverviewPage })));
+const AgentMcpSettingsPage = lazy(() => import("@/pages/agent-mcp-settings-page").then((module) => ({ default: module.AgentMcpSettingsPage })));
+const AgentTokensSettingsPage = lazy(() => import("@/pages/agent-tokens-settings-page").then((module) => ({ default: module.AgentTokensSettingsPage })));
 const PreferencesSettingsPage = lazy(() => import("@/pages/preferences-settings-page").then((module) => ({ default: module.PreferencesSettingsPage })));
 const ProjectsPage = lazy(() => import("@/pages/projects-page").then((module) => ({ default: module.ProjectsPage })));
 const RegisterPage = lazy(() => import("@/pages/register-page").then((module) => ({ default: module.RegisterPage })));
@@ -83,6 +85,9 @@ export const AppRoutes = () => {
                     <Route path="/my-issues/:filter" element={<MyIssuesPage />} />
                     <Route path="/settings/profile" element={<ProfileSettingsPage />} />
                     <Route path="/settings/preferences" element={<PreferencesSettingsPage />} />
+                    <Route path="/settings/agent" element={<Navigate to={urls.agentSettings("mcp")} replace />} />
+                    <Route path="/settings/agent/mcp" element={<AgentMcpSettingsPage />} />
+                    <Route path="/settings/agent/tokens" element={<AgentTokensSettingsPage />} />
                     <Route path="/settings/admin" element={<AdminSettingsPage />} />
                     <Route path="/settings/project/:projectKey" element={<ProjectRoute><ProjectSettingsPage /></ProjectRoute>} />
                     <Route path="/settings/project/:projectKey/:section" element={<ProjectRoute><ProjectSettingsPage /></ProjectRoute>} />
