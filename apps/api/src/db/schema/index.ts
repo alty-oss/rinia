@@ -15,6 +15,7 @@ import { projectKeyAliases } from "./project-key-aliases";
 import { projectMembers } from "./project-members";
 import { projects } from "./projects";
 import { users } from "./users";
+import { views } from "./views";
 
 export * from "./board-columns";
 export * from "./categories";
@@ -33,6 +34,7 @@ export * from "./project-members";
 export * from "./projects";
 export * from "./project-view-preferences";
 export * from "./users";
+export * from "./views";
 
 export const usersRelations = relations(users, ({ many }) => ({
     projectsCreated: many(projects),
@@ -52,6 +54,7 @@ export const projectsRelations = relations(projects, ({ one, many }) => ({
     issues: many(issues),
     documents: many(projectDocuments),
     keyAliases: many(projectKeyAliases),
+    views: many(views),
 }));
 
 export const projectMembersRelations = relations(projectMembers, ({ one }) => ({
@@ -133,6 +136,12 @@ export const favoritesRelations = relations(favorites, ({ one }) => ({
     project: one(projects, { fields: [favorites.projectId], references: [projects.id] }),
     document: one(projectDocuments, { fields: [favorites.documentId], references: [projectDocuments.id] }),
     issue: one(issues, { fields: [favorites.issueId], references: [issues.id] }),
+    view: one(views, { fields: [favorites.viewId], references: [views.id] }),
+}));
+
+export const viewsRelations = relations(views, ({ one }) => ({
+    project: one(projects, { fields: [views.projectId], references: [projects.id] }),
+    owner: one(users, { fields: [views.ownerId], references: [users.id] }),
 }));
 
 export const notificationsRelations = relations(notifications, ({ one }) => ({

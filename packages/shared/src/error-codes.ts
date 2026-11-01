@@ -7,6 +7,7 @@ const messageCodes: Record<string, string> = {
     "Project not found": "errors.projectNotFound",
     "Issue not found": "errors.issueNotFound",
     "Document not found": "errors.documentNotFound",
+    "View not found": "errors.viewNotFound",
     "Incorrect username or password": "errors.incorrectCredentials",
     "Invalid special code": "errors.invalidSpecialCode",
     "Project key is already in use": "errors.projectKeyInUse",

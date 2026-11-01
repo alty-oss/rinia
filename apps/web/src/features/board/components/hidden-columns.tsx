@@ -69,7 +69,7 @@ export function HiddenColumnsMenu({
                 type="button"
                 aria-label={`${t("projects.hiddenColumns")} (${columns.length})`}
                 title={t("projects.hiddenColumns")}
-                className="relative flex size-7 shrink-0 items-center justify-center rounded-md text-tertiary outline-none transition-colors hover:bg-layer-transparent-hover hover:text-primary focus-visible:bg-layer-transparent-hover data-[popup-open]:bg-layer-transparent-hover data-[popup-open]:text-primary"
+                className="relative flex size-7 shrink-0 items-center justify-center rounded-full border border-strong bg-layer-2 text-placeholder outline-none transition-colors hover:bg-layer-2-hover hover:text-secondary focus-visible:ring-2 focus-visible:ring-accent-strong data-[popup-open]:bg-layer-2-hover data-[popup-open]:text-secondary"
             >
                 <EyeOff className="size-4" />
                 {columns.length > 0 && (

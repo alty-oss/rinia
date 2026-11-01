@@ -4,6 +4,7 @@ import { issues } from "./issues";
 import { projectDocuments } from "./project-documents";
 import { projects } from "./projects";
 import { users } from "./users";
+import { views } from "./views";
 
 export const favoriteKindEnum = pgEnum("favorite_kind", favoriteKindValues);
 
@@ -21,11 +22,12 @@ export const favorites = pgTable(
             .references(() => projects.id, { onDelete: "cascade" }),
         documentId: uuid("document_id").references(() => projectDocuments.id, { onDelete: "cascade" }),
         issueId: uuid("issue_id").references(() => issues.id, { onDelete: "cascade" }),
+        viewId: uuid("view_id").references(() => views.id, { onDelete: "cascade" }),
         createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
         deletedAt: timestamp("deleted_at", { withTimezone: true }),
     },
     (table) => [
-        unique("favorites_target_unique").on(table.userId, table.kind, table.projectId, table.documentId, table.issueId).nullsNotDistinct(),
+        unique("favorites_target_unique").on(table.userId, table.kind, table.projectId, table.documentId, table.issueId, table.viewId).nullsNotDistinct(),
         index("favorites_user_id_idx").on(table.userId),
         index("favorites_deleted_at_idx").on(table.deletedAt),
     ],

@@ -6,12 +6,17 @@ import type { UpdateIssueInput } from "@rinia/shared";
 import { ContextMenuButton } from "@/components/overlay/context-menu-provider";
 import type { Issue, IssuePerson } from "@/features/issues/api";
 import { DueDateMenu } from "@/features/issues/components/due-date-picker";
-import { AssigneeMenu, EstimateMenu, LabelMenu, PriorityMenu } from "@/features/issues/components/issue-property-menus";
+import { AssigneeMenu, EstimateMenu, LabelMenu, PriorityMenu, StatusMenu } from "@/features/issues/components/issue-property-menus";
 import { cx } from "@/utils/cx";
 import { useIssueSelection } from "@/features/issues/selection";
 
+type Status = { id: string; name: string; color: string | null };
+
 interface IssueCardContentProps {
     issue: Issue;
+    /** The card's status, shown as the icon before the title, and the statuses its menu moves the card to. */
+    status?: Status;
+    statuses?: Status[];
     categories?: Array<{ id: string; name: string; color: string | null }>;
     assignee?: IssuePerson;
     /** Choices for the property menus. The drag overlay leaves them out: its copy of the card is never clicked. */
@@ -53,10 +58,11 @@ function IssuePreviewImage({ src }: { src: string }) {
 const revealOnHover = "opacity-0 group-hover/card:opacity-100 group-focus-within/card:opacity-100 data-popup-open:opacity-100";
 
 /**
- * Shared with the drag overlay so picking up an issue preserves its geometry. The column already names the
- * status, so the card does not repeat it; each property is a 16px icon that opens a menu to change it.
+ * Shared with the drag overlay so picking up an issue preserves its geometry. Laid out like Linear's cards: the ID
+ * with the assignee on its right, the status icon before the title (its menu moves the card to another column),
+ * then the other properties. Each property is a 16px icon that opens a menu to change it.
  */
-export const IssueCardContent = ({ issue, categories = [], assignee, people = [], labels = [], onUpdate = () => {}, closed = false }: IssueCardContentProps) => {
+export const IssueCardContent = ({ issue, status, statuses = [], categories = [], assignee, people = [], labels = [], onUpdate = () => {}, closed = false }: IssueCardContentProps) => {
     const imagePreview = firstIssueImage(issue.descriptionJson);
     const estimate = <EstimateMenu key="estimate" value={issue.estimate} onChange={(next) => onUpdate({ estimate: next })} className={issue.estimate == null ? revealOnHover : undefined} />;
     const labeled = categories.length > 0;
@@ -66,11 +72,16 @@ export const IssueCardContent = ({ issue, categories = [], assignee, people = []
     const optional = [issue.dueDate && due, issue.estimate != null && estimate, labeled && label, !issue.dueDate && due, issue.estimate == null && estimate, !labeled && label];
     return <>
         {imagePreview && <IssuePreviewImage key={imagePreview} src={imagePreview} />}
-        <span className="block text-[11px] font-medium tracking-wide text-tertiary">{issue.identifier}</span>
-        <p className="mt-1 line-clamp-2 text-[13px] leading-5 font-medium text-primary" title={issue.title}>{issue.title}</p>
+        <div className="flex h-5 items-center justify-between gap-2">
+            <span className="text-[11px] font-medium tracking-wide text-tertiary">{issue.identifier}</span>
+            <AssigneeMenu value={assignee} people={people} onChange={(assigneeId) => onUpdate({ assigneeId })} />
+        </div>
+        <div className="mt-1 flex items-start gap-1">
+            <StatusMenu value={status} statuses={statuses} onChange={(columnId) => onUpdate({ columnId })} className="text-tertiary" />
+            <p className="line-clamp-2 min-w-0 text-[13px] leading-5 font-medium text-primary" title={issue.title}>{issue.title}</p>
+        </div>
         <div className="mt-2 flex min-w-0 flex-wrap items-center gap-1 text-tertiary">
             <PriorityMenu value={issue.priority} onChange={(priority) => onUpdate({ priority })} />
-            <AssigneeMenu value={assignee} people={people} onChange={(assigneeId) => onUpdate({ assigneeId })} />
             {optional}
         </div>
     </>;
@@ -81,7 +92,7 @@ interface IssueCardProps extends IssueCardContentProps {
     onClick: () => void;
 }
 
-export const IssueCard = ({ issue, categories, assignee, people, labels, onUpdate, closed, projectId, onClick }: IssueCardProps) => {
+export const IssueCard = ({ issue, status, statuses, categories, assignee, people, labels, onUpdate, closed, projectId, onClick }: IssueCardProps) => {
     const { attributes, listeners, setActivatorNodeRef, setNodeRef, transform, transition, isDragging } = useSortable({ id: issue.id });
 
     const location = useLocation();
@@ -129,7 +140,7 @@ export const IssueCard = ({ issue, categories, assignee, people, labels, onUpdat
                     checked && "border-accent-strong bg-accent-subtle/40",
                 )}
             >
-                <IssueCardContent issue={issue} categories={categories} assignee={assignee} people={people} labels={labels} onUpdate={onUpdate} closed={closed} />
+                <IssueCardContent issue={issue} status={status} statuses={statuses} categories={categories} assignee={assignee} people={people} labels={labels} onUpdate={onUpdate} closed={closed} />
             </div>
             <ContextMenuButton
                 entity={{ type: "issue", projectId, identifier: issue.identifier, title: issue.title }}

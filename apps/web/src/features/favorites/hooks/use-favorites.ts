@@ -14,6 +14,7 @@ export function matchesTarget(favorite: Favorite, target: FavoriteTarget) {
     if (favorite.kind !== target.kind || favorite.projectId !== target.projectId) return false;
     if (target.kind === "document") return favorite.documentId === target.documentId;
     if (target.kind === "issue") return favorite.issueId === target.issueId;
+    if (target.kind === "view") return favorite.viewId === target.viewId;
     return true;
 }
 

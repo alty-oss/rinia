@@ -5,6 +5,7 @@ import { EstimateOutline, LabelsOutline } from "@makeplane/propel/icons";
 import { issueEstimateValues, type BulkIssuePatch } from "@rinia/shared";
 import { Trash2, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { motionTiming } from "@/components/base/motion";
 import { useToast } from "@/components/feedback/toaster";
 import { ConfirmDialog } from "@/components/overlay/confirm-dialog";
 import { overlayChrome } from "@/components/overlay/overlay-chrome";
@@ -166,7 +167,8 @@ export function BulkActionBar({
                 aria-label={t("issue.bulkActions")}
                 inert={!open}
                 className={cx(
-                    "absolute bottom-5 left-4 right-4 z-30 mx-auto flex w-fit max-w-full flex-wrap justify-center items-center gap-0.5 overflow-hidden rounded-xl border border-subtle bg-layer-2 p-1 shadow-overlay-200 transition-[opacity,transform] duration-200 ease-[cubic-bezier(0.2,0,0,1)] motion-reduce:transition-none",
+                    "absolute bottom-5 left-4 right-4 z-30 mx-auto flex w-fit max-w-full flex-wrap justify-center items-center gap-0.5 overflow-hidden rounded-xl border border-subtle bg-layer-2 p-1 shadow-overlay-200 transition-[opacity,transform] motion-reduce:transition-none",
+                    motionTiming(open),
                     open ? "translate-y-0 opacity-100" : "pointer-events-none translate-y-3 opacity-0",
                 )}
             >

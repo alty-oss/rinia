@@ -321,7 +321,7 @@ function RichTextToolbar({ editor, showImages }: { editor: NonNullable<ReturnTyp
             </BasePopover.Trigger>
             <BasePopover.Portal>
                 <BasePopover.Positioner side="bottom" align="start" sideOffset={6} className="z-50">
-                    <BasePopover.Popup className="w-72 rounded-lg border border-subtle bg-surface-1 p-3 shadow-2xl outline-none">
+                    <BasePopover.Popup className="overlay-motion w-72 rounded-lg border border-subtle bg-surface-1 p-3 shadow-2xl outline-none">
                         <form className="flex flex-col gap-2" onSubmit={saveLink}>
                             <label className="text-xs font-medium text-secondary" htmlFor="tiptap-link-url">{t("editor.linkUrl")}</label>
                             <Input autoFocus id="tiptap-link-url" size="sm" type="url" value={url} onChange={setUrl} placeholder="https://example.com" />
@@ -389,7 +389,7 @@ function LinkPopover({ editor }: { editor: NonNullable<ReturnType<typeof useEdit
         </BasePopover.Trigger>
         <BasePopover.Portal>
             <BasePopover.Positioner side="bottom" align="start" sideOffset={6} className="z-[110]">
-                <BasePopover.Popup className="w-72 rounded-lg border border-subtle bg-surface-1 p-3 shadow-2xl outline-none">
+                <BasePopover.Popup className="overlay-motion w-72 rounded-lg border border-subtle bg-surface-1 p-3 shadow-2xl outline-none">
                     <form className="flex flex-col gap-2" onSubmit={save}>
                         <label className="text-xs font-medium text-secondary" htmlFor="tiptap-bubble-link-url">{t("editor.linkUrl")}</label>
                         <Input autoFocus id="tiptap-bubble-link-url" size="sm" type="url" value={url} onChange={setUrl} placeholder="https://example.com" />

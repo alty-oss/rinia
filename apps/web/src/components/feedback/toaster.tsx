@@ -1,6 +1,8 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { CheckCircle2, Copy, X, XCircle } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { UNMOUNT_AFTER, motionTiming } from "@/components/base/motion";
+import { useEntered } from "@/components/base/presence";
 
 type ToastTone = "success" | "error" | "copy";
 
@@ -26,7 +28,6 @@ export const useToast = () => useContext(ToastContext);
 const VISIBLE_MS = 4000;
 /** Toasts with an action stay longer, so there is time to use it. */
 const VISIBLE_WITH_ACTION_MS = 10000;
-const EXIT_MS = 180;
 
 export function ToastProvider({ children }: { children: ReactNode }) {
     const [toasts, setToasts] = useState<ToastEntry[]>([]);
@@ -38,7 +39,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
         const timer = timers.current.get(id);
         if (timer != null) window.clearTimeout(timer);
         timers.current.delete(id);
-        window.setTimeout(() => setToasts((current) => current.filter((toast) => toast.id !== id)), EXIT_MS);
+        window.setTimeout(() => setToasts((current) => current.filter((toast) => toast.id !== id)), UNMOUNT_AFTER);
     }, []);
 
     const show = useCallback(
@@ -82,18 +83,14 @@ export function ToastProvider({ children }: { children: ReactNode }) {
 
 function ToastCard({ toast, onDismiss }: { toast: ToastEntry; onDismiss: () => void }) {
     const { t } = useTranslation();
-    const [entered, setEntered] = useState(false);
-    useEffect(() => {
-        const frame = requestAnimationFrame(() => setEntered(true));
-        return () => cancelAnimationFrame(frame);
-    }, []);
+    const entered = useEntered(true);
     const visible = entered && !toast.leaving;
     const Icon = toast.tone === "error" ? XCircle : toast.tone === "copy" ? Copy : CheckCircle2;
 
     return (
         <div
             role={toast.tone === "error" ? "alert" : "status"}
-            className={`pointer-events-auto relative flex items-start gap-3 overflow-hidden rounded-xl border border-subtle bg-layer-2 px-3.5 py-3 shadow-overlay-200 transition-all duration-200 ease-[cubic-bezier(0.2,0,0,1)] motion-reduce:transition-none ${
+            className={`pointer-events-auto relative flex items-start gap-3 overflow-hidden rounded-xl border border-subtle bg-layer-2 px-3.5 py-3 shadow-overlay-200 transition-all motion-reduce:transition-none ${motionTiming(visible)} ${
                 visible ? "translate-y-0 opacity-100" : "translate-y-2 opacity-0"
             }`}
         >

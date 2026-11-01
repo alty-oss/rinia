@@ -3,10 +3,8 @@ import type { KeyboardEvent, PointerEvent } from "react";
 import { Dialog } from "@base-ui/react/dialog";
 import { useHotkeys } from "react-hotkeys-hook";
 import { Outlet, useLocation, useNavigate } from "react-router";
-import { ButtonUtility } from "@/components/base/buttons/button-utility";
 import { NetworkStatus } from "@/components/feedback/network-status";
 import { WorkspaceLoadingFallback } from "@/components/feedback/workspace-loading-fallback";
-import { AppIcons } from "@/components/foundations/icons";
 import { ProjectSearchModal } from "@/features/projects/components/project-search-modal";
 import { Sidebar } from "./sidebar";
 import { useTranslation } from "react-i18next";
@@ -68,9 +66,7 @@ export const AppShell = () => {
                         onResizeEnd={() => setResizing(false)}
                     />
                     <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-lg border border-subtle bg-surface-1" data-app-content>
-                        <div className="flex h-10 shrink-0 items-center px-2 md:hidden">
-                            <ButtonUtility color="tertiary" icon={AppIcons.Menu} tooltip={t("nav.expand")} onClick={openNavigation} />
-                        </div>
+                        {/* No mobile bar of its own: every page header carries the menu button that opens the navigation. */}
                         <main className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden" id="main-content">
                             <Suspense fallback={<WorkspaceLoadingFallback />}>
                                 <Outlet />

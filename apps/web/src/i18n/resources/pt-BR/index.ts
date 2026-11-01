@@ -17,6 +17,7 @@ import designSystem from "./designSystem";
 import appearance from "./appearance";
 import inbox from "./inbox";
 import myIssues from "./myIssues";
+import views from "./views";
 
 export const ptBR = {
     common,
@@ -38,4 +39,5 @@ export const ptBR = {
     appearance,
     inbox,
     myIssues,
+    views,
 } as const;

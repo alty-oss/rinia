@@ -40,6 +40,9 @@ const issue = {
         leaveReply: "Leave a reply…", replyAction: "Reply", couldNotAddReply: "Could not add the reply.",
         deleteThreadTitle: "Delete this comment and its replies?", deleteThreadDescription: "The {{count}} replies in this thread are deleted with it.", deleteThreadDescriptionOne: "The reply in this thread is deleted with it.",
         conditionDueOverdue: "a past due date", conditionDueThisWeek: "a due date this week", changedDueDate: "changed the due date",
+        addFilter: "Add filter", noOptions: "Nothing to choose yet", search: "Search", filterIs: "is", filterIsAnyOf: "is any of", filterContains: "contains", clear: "Clear",
+        hiddenByFiltersOne: "1 issue", hiddenByFiltersMany: "{{count}} issues", hiddenByFilters: "hidden by filters", views: "Saved views", saveAsView: "Save as view",
+        issueCreated: "{{identifier}} created", collapseEditor: "Collapse", expandEditor: "Expand", addDescription: "Add description…", createMore: "Create more", createIssue: "Create issue",
     } as const;
 
 export default issue;

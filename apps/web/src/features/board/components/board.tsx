@@ -253,6 +253,7 @@ export const Board = ({ projectId, filters = new URLSearchParams(), hidden, hide
                         <Column
                             key={column.id}
                             column={column}
+                            statuses={columns ?? []}
                             issues={board.filter((issue) => issue.columnId === column.id)}
                             projectId={projectId}
                             categoriesById={categoriesById}
@@ -277,6 +278,7 @@ export const Board = ({ projectId, filters = new URLSearchParams(), hidden, hide
                         >
                             <IssueCardContent
                                 issue={activeIssue}
+                                status={columns?.find((column) => column.id === activeIssue.columnId)}
                                 categories={activeCategories}
                                 assignee={activeAssignee}
                                 closed={closedColumnIds.has(activeIssue.columnId)}
