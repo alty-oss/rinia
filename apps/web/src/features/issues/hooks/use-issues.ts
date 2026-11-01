@@ -8,10 +8,11 @@ import type {
     UpdateIssueInput,
 } from "@rinia/shared";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import type { Issue, IssueDetail, MyIssue } from "../api";
+import type { Issue, IssueComment, IssueDetail, IssuePerson, MyIssue } from "../api";
 import { issueDescriptionDrafts } from "../lib/issue-description-drafts";
 import { useAuth } from "@/features/auth/hooks/use-auth";
 import {
+    addCommentReaction,
     createIssue,
     createIssueComment,
     createIssueRelation,
@@ -19,11 +20,14 @@ import {
     deleteIssueComment,
     deleteIssueRelation,
     getIssue,
+    listDescriptionRevisions,
     listIssueActivity,
     listIssueComments,
     listIssueRelations,
     listIssues,
     listMyIssues,
+    removeCommentReaction,
+    restoreDescriptionRevision,
     updateIssue,
     updateIssueComment,
 } from "../api";
@@ -208,5 +212,48 @@ export function useDeleteIssueRelation(identifier: string) {
     return useMutation({
         mutationFn: deleteIssueRelation,
         onSuccess: () => queryClient.invalidateQueries({ queryKey: [...issueKey(identifier), "relations"] }),
+    });
+}
+
+/**
+ * Adds or removes your reaction. The chip changes at once, then takes the server's list of reactions, which also
+ * brings in anyone else's that arrived meanwhile.
+ */
+export function useToggleReaction(identifier: string, me: IssuePerson | null) {
+    const queryClient = useQueryClient();
+    const commentsKey = [...issueKey(identifier), "comments"];
+    const setReactions = (commentId: string, update: (reactions: IssueComment["reactions"]) => IssueComment["reactions"]) =>
+        queryClient.setQueryData<IssueComment[]>(commentsKey, (current) => current?.map((comment) => (comment.id === commentId ? { ...comment, reactions: update(comment.reactions) } : comment)));
+    return useMutation({
+        mutationFn: ({ commentId, emoji, add }: { commentId: string; emoji: string; add: boolean }) => (add ? addCommentReaction(commentId, emoji) : removeCommentReaction(commentId, emoji)),
+        onMutate: async ({ commentId, emoji, add }) => {
+            await queryClient.cancelQueries({ queryKey: commentsKey });
+            const previous = queryClient.getQueryData<IssueComment[]>(commentsKey);
+            if (me) {
+                setReactions(commentId, (reactions) => {
+                    if (!add) return reactions.map((group) => (group.emoji === emoji ? { ...group, users: group.users.filter((user) => user.id !== me.id) } : group)).filter((group) => group.users.length > 0);
+                    if (reactions.some((group) => group.emoji === emoji)) return reactions.map((group) => (group.emoji === emoji && !group.users.some((user) => user.id === me.id) ? { ...group, users: [...group.users, me] } : group));
+                    return [...reactions, { emoji, users: [me] }];
+                });
+            }
+            return { previous };
+        },
+        onError: (_error, _variables, context) => queryClient.setQueryData(commentsKey, context?.previous),
+        onSuccess: (reactions, { commentId }) => setReactions(commentId, () => reactions),
+    });
+}
+
+export function useDescriptionRevisions(identifier: string, enabled: boolean) {
+    return useQuery({ queryKey: [...issueKey(identifier), "description-revisions"], queryFn: () => listDescriptionRevisions(identifier), enabled: enabled && !!identifier });
+}
+
+export function useRestoreDescriptionRevision(identifier: string) {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: (revisionId: string) => restoreDescriptionRevision(identifier, revisionId),
+        onSuccess: (issue) => {
+            queryClient.invalidateQueries({ queryKey: issueKey(identifier) });
+            queryClient.invalidateQueries({ queryKey: ["projects", issue.projectId, "issues"] });
+        },
     });
 }

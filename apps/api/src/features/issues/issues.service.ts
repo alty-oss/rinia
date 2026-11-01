@@ -1,11 +1,16 @@
 import type { CreateIssueCommentInput, CreateIssueInput, CreateIssueRelationInput, IssueListQuery, IssueOrder, MyIssuesQuery, TiptapDocument, UpdateIssueCommentInput, UpdateIssueInput } from "@rinia/shared";
 import { and, asc, count, desc, eq, inArray, max, or, sql, type SQL } from "drizzle-orm";
 import { db } from "../../db";
-import { boardColumns, categories, issueActivities, issueComments, issueRelations, issues, issueSubscriptions, projectKeyAliases, projectMembers, projects, users } from "../../db/schema";
+import { boardColumns, categories, commentReactions, issueActivities, issueComments, issueDescriptionRevisions, issueRelations, issues, issueSubscriptions, projectKeyAliases, projectMembers, projects, users } from "../../db/schema";
+import type { TiptapDocument as StoredDocument } from "../../db/schema";
 import { HttpError } from "../../lib/http-error";
 import { mentionedUserIds, newMentions, recordIssueChange } from "../notifications/notifications.service";
 
 const EMPTY_DOCUMENT = { type: "doc" as const, content: [] };
+const PERSON = { id: true, name: true, username: true, avatarUrl: true } as const;
+
+/** Edits by the same author within this long of a version's first save update that version instead of adding one. */
+export const DESCRIPTION_REVISION_WINDOW_MS = 5 * 60 * 1000;
 
 /** Most urgent first, issues without a priority last. The enum's own order runs low to high, so it cannot sort this. */
 const priorityRank = sql`case ${issues.priority} when 'urgent' then 0 when 'high' then 1 when 'medium' then 2 when 'low' then 3 else 4 end`;
@@ -215,6 +220,9 @@ export async function createIssue(projectId: string, input: CreateIssueInput, ac
         await tx.insert(issueActivities).values({ issueId: created.id, actorId, type: "created", payload: {} });
         return { ...created, project: { issueKey: identity.issueKey } };
     });
+    if (input.descriptionJson?.content.length) {
+        await recordDescriptionRevision({ issueId: issue.id, revision: issue.descriptionRevision, authorId: actorId, contentJson: input.descriptionJson });
+    }
     await recordIssueChange(issue, { actorId, created: true, assigneeId: issue.assigneeId, mentionedIds: mentionedUserIds(input.descriptionJson) });
     return { ...issue, identifier: issueIdentifier(issue) };
 }
@@ -242,6 +250,7 @@ export async function updateIssue(identifier: string, input: UpdateIssueInput, a
         .returning();
     if (!updated && writesDescription) throw new HttpError(409, "This issue description was updated elsewhere. Your draft has been kept.");
     if (!updated) throw new HttpError(404, "Issue not found");
+    if (writesDescription) await recordDescriptionRevision({ issueId: current.id, revision: updated.descriptionRevision, authorId: actorId, contentJson: updated.descriptionJson });
 
     const activityMap = [
         ["columnId", "status_changed"],
@@ -279,11 +288,57 @@ export async function deleteIssue(identifier: string, actorId: string) {
 export async function listIssueComments(identifier: string, actorId: string) {
     const issue = await getIssueOrThrow(identifier);
     await ensureProjectMember(actorId, issue.projectId);
-    return db.query.issueComments.findMany({
+    const rows = await db.query.issueComments.findMany({
         where: eq(issueComments.issueId, issue.id),
         orderBy: [asc(issueComments.createdAt)],
-        with: { author: { columns: { id: true, name: true, username: true, avatarUrl: true } } },
+        with: {
+            author: { columns: PERSON },
+            reactions: { columns: { emoji: true, createdAt: true }, orderBy: [asc(commentReactions.createdAt)], with: { user: { columns: PERSON } } },
+        },
     });
+    return rows.map(({ reactions, ...comment }) => ({ ...comment, reactions: groupReactions(reactions) }));
+}
+
+/** One entry per emoji, in the order each was first used, with everyone who reacted with it. */
+export function groupReactions(rows: Array<{ emoji: string; user: { id: string; name: string; username: string; avatarUrl: string | null } }>) {
+    const groups = new Map<string, { emoji: string; users: Array<{ id: string; name: string; username: string; avatarUrl: string | null }> }>();
+    for (const row of rows) {
+        const group = groups.get(row.emoji) ?? { emoji: row.emoji, users: [] };
+        group.users.push(row.user);
+        groups.set(row.emoji, group);
+    }
+    return [...groups.values()];
+}
+
+async function commentForMember(commentId: string, userId: string) {
+    const comment = await db.query.issueComments.findFirst({ where: eq(issueComments.id, commentId), columns: { id: true }, with: { issue: { columns: { projectId: true } } } });
+    if (!comment) throw new HttpError(404, "Comment not found");
+    await ensureProjectMember(userId, comment.issue.projectId);
+    return comment;
+}
+
+async function commentReactionGroups(commentId: string) {
+    const rows = await db.query.commentReactions.findMany({
+        where: eq(commentReactions.commentId, commentId),
+        orderBy: [asc(commentReactions.createdAt)],
+        columns: { emoji: true },
+        with: { user: { columns: PERSON } },
+    });
+    return groupReactions(rows);
+}
+
+/** Adds the user's reaction. Reacting twice with the same emoji keeps one. Returns the comment's reactions. */
+export async function addCommentReaction(commentId: string, emoji: string, userId: string) {
+    await commentForMember(commentId, userId);
+    await db.insert(commentReactions).values({ commentId, userId, emoji }).onConflictDoNothing();
+    return commentReactionGroups(commentId);
+}
+
+/** Removes the user's own reaction; other people's stay. Returns the comment's reactions. */
+export async function removeCommentReaction(commentId: string, emoji: string, userId: string) {
+    await commentForMember(commentId, userId);
+    await db.delete(commentReactions).where(and(eq(commentReactions.commentId, commentId), eq(commentReactions.userId, userId), eq(commentReactions.emoji, emoji)));
+    return commentReactionGroups(commentId);
 }
 
 export async function createIssueComment(identifier: string, input: CreateIssueCommentInput, authorId: string) {
@@ -291,7 +346,8 @@ export async function createIssueComment(identifier: string, input: CreateIssueC
     await ensureProjectMember(authorId, issue.projectId);
     const [comment] = await db.insert(issueComments).values({ issueId: issue.id, authorId, contentJson: input.contentJson }).returning();
     await recordIssueChange(issue, { actorId: authorId, comment: { id: comment.id, created: true }, mentionedIds: mentionedUserIds(input.contentJson) });
-    return db.query.issueComments.findFirst({ where: eq(issueComments.id, comment.id), with: { author: { columns: { id: true, name: true, username: true, avatarUrl: true } } } });
+    const created = await db.query.issueComments.findFirst({ where: eq(issueComments.id, comment.id), with: { author: { columns: PERSON } } });
+    return created && { ...created, reactions: [] };
 }
 
 export async function updateIssueComment(commentId: string, input: UpdateIssueCommentInput, authorId: string) {
@@ -354,4 +410,51 @@ export async function deleteIssueRelation(relationId: string, actorId: string) {
     await ensureProjectMember(actorId, source.projectId);
     await db.delete(issueRelations).where(eq(issueRelations.id, relationId));
     await db.insert(issueActivities).values({ issueId: source.id, actorId, type: "relation_removed", payload: { relationId, targetIssueId: relation.targetIssueId, relationType: relation.type } });
+}
+
+/**
+ * Saves a description as a version. A save by the author of the latest version, within a few minutes of that
+ * version's first save, updates it; anything else, and every restore, adds a version.
+ */
+export async function recordDescriptionRevision(input: { issueId: string; revision: number; authorId: string; contentJson: StoredDocument; restoredFromId?: string }, now = new Date()) {
+    const latest = input.restoredFromId
+        ? undefined
+        : await db.query.issueDescriptionRevisions.findFirst({ where: eq(issueDescriptionRevisions.issueId, input.issueId), orderBy: [desc(issueDescriptionRevisions.createdAt)] });
+    const grouped = latest && latest.authorId === input.authorId && !latest.restoredFromId && now.getTime() - latest.createdAt.getTime() < DESCRIPTION_REVISION_WINDOW_MS;
+    if (grouped) {
+        await db.update(issueDescriptionRevisions).set({ contentJson: input.contentJson, revision: input.revision, updatedAt: now }).where(eq(issueDescriptionRevisions.id, latest.id));
+        return;
+    }
+    await db.insert(issueDescriptionRevisions).values({ ...input, createdAt: now, updatedAt: now });
+}
+
+export async function listDescriptionRevisions(identifier: string, actorId: string) {
+    const issue = await getIssueOrThrow(identifier);
+    await ensureProjectMember(actorId, issue.projectId);
+    return db.query.issueDescriptionRevisions.findMany({
+        where: eq(issueDescriptionRevisions.issueId, issue.id),
+        orderBy: [desc(issueDescriptionRevisions.createdAt)],
+        limit: 100,
+        with: { author: { columns: PERSON } },
+    });
+}
+
+/** Brings back an older version as the description. The restore is a new version; the ones before it stay. */
+export async function restoreDescriptionRevision(identifier: string, revisionId: string, actorId: string) {
+    const current = await getIssueOrThrow(identifier);
+    await ensureProjectMember(actorId, current.projectId);
+    const version = await db.query.issueDescriptionRevisions.findFirst({
+        where: and(eq(issueDescriptionRevisions.id, revisionId), eq(issueDescriptionRevisions.issueId, current.id)),
+    });
+    if (!version) throw new HttpError(404, "Description version not found");
+
+    const [updated] = await db
+        .update(issues)
+        .set({ descriptionJson: version.contentJson, descriptionRevision: sql`${issues.descriptionRevision} + 1`, updatedAt: new Date() })
+        .where(eq(issues.id, current.id))
+        .returning();
+    if (!updated) throw new HttpError(404, "Issue not found");
+    await recordDescriptionRevision({ issueId: current.id, revision: updated.descriptionRevision, authorId: actorId, contentJson: version.contentJson, restoredFromId: version.id });
+    await recordIssueChange(current, { actorId, mentionedIds: newMentions(current.descriptionJson, version.contentJson) });
+    return { ...updated, identifier: issueIdentifier(current) };
 }

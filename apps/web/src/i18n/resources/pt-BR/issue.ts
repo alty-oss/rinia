@@ -28,6 +28,10 @@ const issue = {
         dueDate: "Data de entrega", setDueDate: "Definir data de entrega", dueDateAction: "Definir data de entrega", clearDueDate: "Limpar data", dueDateValue: "Entrega em {{date}}",
         dueToday: "Hoje", dueTomorrow: "Amanhã", dueNextWeek: "Próxima semana", previousMonth: "Mês anterior", nextMonth: "Próximo mês",
         overdue: "Atrasadas", dueThisWeek: "Vence esta semana", isOverdue: "Atrasada", isDueToday: "Vence hoje",
+        addReaction: "Adicionar reação", moreEmoji: "Mais emojis", reactedWith: "{{names}} reagiu com {{emoji}}", reactedWithMany: "{{names}} reagiram com {{emoji}}", reactionYou: "Você", removeYourReaction: "Clique para remover a sua",
+        descriptionHistory: "Histórico da descrição", noDescriptionHistory: "Nenhuma versão ainda", noDescriptionHistoryHint: "Uma versão é salva sempre que a descrição muda. Edições feitas com poucos minutos de diferença contam como uma.",
+        currentVersion: "Atual", restoreVersion: "Restaurar esta versão", restoredFromVersion: "Restaurou a versão de {{date}}", emptyVersion: "A descrição estava vazia nesta versão.",
+        couldNotLoadHistory: "Não foi possível carregar o histórico da descrição.", couldNotRestoreVersion: "Não foi possível restaurar esta versão.", versionRestored: "Versão restaurada",
         conditionDueOverdue: "data de entrega vencida", conditionDueThisWeek: "entrega nesta semana", changedDueDate: "mudou a data de entrega",
     } as const;
 

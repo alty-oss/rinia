@@ -77,6 +77,16 @@ export const updateIssueCommentSchema = createIssueCommentSchema;
 export type CreateIssueCommentInput = z.infer<typeof createIssueCommentSchema>;
 export type UpdateIssueCommentInput = z.infer<typeof updateIssueCommentSchema>;
 
+/** A single emoji, flags and skin tones included, and nothing else. */
+export const reactionEmojiSchema = z
+    .string()
+    .trim()
+    .min(1)
+    .max(32)
+    .refine((value) => /^(?:\p{Extended_Pictographic}|\p{Regional_Indicator}|\p{Emoji_Component}|\u200d|\ufe0f)+$/u.test(value) && /\p{Extended_Pictographic}|\p{Regional_Indicator}/u.test(value) && [...new Intl.Segmenter().segment(value)].length === 1, "Use a single emoji");
+export const commentReactionSchema = z.object({ emoji: reactionEmojiSchema }).strict();
+export type CommentReactionInput = z.infer<typeof commentReactionSchema>;
+
 export const createIssueRelationSchema = z.object({
     targetIssueIdentifier: z.string().trim().min(3).max(32),
     type: z.enum(issueRelationValues),

@@ -155,6 +155,13 @@
       "when": 1790013000000,
       "tag": "0021_issue_due_date",
       "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1790014000000,
+      "tag": "0022_reactions_and_description_history",
+      "breakpoints": true
     }
   ]
 }

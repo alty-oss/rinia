@@ -28,6 +28,10 @@ const issue = {
         dueDate: "Due date", setDueDate: "Set due date", dueDateAction: "Set due date", clearDueDate: "Clear due date", dueDateValue: "Due {{date}}",
         dueToday: "Today", dueTomorrow: "Tomorrow", dueNextWeek: "Next week", previousMonth: "Previous month", nextMonth: "Next month",
         overdue: "Overdue", dueThisWeek: "Due this week", isOverdue: "Overdue", isDueToday: "Due today",
+        addReaction: "Add reaction", moreEmoji: "More emoji", reactedWith: "{{names}} reacted with {{emoji}}", reactedWithMany: "{{names}} reacted with {{emoji}}", reactionYou: "You", removeYourReaction: "Click to remove yours",
+        descriptionHistory: "Description history", noDescriptionHistory: "No versions yet", noDescriptionHistoryHint: "A version is saved each time the description changes. Edits made within a few minutes of each other count as one.",
+        currentVersion: "Current", restoreVersion: "Restore this version", restoredFromVersion: "Restored the version from {{date}}", emptyVersion: "The description was empty in this version.",
+        couldNotLoadHistory: "Could not load the description history.", couldNotRestoreVersion: "Could not restore this version.", versionRestored: "Version restored",
         conditionDueOverdue: "a past due date", conditionDueThisWeek: "a due date this week", changedDueDate: "changed the due date",
     } as const;
 

@@ -50,11 +50,32 @@ export type IssueDetail = Omit<Issue, "createdBy"> & {
     children: Array<{ id: string; number: number; title: string; columnId: string; priority: Issue["priority"] }>;
 };
 
+/** Everyone who reacted to a comment with one emoji. */
+export interface ReactionGroup {
+    emoji: string;
+    users: IssuePerson[];
+}
+
 export interface IssueComment {
     id: string;
     issueId: string;
     authorId: string;
     contentJson: TiptapDocument;
+    createdAt: string;
+    updatedAt: string;
+    author: IssuePerson;
+    reactions: ReactionGroup[];
+}
+
+/** A saved version of an issue's description. */
+export interface DescriptionRevision {
+    id: string;
+    issueId: string;
+    revision: number;
+    authorId: string;
+    contentJson: TiptapDocument;
+    /** Set when this version brought back an older one. */
+    restoredFromId: string | null;
     createdAt: string;
     updatedAt: string;
     author: IssuePerson;
@@ -130,6 +151,22 @@ export function updateIssueComment(commentId: string, input: UpdateIssueCommentI
 
 export function deleteIssueComment(commentId: string): Promise<void> {
     return apiClient.delete<void>(`/comments/${commentId}`);
+}
+
+export function addCommentReaction(commentId: string, emoji: string): Promise<ReactionGroup[]> {
+    return apiClient.post<{ reactions: ReactionGroup[] }>(`/comments/${commentId}/reactions`, { emoji }).then((res) => res.reactions);
+}
+
+export function removeCommentReaction(commentId: string, emoji: string): Promise<ReactionGroup[]> {
+    return apiClient.delete<{ reactions: ReactionGroup[] }>(`/comments/${commentId}/reactions/${encodeURIComponent(emoji)}`).then((res) => res.reactions);
+}
+
+export function listDescriptionRevisions(identifier: string): Promise<DescriptionRevision[]> {
+    return apiClient.get<{ revisions: DescriptionRevision[] }>(`/issues/${encodeURIComponent(identifier)}/description-revisions`).then((res) => res.revisions);
+}
+
+export function restoreDescriptionRevision(identifier: string, revisionId: string): Promise<Issue> {
+    return apiClient.post<{ issue: Issue }>(`/issues/${encodeURIComponent(identifier)}/description-revisions/${revisionId}/restore`).then((res) => res.issue);
 }
 
 export function listIssueActivity(identifier: string): Promise<IssueActivity[]> {

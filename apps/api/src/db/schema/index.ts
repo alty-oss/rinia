@@ -1,9 +1,11 @@
 import { relations } from "drizzle-orm";
 import { boardColumns } from "./board-columns";
 import { categories } from "./categories";
+import { commentReactions } from "./comment-reactions";
 import { favorites } from "./favorites";
 import { issueActivities } from "./issue-activities";
 import { issueComments } from "./issue-comments";
+import { issueDescriptionRevisions } from "./issue-description-revisions";
 import { issueRelations } from "./issue-relations";
 import { issues } from "./issues";
 import { issueSubscriptions, notifications } from "./notifications";
@@ -15,9 +17,11 @@ import { users } from "./users";
 
 export * from "./board-columns";
 export * from "./categories";
+export * from "./comment-reactions";
 export * from "./favorites";
 export * from "./issue-activities";
 export * from "./issue-comments";
+export * from "./issue-description-revisions";
 export * from "./issue-relations";
 export * from "./issues";
 export * from "./notifications";
@@ -86,9 +90,20 @@ export const issuesRelations = relations(issues, ({ one, many }) => ({
     incomingRelations: many(issueRelations, { relationName: "relationTarget" }),
 }));
 
-export const issueCommentsRelations = relations(issueComments, ({ one }) => ({
+export const issueCommentsRelations = relations(issueComments, ({ one, many }) => ({
     issue: one(issues, { fields: [issueComments.issueId], references: [issues.id] }),
     author: one(users, { fields: [issueComments.authorId], references: [users.id] }),
+    reactions: many(commentReactions),
+}));
+
+export const commentReactionsRelations = relations(commentReactions, ({ one }) => ({
+    comment: one(issueComments, { fields: [commentReactions.commentId], references: [issueComments.id] }),
+    user: one(users, { fields: [commentReactions.userId], references: [users.id] }),
+}));
+
+export const issueDescriptionRevisionsRelations = relations(issueDescriptionRevisions, ({ one }) => ({
+    issue: one(issues, { fields: [issueDescriptionRevisions.issueId], references: [issues.id] }),
+    author: one(users, { fields: [issueDescriptionRevisions.authorId], references: [users.id] }),
 }));
 
 export const issueActivitiesRelations = relations(issueActivities, ({ one }) => ({

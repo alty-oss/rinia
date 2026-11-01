@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { EntityIcon, TiptapDocument, UpdateIssueInput } from "@rinia/shared";
-import { ArrowDown, ArrowUp, Ban, CalendarDays, Check, ChevronRight, Copy, GitBranch, Link2, Pencil, Plus, ShieldOff, Sparkles, Trash2 } from "lucide-react";
+import { ArrowDown, ArrowUp, Ban, CalendarDays, Check, History, ChevronRight, Copy, GitBranch, Link2, Pencil, Plus, ShieldOff, Sparkles, Trash2 } from "lucide-react";
 import { Link, useBeforeUnload, useLocation, useNavigate, useParams } from "react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { useHotkeys } from "react-hotkeys-hook";
@@ -50,10 +50,14 @@ import {
     useIssueComments,
     useIssueRelations,
     useIssues,
+    useRestoreDescriptionRevision,
+    useToggleReaction,
     useUpdateIssue,
     useUpdateIssueComment,
 } from "../hooks/use-issues";
-import type { IssueDetail } from "../api";
+import type { DescriptionRevision, IssueDetail, ReactionGroup } from "../api";
+import { ReactionChips, ReactionPicker } from "./comment-reactions";
+import { DescriptionHistorySheet } from "./description-history";
 import { fetchIssueClipboardContent } from "../lib/issue-clipboard";
 import { issueDescriptionDrafts, issueDraftKey } from "../lib/issue-description-drafts";
 import { DueDatePopover } from "./due-date-picker";
@@ -117,6 +121,9 @@ export const IssueView = () => {
     const updateComment = useUpdateIssueComment(issue?.identifier ?? resolvedIdentifier);
     const createRelation = useCreateIssueRelation(issue?.identifier ?? resolvedIdentifier);
     const deleteRelation = useDeleteIssueRelation(issue?.identifier ?? resolvedIdentifier);
+    const toggleReaction = useToggleReaction(issue?.identifier ?? resolvedIdentifier, user ? { id: user.id, name: user.name, username: user.username, avatarUrl: user.avatarUrl } : null);
+    const restoreRevision = useRestoreDescriptionRevision(issue?.identifier ?? resolvedIdentifier);
+    const [historyOpen, setHistoryOpen] = useState(false);
     // Linear-style property shortcuts; ignored while typing in a field or the editor.
     const propertyHotkey = { enableOnFormTags: false, enableOnContentEditable: false, useKey: true, preventDefault: true } as const;
     useHotkeys("s", () => setOpenMenu("state"), propertyHotkey);
@@ -423,6 +430,21 @@ export const IssueView = () => {
         );
     };
     const currentTitle = title.trim() || issue.title;
+    /** Saves any pending edit first, so the restore is not undone by it, then lets the restored text replace the editor's. */
+    const restoreDescription = async (revision: DescriptionRevision) => {
+        try {
+            await flushDescriptionRef.current();
+            await restoreRevision.mutateAsync(revision.id);
+            descriptionDirty.current = false;
+            const key = descriptionDraftKey.current;
+            if (key) void issueDescriptionDrafts.clearDescription(key).catch(() => undefined);
+            setDescriptionSaveError(null);
+            setDescriptionStatus("saved");
+            showToast({ title: t("issue.versionRestored") });
+        } catch (reason) {
+            showToast({ tone: "error", title: errorMessage(reason, t("issue.couldNotRestoreVersion")) });
+        }
+    };
     const copyText = async (text: string, success: ToastInput) => {
         const result = await copy(text, "issue-meta");
         showToast(result.success ? success : { tone: "error", title: t("issue.couldNotCopy") });
@@ -515,6 +537,7 @@ export const IssueView = () => {
                         {...copyActions}
                         onAddRelation={() => setRelationsOpen(true)}
                         onSetParent={() => window.setTimeout(() => setOpenMenu("parent"), 0)}
+                        onOpenHistory={() => setHistoryOpen(true)}
                         onDelete={() => setDeleteOpen(true)}
                     />
                 </div>
@@ -635,6 +658,7 @@ export const IssueView = () => {
                                 lookups={{ columns: columns ?? [], members: members ?? [], categories: categories ?? [], projectIssues: projectIssues ?? [] }}
                                 currentUserId={user?.id}
                                 mentionItems={mentionItems}
+                                onReact={(commentId, emoji, add) => toggleReaction.mutate({ commentId, emoji, add })}
                                 value={comment}
                                 onChange={(value) => {
                                     commentDraftOwner.current = issue.id;
@@ -686,6 +710,7 @@ export const IssueView = () => {
                 )}
             </div>
 
+            <DescriptionHistorySheet identifier={issue.identifier} open={historyOpen} onOpenChange={setHistoryOpen} isRestoring={restoreRevision.isPending} onRestore={restoreDescription} />
             <ConfirmDialog
                 open={deleteOpen}
                 onOpenChange={setDeleteOpen}
@@ -722,7 +747,7 @@ interface CopyActions {
     isCopying: boolean;
 }
 
-function IssueActionsMenu({ onCopyLink, onCopyId, onCopyBranch, onCopyPrompt, isCopying, onAddRelation, onSetParent, onDelete }: CopyActions & { onAddRelation: () => void; onSetParent: () => void; onDelete: () => void }) {
+function IssueActionsMenu({ onCopyLink, onCopyId, onCopyBranch, onCopyPrompt, isCopying, onAddRelation, onSetParent, onOpenHistory, onDelete }: CopyActions & { onAddRelation: () => void; onSetParent: () => void; onOpenHistory: () => void; onDelete: () => void }) {
     const { t } = useTranslation();
     return (
         <Menu.Root>
@@ -739,6 +764,7 @@ function IssueActionsMenu({ onCopyLink, onCopyId, onCopyBranch, onCopyPrompt, is
                         <Menu.Separator className="my-1 h-px bg-[var(--border-subtle)]" />
                         <Menu.Item className={menuItemClass} onClick={onAddRelation}><Link2 className="size-4 text-tertiary" />{t("issue.addRelation")}</Menu.Item>
                         <Menu.Item className={menuItemClass} onClick={onSetParent}><ParentOutline className="size-4 text-tertiary" />{t("issue.addParent")}</Menu.Item>
+                        <Menu.Item className={menuItemClass} onClick={onOpenHistory}><History className="size-4 text-tertiary" />{t("issue.descriptionHistory")}</Menu.Item>
                         <Menu.Separator className="my-1 h-px bg-[var(--border-subtle)]" />
                         <Menu.Item className={cx(menuItemClass, "text-danger-primary data-highlighted:text-danger-primary")} onClick={onDelete}><Trash2 className="size-4" />{t("issue.deleteIssue")}</Menu.Item>
                     </Menu.Popup>
@@ -1242,7 +1268,7 @@ function IssueRelations({
 }
 
 type ActivityEntry = { id: string; type: string; createdAt: string; actor: { name: string; avatarUrl: string | null }; payload: Record<string, unknown> };
-type CommentEntry = { id: string; contentJson: TiptapDocument; authorId: string; author: { name: string; username?: string; avatarUrl: string | null }; createdAt: string; updatedAt: string };
+type CommentEntry = { id: string; contentJson: TiptapDocument; authorId: string; author: { name: string; username?: string; avatarUrl: string | null }; createdAt: string; updatedAt: string; reactions: ReactionGroup[] };
 interface TimelineLookups {
     columns: Array<{ id: string; name: string; color?: string | null }>;
     members: Array<{ id: string; name: string }>;
@@ -1259,6 +1285,7 @@ function IssueTimeline({
     lookups,
     currentUserId,
     mentionItems,
+    onReact,
     value,
     onChange,
     isSubmitting,
@@ -1275,6 +1302,7 @@ function IssueTimeline({
     currentUserId?: string;
     /** Project members, for @mentions in comments. */
     mentionItems: MentionItem[];
+    onReact: (commentId: string, emoji: string, add: boolean) => void;
     value: TiptapDocument;
     onChange: (value: TiptapDocument) => void;
     isSubmitting: boolean;
@@ -1301,7 +1329,7 @@ function IssueTimeline({
                 <ol className="mt-3 flex flex-col">
                     {entries.map((item) =>
                         item.kind === "comment" ? (
-                            <TimelineComment key={`c-${item.entry.id}`} entry={item.entry} mine={item.entry.authorId === currentUserId} mentionItems={mentionItems} isSubmitting={isSubmitting} onDelete={onDelete} onEdit={onEdit} />
+                            <TimelineComment key={`c-${item.entry.id}`} entry={item.entry} mine={item.entry.authorId === currentUserId} currentUserId={currentUserId} onReact={onReact} mentionItems={mentionItems} isSubmitting={isSubmitting} onDelete={onDelete} onEdit={onEdit} />
                         ) : (
                             <TimelineActivity key={`a-${item.entry.id}`} entry={item.entry} lookups={lookups} />
                         ),
@@ -1346,7 +1374,7 @@ function TimelineActivity({ entry, lookups }: { entry: ActivityEntry; lookups: T
     );
 }
 
-function TimelineComment({ entry, mine, mentionItems, isSubmitting, onDelete, onEdit }: { entry: CommentEntry; mine: boolean; mentionItems: MentionItem[]; isSubmitting: boolean; onDelete: (id: string) => void | Promise<void>; onEdit: (id: string, contentJson: TiptapDocument) => void | Promise<void> }) {
+function TimelineComment({ entry, mine, currentUserId, onReact, mentionItems, isSubmitting, onDelete, onEdit }: { entry: CommentEntry; mine: boolean; currentUserId?: string; onReact: (commentId: string, emoji: string, add: boolean) => void; mentionItems: MentionItem[]; isSubmitting: boolean; onDelete: (id: string) => void | Promise<void>; onEdit: (id: string, contentJson: TiptapDocument) => void | Promise<void> }) {
     const { t, i18n } = useTranslation();
     const [editing, setEditing] = useState(false);
     const [draft, setDraft] = useState<TiptapDocument>(entry.contentJson);
@@ -1359,10 +1387,13 @@ function TimelineComment({ entry, mine, mentionItems, isSubmitting, onDelete, on
                 <time className="text-tertiary" title={formatFullIssueDate(entry.createdAt, i18n.language)} dateTime={entry.createdAt}>
                     {formatDistanceToNow(entry.createdAt, i18n.language)}{edited ? ` · ${t("issue.edited")}` : ""}
                 </time>
-                {mine && !editing && (
-                    <div className="ml-auto flex items-center gap-0.5 opacity-0 transition-opacity duration-150 group-hover/comment:opacity-100 focus-within:opacity-100">
+                {!editing && (
+                    <div className="ml-auto flex items-center gap-0.5 opacity-0 transition-opacity duration-150 group-hover/comment:opacity-100 focus-within:opacity-100 has-[[data-popup-open]]:opacity-100">
+                        <ReactionPicker onPick={(emoji) => onReact(entry.id, emoji, !entry.reactions.find((group) => group.emoji === emoji)?.users.some((user) => user.id === currentUserId))} />
+                        {mine && <>
                         <ButtonUtility icon={Pencil} size="xs" color="tertiary" tooltip={t("common.edit")} onClick={() => { setDraft(entry.contentJson); setEditing(true); }} />
                         <ButtonUtility icon={Trash2} size="xs" color="tertiary" tooltip={t("common.delete")} isDisabled={isSubmitting} onClick={() => void Promise.resolve(onDelete(entry.id)).catch(() => undefined)} />
+                        </>}
                     </div>
                 )}
             </div>
@@ -1382,7 +1413,10 @@ function TimelineComment({ entry, mine, mentionItems, isSubmitting, onDelete, on
                     </div>
                 </>
             ) : (
-                <RichTextEditor variant="comment" content={entry.contentJson} editable={false} className="issue-comment-body" />
+                <>
+                    <RichTextEditor variant="comment" content={entry.contentJson} editable={false} className="issue-comment-body" />
+                    <ReactionChips reactions={entry.reactions} currentUserId={currentUserId} onToggle={(emoji, add) => onReact(entry.id, emoji, add)} />
+                </>
             )}
         </li>
     );
