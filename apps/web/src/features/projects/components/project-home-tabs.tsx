@@ -14,7 +14,7 @@ export function ProjectHomeTabs({ projectKey, current, actions }: { projectKey: 
         ["members", t("settings.members"), urls.members(projectKey)],
     ];
     return (
-        <nav aria-label={t("nav.projectSections")} className="flex h-12 shrink-0 items-center gap-1.5 px-3">
+        <nav aria-label={t("nav.projectSections")} className="flex h-12 shrink-0 select-none items-center gap-1.5 px-3">
             {tabs.map(([id, label, to]) => (
                 <Link
                     key={id}

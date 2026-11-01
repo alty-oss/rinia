@@ -1,7 +1,7 @@
 import { createFavoriteSchema } from "@rinia/shared";
 import { z } from "zod";
 import { asyncHandler } from "../../middleware/async-handler";
-import { addFavorite, listFavorites, removeFavorite } from "./favorites.service";
+import { addFavorite, listFavorites, removeFavorite, restoreFavorite } from "./favorites.service";
 
 export const list = asyncHandler(async (req, res) => {
     res.json({ favorites: await listFavorites(req.user!.sub, req.user!.isAdmin) });
@@ -13,6 +13,10 @@ export const create = asyncHandler(async (req, res) => {
 });
 
 export const remove = asyncHandler<{ favoriteId: string }>(async (req, res) => {
-    await removeFavorite(req.user!.sub, z.string().uuid().parse(req.params.favoriteId));
-    res.status(204).end();
+    res.json(await removeFavorite(req.user!.sub, z.string().uuid().parse(req.params.favoriteId)));
+});
+
+export const restore = asyncHandler<{ favoriteId: string }>(async (req, res) => {
+    const { deletedAt } = z.object({ deletedAt: z.string().datetime() }).parse(req.body);
+    res.json(await restoreFavorite(req.user!.sub, z.string().uuid().parse(req.params.favoriteId), new Date(deletedAt)));
 });

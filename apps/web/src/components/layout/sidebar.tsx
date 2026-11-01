@@ -143,7 +143,7 @@ export function Sidebar({ onSearch, onNavigate }: { onSearch: () => void; onNavi
     const createTarget = routeProjectId || readOpenProjectId() || projects?.[0]?.id || "";
 
     return (
-        <div className="flex h-full flex-col">
+        <div className="flex h-full flex-col select-none">
             {settings ? (
                 <SettingsNav projectId={projectId} projects={projects} />
             ) : (
@@ -270,7 +270,7 @@ function SettingsNav({ projectId, projects }: { projectId: string; projects: Pro
                     onChange={(event) => setQuery(event.target.value)}
                     placeholder={t("nav.searchSettings")}
                     aria-label={t("nav.searchSettings")}
-                    className="min-w-0 flex-1 bg-transparent text-primary outline-none placeholder:text-placeholder"
+                    className="min-w-0 flex-1 select-text bg-transparent text-primary outline-none placeholder:text-placeholder"
                 />
             </label>
             {personal.length > 0 && <SettingsNavSection label={t("nav.personal")}>{personal}</SettingsNavSection>}

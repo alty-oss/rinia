@@ -55,7 +55,7 @@ import {
     useUpdateIssue,
     useUpdateIssueComment,
 } from "../hooks/use-issues";
-import type { DescriptionRevision, IssueDetail, ReactionGroup } from "../api";
+import { restoreIssue as restoreDeletedIssue, restoreIssueComment, type DescriptionRevision, type IssueDetail, type ReactionGroup } from "../api";
 import { ReactionChips, ReactionPicker } from "./comment-reactions";
 import { DescriptionHistorySheet } from "./description-history";
 import { fetchIssueClipboardContent } from "../lib/issue-clipboard";
@@ -427,9 +427,32 @@ export const IssueView = () => {
     const save = (input: UpdateIssueInput) => {
         const actionIssueId = issue.id;
         setPropertySaveError(null);
+        const undo = input.columnId !== undefined && input.columnId !== issue.columnId
+            ? { patch: { columnId: issue.columnId }, title: t("issue.statusUpdated") }
+            : input.assigneeId !== undefined && input.assigneeId !== issue.assigneeId
+              ? { patch: { assigneeId: issue.assigneeId }, title: t("issue.assigneeUpdated") }
+              : null;
         updateIssue.mutate(
             { identifier: issue.identifier, input },
-            { onError: (reason) => { if (loadedIssueId.current === actionIssueId) setPropertySaveError(errorMessage(reason, t("issue.couldNotSaveIssue"))); } },
+            {
+                onSuccess: () => {
+                    if (!undo) return;
+                    showToast({
+                        title: undo.title,
+                        action: {
+                            label: t("issue.undo"),
+                            onClick: async () => {
+                                try {
+                                    await updateIssue.mutateAsync({ identifier: issue.identifier, input: undo.patch });
+                                } catch {
+                                    showToast({ tone: "error", title: t("issue.couldNotUndo") });
+                                }
+                            },
+                        },
+                    });
+                },
+                onError: (reason) => { if (loadedIssueId.current === actionIssueId) setPropertySaveError(errorMessage(reason, t("issue.couldNotSaveIssue"))); },
+            },
         );
     };
     const currentTitle = title.trim() || issue.title;
@@ -688,7 +711,21 @@ export const IssueView = () => {
                                     const actionIssueId = issue.id;
                                     setCommentSaveError(null);
                                     try {
-                                        await deleteComment.mutateAsync(commentId);
+                                        const { deletedAt } = await deleteComment.mutateAsync(commentId);
+                                        showToast({
+                                            title: t("issue.commentDeleted"),
+                                            action: {
+                                                label: t("issue.undo"),
+                                                onClick: async () => {
+                                                    try {
+                                                        await restoreIssueComment(commentId, deletedAt);
+                                                        await queryClient.invalidateQueries({ queryKey: [...issueKey(issue.identifier), "comments"] });
+                                                    } catch {
+                                                        showToast({ tone: "error", title: t("issue.couldNotUndo") });
+                                                    }
+                                                },
+                                            },
+                                        });
                                     } catch (reason) {
                                         if (loadedIssueId.current === actionIssueId) setCommentSaveError(errorMessage(reason, t("issue.couldNotDeleteComment")));
                                         throw reason;
@@ -725,7 +762,30 @@ export const IssueView = () => {
                 description={t("issue.deleteIssueDescription", { title: issue.title })}
                 confirmLabel={t("issue.deleteIssue")}
                 isPending={deleteIssue.isPending}
-                onConfirm={() => deleteIssue.mutate(issue.identifier, { onSuccess: () => navigate(urls.issues(issue.project.issueKey)) })}
+                onConfirm={() => deleteIssue.mutate(issue.identifier, {
+                    onSuccess: ({ deletedAt }) => {
+                        navigate(urls.issues(issue.project.issueKey));
+                        showToast({
+                            title: t("issue.deletedOne"),
+                            action: {
+                                label: t("issue.undo"),
+                                onClick: async () => {
+                                    try {
+                                        await restoreDeletedIssue(issue.identifier, deletedAt);
+                                        await Promise.all([
+                                            queryClient.invalidateQueries({ queryKey: ["projects", issue.projectId, "issues"] }),
+                                            queryClient.invalidateQueries({ queryKey: ["my-issues"] }),
+                                            queryClient.invalidateQueries({ queryKey: ["issues"] }),
+                                        ]);
+                                        navigate(urls.issue(issue.identifier, issue.title));
+                                    } catch {
+                                        showToast({ tone: "error", title: t("issue.couldNotUndo") });
+                                    }
+                                },
+                            },
+                        });
+                    },
+                })}
             />
         </main>
     );

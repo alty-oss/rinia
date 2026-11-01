@@ -11,8 +11,6 @@ import type {
 } from "@rinia/shared";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { Issue, IssueComment, IssueDetail, IssuePerson, MyIssue } from "../api";
-import { issueDescriptionDrafts } from "../lib/issue-description-drafts";
-import { useAuth } from "@/features/auth/hooks/use-auth";
 import {
     addCommentReaction,
     bulkDeleteIssues,
@@ -154,16 +152,14 @@ export function useUpdateIssue(projectId: string) {
 
 export function useDeleteIssue(projectId: string) {
     const queryClient = useQueryClient();
-    const { user } = useAuth();
     return useMutation({
         mutationFn: deleteIssue,
         onSuccess: async (_result, identifier) => {
-            const detail = queryClient.getQueryData<IssueDetail>(issueKey(identifier));
-            const lists = queryClient.getQueriesData<Issue[]>({ queryKey: ["projects", projectId, "issues"] });
-            const issue = detail ?? lists.flatMap(([, entries]) => entries ?? []).find((entry) => entry.identifier === identifier);
-            if (user && issue) await issueDescriptionDrafts.clearIssue(user.id, issue.projectId, issue.id).catch(() => undefined);
             queryClient.removeQueries({ queryKey: issueKey(identifier), exact: true });
             await queryClient.invalidateQueries({ queryKey: ["projects", projectId, "issues"] });
+            await queryClient.invalidateQueries({ queryKey: MY_ISSUES_QUERY_KEY });
+            await queryClient.invalidateQueries({ queryKey: ["favorites"] });
+            await queryClient.invalidateQueries({ queryKey: ["issues"] });
         },
     });
 }
@@ -290,6 +286,7 @@ export function useBulkUpdateIssues(projectId: string) {
         onSettled: () => {
             queryClient.invalidateQueries({ queryKey: lists });
             queryClient.invalidateQueries({ queryKey: MY_ISSUES_QUERY_KEY });
+            queryClient.invalidateQueries({ queryKey: ["favorites"] });
             queryClient.invalidateQueries({ queryKey: ["issues"] });
         },
     });
@@ -312,6 +309,8 @@ export function useBulkDeleteIssues(projectId: string) {
         onSettled: () => {
             queryClient.invalidateQueries({ queryKey: lists });
             queryClient.invalidateQueries({ queryKey: MY_ISSUES_QUERY_KEY });
+            queryClient.invalidateQueries({ queryKey: ["favorites"] });
+            queryClient.invalidateQueries({ queryKey: ["issues"] });
         },
     });
 }

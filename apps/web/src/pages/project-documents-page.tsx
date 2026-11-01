@@ -10,13 +10,14 @@ import { Button } from "@/components/base/buttons/button";
 import { Skeleton } from "@/components/base/feedback/skeleton";
 import { Input } from "@/components/base/input/input";
 import { ErrorMessage } from "@/components/feedback/error-message";
+import { useToast } from "@/components/feedback/toaster";
 import { ContextMenuButton } from "@/components/overlay/context-menu-provider";
 import { AppearancePicker, appearancePopupClass } from "@/components/appearance/appearance-picker";
 import { useAuth } from "@/features/auth/hooks/use-auth";
-import { type DocumentPage, deleteDocument, getDocument } from "@/features/documents/api";
+import { type DocumentPage, deleteDocument, getDocument, restoreDocument } from "@/features/documents/api";
 import { DocumentEditor } from "@/features/documents/components/document-editor";
 import { documentKey, documentsKey, useCreateDocument, useDocument, useDocuments } from "@/features/documents/hooks/use-documents";
-import { clearDocumentSession, getDocumentSession } from "@/features/documents/sessions";
+import { getDocumentSession } from "@/features/documents/sessions";
 import { ProjectHomeTabs } from "@/features/projects/components/project-home-tabs";
 import { ProjectWorkspaceHeader } from "@/features/projects/components/project-workspace-header";
 import { ProjectIcon } from "@/features/projects/components/project-icon";
@@ -155,6 +156,7 @@ function DocumentWorkspace({ page, userId }: { page: DocumentPage; userId: strin
     const { t } = useTranslation();
     const { projectKey } = useRouteProject();
     const client = useQueryClient();
+    const showToast = useToast();
     const navigate = useNavigate();
     const { isProjectOwner } = useProjectPermissions(page.projectId);
     const { data: members = [] } = useProjectMembers(page.projectId);
@@ -203,12 +205,31 @@ function DocumentWorkspace({ page, userId }: { page: DocumentPage; userId: strin
         try {
             if (confirm === "delete") {
                 await session.pause();
-                await deleteDocument(page.projectId, page.id);
-                await clearDocumentSession(userId, page.projectId, page.id);
+                const { deletedAt } = await deleteDocument(page.projectId, page.id);
                 await client.cancelQueries({ queryKey: documentKey(page.projectId, page.id) });
                 client.removeQueries({ queryKey: documentKey(page.projectId, page.id) });
                 void client.invalidateQueries({ queryKey: documentsKey(page.projectId), exact: true });
+                void client.invalidateQueries({ queryKey: ["favorites"] });
                 navigate(urls.documents(projectKey), { replace: true });
+                showToast({
+                    title: t("documents.pageDeleted"),
+                    action: {
+                        label: t("issue.undo"),
+                        onClick: async () => {
+                            try {
+                                await restoreDocument(page.projectId, page.id, deletedAt);
+                                session.resume();
+                                const restored = await getDocument(page.projectId, page.id);
+                                client.setQueryData(documentKey(page.projectId, page.id), restored);
+                                await client.invalidateQueries({ queryKey: documentsKey(page.projectId), exact: true });
+                                await client.invalidateQueries({ queryKey: ["favorites"] });
+                                navigate(urls.document(projectKey, restored));
+                            } catch {
+                                showToast({ tone: "error", title: t("issue.couldNotUndo") });
+                            }
+                        },
+                    },
+                });
             } else {
                 const saved = await getDocument(page.projectId, page.id);
                 await session.discard(saved);

@@ -14,7 +14,7 @@ const projects = {
         addDescription: "Add a description…", goTo: "Go to",
         createdOn: "Created {{date}}", noMembers: "No members yet",
         deleteProjectPrompt: "To confirm, type “{{phrase}}”", deletePhrase: "delete my project", confirmDelete: "Delete my project",
-        columnActions: "Column actions", hideColumn: "Hide column", manageStates: "Manage states", showColumn: "Show column", hiddenColumns: "Hidden columns",
+        columnActions: "Column actions", hideColumn: "Hide column", manageStates: "Manage states", showColumn: "Show column", hiddenColumns: "Hidden columns", showAllColumns: "Show all columns", noHiddenColumns: "No hidden columns", columnHidden: "Column hidden",
     } as const;
 
 export default projects;

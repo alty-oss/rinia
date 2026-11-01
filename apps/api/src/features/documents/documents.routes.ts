@@ -5,6 +5,7 @@ import {
   updateDocumentSchema,
 } from "@rinia/shared";
 import { asyncHandler } from "../../middleware/async-handler";
+import { z } from "zod";
 import * as service from "./documents.service";
 
 // Mounted behind authentication and project membership in projects.routes.ts.
@@ -54,12 +55,20 @@ documentsRouter.delete(
   "/:documentId",
   asyncHandler(async (req, res) => {
     const { projectId, documentId } = documentParamsSchema.parse(req.params);
-    await service.deleteDocument(
+    const result = await service.deleteDocument(
       projectId,
       documentId,
       req.user!.sub,
       req.user!.isAdmin,
     );
-    res.status(204).send();
+    res.json(result);
+  }),
+);
+documentsRouter.post(
+  "/:documentId/restore",
+  asyncHandler(async (req, res) => {
+    const { projectId, documentId } = documentParamsSchema.parse(req.params);
+    const { deletedAt } = z.object({ deletedAt: z.string().datetime() }).parse(req.body);
+    res.json(await service.restoreDocument(projectId, documentId, new Date(deletedAt)));
   }),
 );

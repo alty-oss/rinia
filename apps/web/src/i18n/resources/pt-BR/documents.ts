@@ -14,7 +14,7 @@ const documents = {
         createFromDraft: "Criar página a partir do rascunho", openSavedVersion: "Abrir versão salva", couldNotLoad: "Não foi possível carregar esta página. Ela pode ter sido excluída ou você pode não ter mais acesso.",
         couldNotRefresh: "Não foi possível atualizar esta página. Seu trabalho local continua disponível.", couldNotSave: "Não foi possível salvar a página.",
         retrySave: "Pressione Ctrl/Cmd+S para tentar novamente.", deleteTitle: "Excluir esta página?", openSavedTitle: "Abrir a versão salva?",
-        deleteWarning: "Esta ação exclui permanentemente a página e o rascunho local. Não é possível desfazê-la.",
+        deleteWarning: "A página será removida. Você poderá desfazer enquanto a confirmação estiver visível.",
         openSavedWarning: "Isto substituirá seu rascunho local pela versão salva. Crie uma página a partir do rascunho antes se quiser manter ambas.",
         couldNotComplete: "Não foi possível concluir a ação.", couldNotCopy: "Não foi possível criar uma cópia.", localCopy: "(cópia local)",
         slashNoResults: "Nenhum resultado", slashCommands: "Comandos do editor", mentions: "Sugestões de menção", text: "Texto", paragraph: "Parágrafo simples",

@@ -13,7 +13,7 @@ export function Topbar({ title, actions, onBack }: TopbarProps) {
     const { openNavigation } = useAppNavigation();
     const { t } = useTranslation();
     return (
-        <header className="flex h-[45px] shrink-0 items-center justify-between gap-3 border-b border-subtle px-3.5">
+        <header className="flex h-[45px] shrink-0 select-none items-center justify-between gap-3 border-b border-subtle px-3.5">
             <div className="flex min-w-0 items-center gap-2">
                 <span className="md:hidden">
                     <ButtonUtility icon={AppIcons.Menu} color="tertiary" tooltip={t("nav.expand")} onClick={openNavigation} />

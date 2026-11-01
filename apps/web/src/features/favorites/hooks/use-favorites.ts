@@ -1,6 +1,8 @@
 import { useEffect } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { createFavorite, deleteFavorite, listFavorites, type Favorite, type FavoriteTarget } from "../api";
+import { useToast } from "@/components/feedback/toaster";
+import { useTranslation } from "react-i18next";
+import { createFavorite, deleteFavorite, listFavorites, restoreFavorite, type Favorite, type FavoriteTarget } from "../api";
 
 export const FAVORITES_QUERY_KEY = ["favorites"] as const;
 
@@ -20,37 +22,50 @@ export function useFavoriteToggle(target: FavoriteTarget | null) {
     const queryClient = useQueryClient();
     const { data: favorites } = useFavorites();
     const favorite = target ? favorites?.find((candidate) => matchesTarget(candidate, target)) : undefined;
-    const mutation = useMutation({
-        mutationFn: async (next: { add: true; target: FavoriteTarget } | { add: false; favoriteId: string }) => {
-            if (next.add) await createFavorite(next.target);
-            else await deleteFavorite(next.favoriteId);
-        },
-        onMutate: async (next) => {
-            if (next.add) return;
-            await queryClient.cancelQueries({ queryKey: FAVORITES_QUERY_KEY });
-            queryClient.setQueryData<Favorite[]>(FAVORITES_QUERY_KEY, (current) => current?.filter((item) => item.id !== next.favoriteId));
-        },
-        onSettled: () => queryClient.invalidateQueries({ queryKey: FAVORITES_QUERY_KEY }),
-    });
-    const pendingAdd = mutation.isPending && mutation.variables?.add === true;
+    const remove = useRemoveFavorite();
+    const add = useMutation({ mutationFn: createFavorite, onSettled: () => queryClient.invalidateQueries({ queryKey: FAVORITES_QUERY_KEY }) });
+    const pendingAdd = add.isPending;
     return {
         active: !!favorite || pendingAdd,
-        isPending: mutation.isPending,
+        isPending: remove.isPending || add.isPending,
         toggle() {
-            if (!target || mutation.isPending) return;
-            if (favorite) mutation.mutate({ add: false, favoriteId: favorite.id });
-            else mutation.mutate({ add: true, target });
+            if (!target || remove.isPending || add.isPending) return;
+            if (favorite) remove.mutate(favorite.id);
+            else add.mutate(target);
         },
     };
 }
 
 export function useRemoveFavorite() {
     const queryClient = useQueryClient();
+    const showToast = useToast();
+    const { t } = useTranslation();
     return useMutation({
         mutationFn: deleteFavorite,
         onMutate: async (favoriteId) => {
             await queryClient.cancelQueries({ queryKey: FAVORITES_QUERY_KEY });
+            const previous = queryClient.getQueryData<Favorite[]>(FAVORITES_QUERY_KEY);
+            const favorite = previous?.find((item) => item.id === favoriteId);
             queryClient.setQueryData<Favorite[]>(FAVORITES_QUERY_KEY, (current) => current?.filter((item) => item.id !== favoriteId));
+            return { favorite, previous };
+        },
+        onError: (_error, _favoriteId, context) => queryClient.setQueryData(FAVORITES_QUERY_KEY, context?.previous),
+        onSuccess: ({ deletedAt }, favoriteId, context) => {
+            if (!context?.favorite) return;
+            showToast({
+                title: t("nav.favoriteRemoved"),
+                action: {
+                    label: t("issue.undo"),
+                    onClick: async () => {
+                        try {
+                            await restoreFavorite(favoriteId, deletedAt);
+                            await queryClient.invalidateQueries({ queryKey: FAVORITES_QUERY_KEY });
+                        } catch {
+                            showToast({ tone: "error", title: t("issue.couldNotUndo") });
+                        }
+                    },
+                },
+            });
         },
         onSettled: () => queryClient.invalidateQueries({ queryKey: FAVORITES_QUERY_KEY }),
     });

@@ -15,6 +15,7 @@ export interface ToastInput {
 interface ToastEntry extends ToastInput {
     id: number;
     leaving: boolean;
+    duration: number;
 }
 
 const ToastContext = createContext<(toast: ToastInput) => void>(() => {});
@@ -24,27 +25,48 @@ export const useToast = () => useContext(ToastContext);
 
 const VISIBLE_MS = 4000;
 /** Toasts with an action stay longer, so there is time to use it. */
-const VISIBLE_WITH_ACTION_MS = 8000;
+const VISIBLE_WITH_ACTION_MS = 10000;
 const EXIT_MS = 180;
 
 export function ToastProvider({ children }: { children: ReactNode }) {
     const [toasts, setToasts] = useState<ToastEntry[]>([]);
     const nextId = useRef(0);
+    const timers = useRef(new Map<number, number>());
 
     const dismiss = useCallback((id: number) => {
         setToasts((current) => current.map((toast) => (toast.id === id ? { ...toast, leaving: true } : toast)));
+        const timer = timers.current.get(id);
+        if (timer != null) window.clearTimeout(timer);
+        timers.current.delete(id);
         window.setTimeout(() => setToasts((current) => current.filter((toast) => toast.id !== id)), EXIT_MS);
     }, []);
 
     const show = useCallback(
         (toast: ToastInput) => {
             const id = nextId.current++;
+            const duration = toast.action ? VISIBLE_WITH_ACTION_MS : VISIBLE_MS;
             // Keep at most three on screen; the oldest leaves first.
-            setToasts((current) => [...current.filter((entry) => !entry.leaving).slice(-2), { ...toast, id, leaving: false }]);
-            window.setTimeout(() => dismiss(id), toast.action ? VISIBLE_WITH_ACTION_MS : VISIBLE_MS);
+            setToasts((current) => [...current.filter((entry) => !entry.leaving).slice(-2), { ...toast, id, duration, leaving: false }]);
+            timers.current.set(id, window.setTimeout(() => dismiss(id), duration));
         },
         [dismiss],
     );
+
+    useEffect(() => () => timers.current.forEach((timer) => window.clearTimeout(timer)), []);
+    useEffect(() => {
+        const handleKeyDown = (event: KeyboardEvent) => {
+            if (!(event.metaKey || event.ctrlKey) || event.altKey || event.shiftKey || event.key.toLowerCase() !== "z") return;
+            const target = event.target as HTMLElement | null;
+            if (target?.closest("input, textarea, select, [contenteditable='true'], [role='textbox']")) return;
+            const latest = [...toasts].reverse().find((toast) => toast.action && !toast.leaving);
+            if (!latest?.action) return;
+            event.preventDefault();
+            void Promise.resolve().then(latest.action.onClick).catch(() => undefined);
+            dismiss(latest.id);
+        };
+        window.addEventListener("keydown", handleKeyDown);
+        return () => window.removeEventListener("keydown", handleKeyDown);
+    }, [dismiss, toasts]);
 
     return (
         <ToastContext.Provider value={show}>
@@ -71,7 +93,7 @@ function ToastCard({ toast, onDismiss }: { toast: ToastEntry; onDismiss: () => v
     return (
         <div
             role={toast.tone === "error" ? "alert" : "status"}
-            className={`pointer-events-auto flex items-start gap-3 rounded-xl border border-subtle bg-layer-2 px-3.5 py-3 shadow-overlay-200 transition-all duration-200 ease-[cubic-bezier(0.2,0,0,1)] motion-reduce:transition-none ${
+            className={`pointer-events-auto relative flex items-start gap-3 overflow-hidden rounded-xl border border-subtle bg-layer-2 px-3.5 py-3 shadow-overlay-200 transition-all duration-200 ease-[cubic-bezier(0.2,0,0,1)] motion-reduce:transition-none ${
                 visible ? "translate-y-0 opacity-100" : "translate-y-2 opacity-0"
             }`}
         >
@@ -84,10 +106,10 @@ function ToastCard({ toast, onDismiss }: { toast: ToastEntry; onDismiss: () => v
                 <button
                     type="button"
                     onClick={() => {
-                        toast.action?.onClick();
+                        void Promise.resolve().then(() => toast.action?.onClick()).catch(() => undefined);
                         onDismiss();
                     }}
-                    className="-my-0.5 shrink-0 rounded-md px-2 py-0.5 text-[13px] font-medium text-accent-primary transition-colors duration-150 hover:bg-layer-transparent-hover"
+                    className="-my-0.5 shrink-0 rounded-md px-2 py-0.5 text-[13px] font-medium text-accent-primary transition-colors duration-150 hover:bg-layer-transparent-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-strong"
                 >
                     {toast.action.label}
                 </button>
@@ -95,6 +117,9 @@ function ToastCard({ toast, onDismiss }: { toast: ToastEntry; onDismiss: () => v
             <button type="button" aria-label={t("common.close")} onClick={onDismiss} className="grid size-5 shrink-0 place-items-center rounded text-tertiary hover:bg-layer-transparent-hover hover:text-primary">
                 <X className="size-3.5" />
             </button>
+            <div className="absolute inset-x-0 bottom-0 h-0.5 overflow-hidden rounded-b-xl bg-layer-3" aria-hidden="true">
+                <div className="h-full origin-left animate-[toast-countdown_linear_forwards] bg-accent-primary" style={{ animationDuration: `${toast.duration}ms` }} />
+            </div>
         </div>
     );
 }

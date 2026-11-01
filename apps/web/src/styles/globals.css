@@ -58,6 +58,11 @@
     scrollbar-width: none; /* Firefox */
 }
 
+@keyframes toast-countdown {
+    from { transform: scaleX(1); }
+    to { transform: scaleX(0); }
+}
+
 /* Keep every scrollable surface aligned with the dark application palette. */
 * {
     scrollbar-color: var(--scrollbar-thumb) transparent;
