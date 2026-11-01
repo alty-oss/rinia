@@ -7,6 +7,7 @@ import { ContextMenuButton } from "@/components/overlay/context-menu-provider";
 import { SidebarAccount } from "./sidebar-account";
 import { useAuth } from "@/features/auth/hooks/use-auth";
 import { useColumns } from "@/features/board/hooks/use-board";
+import { defaultIssueColumn } from "@/features/board/column-bucket";
 import { useDocuments } from "@/features/documents/hooks/use-documents";
 import { IssueQuickCreateModal } from "@/features/issues/components/issue-quick-create-modal";
 import type { Favorite } from "@/features/favorites/api";
@@ -187,10 +188,10 @@ export function Sidebar({ onSearch, onNavigate }: { onSearch: () => void; onNavi
                     </div>
                 </>
             )}
-            {creatingProjectId && columns?.[0] && creatingProjectId === routeProjectId && (
+            {creatingProjectId && defaultIssueColumn(columns) && creatingProjectId === routeProjectId && (
                 <IssueQuickCreateModal
                     projectId={creatingProjectId}
-                    columnId={columns[0].id}
+                    columnId={defaultIssueColumn(columns)!.id}
                     onClose={() => setCreatingProjectId(null)}
                     onCreated={(identifier) => {
                         setCreatingProjectId(null);
@@ -207,8 +208,9 @@ export function Sidebar({ onSearch, onNavigate }: { onSearch: () => void; onNavi
 
 function CreateElsewhere({ projectId, onClose, onCreated }: { projectId: string; onClose: () => void; onCreated: (identifier: string) => void }) {
     const { data: columns } = useColumns(projectId);
-    if (!columns?.[0]) return null;
-    return <IssueQuickCreateModal projectId={projectId} columnId={columns[0].id} onClose={onClose} onCreated={onCreated} />;
+    const column = defaultIssueColumn(columns);
+    if (!column) return null;
+    return <IssueQuickCreateModal projectId={projectId} columnId={column.id} onClose={onClose} onCreated={onCreated} />;
 }
 
 function SettingsNav({ projectId, projects }: { projectId: string; projects: ProjectCardSummary[] | undefined }) {
