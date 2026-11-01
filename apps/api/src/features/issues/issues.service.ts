@@ -1,5 +1,5 @@
-import { nextLabels, type BulkUpdateIssuesInput, type CreateIssueCommentInput, type CreateIssueInput, type CreateIssueRelationInput, type IssueListQuery, type IssueOrder, type MyIssuesQuery, type TiptapDocument, type UpdateIssueCommentInput, type UpdateIssueInput } from "@rinia/shared";
-import { and, asc, desc, eq, inArray, isNull, max, or, sql, type SQL } from "drizzle-orm";
+import { nextLabels, positionsAtTop, type BulkUpdateIssuesInput, type CreateIssueCommentInput, type CreateIssueInput, type CreateIssueRelationInput, type IssueListQuery, type IssueOrder, type MyIssuesQuery, type TiptapDocument, type UpdateIssueCommentInput, type UpdateIssueInput } from "@rinia/shared";
+import { and, asc, desc, eq, inArray, isNull, max, min, notInArray, or, sql, type SQL } from "drizzle-orm";
 import { db } from "../../db";
 import { boardColumns, categories, commentReactions, issueActivities, issueComments, issueDescriptionRevisions, issueLabels, issueRelations, issues, issueSubscriptions, projectKeyAliases, projectMembers, projects, users } from "../../db/schema";
 import type { TiptapDocument as StoredDocument } from "../../db/schema";
@@ -119,6 +119,15 @@ export function issueIdentifier(issue: { number: number; project: { issueKey: st
 async function ensureIssueBelongsToProject(issueId: string, projectId: string) {
     const issue = await db.query.issues.findFirst({ where: and(eq(issues.id, issueId), eq(issues.projectId, projectId), isNull(issues.deletedAt)), columns: { id: true } });
     if (!issue) throw new HttpError(400, "Issue does not belong to this project");
+}
+
+/** The position of the top card in a column, leaving out the cards being moved there. Null when the column is empty. */
+async function topPositionInColumn(columnId: string, moving: string[]) {
+    const [top] = await db
+        .select({ position: min(issues.position) })
+        .from(issues)
+        .where(and(eq(issues.columnId, columnId), isNull(issues.deletedAt), notInArray(issues.id, moving)));
+    return top?.position ?? null;
 }
 
 async function ensureColumnInProject(columnId: string, projectId: string) {
@@ -266,6 +275,10 @@ export async function updateIssue(identifier: string, input: UpdateIssueInput, a
     if (input.parentIssueId) await ensureParentIsValid(input.parentIssueId, current.id, current.projectId);
 
     const { expectedDescriptionRevision, categoryIds, ...values } = input;
+    // A card moved to another column without a place picked for it, as from a status menu, goes to the top.
+    if (input.columnId && input.columnId !== current.columnId && input.position === undefined) {
+        [values.position] = positionsAtTop(await topPositionInColumn(input.columnId, [current.id]), 1);
+    }
     const writesDescription = values.descriptionJson !== undefined;
     const [updated] = await db.update(issues)
         .set({
@@ -619,8 +632,13 @@ export async function bulkUpdateIssues(projectId: string, input: BulkUpdateIssue
         }
     }
 
+    // Cards moved to another column go to its top, keeping the order they had among themselves.
+    const moved = patch.columnId ? current.filter((issue) => issue.columnId !== patch.columnId).sort((a, b) => a.position - b.position || a.number - b.number) : [];
+    const movedPositions = moved.length ? positionsAtTop(await topPositionInColumn(patch.columnId!, moved.map((issue) => issue.id)), moved.length) : [];
+
     await db.transaction(async (tx) => {
         await tx.update(issues).set({ ...values, updatedAt: new Date() }).where(and(eq(issues.projectId, projectId), inArray(issues.id, issueIds)));
+        for (const [index, issue] of moved.entries()) await tx.update(issues).set({ position: movedPositions[index] }).where(eq(issues.id, issue.id));
         if (labelsToRemove.length > 0) {
             await tx.delete(issueLabels).where(or(...labelsToRemove.map((label) => and(eq(issueLabels.issueId, label.issueId), eq(issueLabels.categoryId, label.categoryId)))));
         }

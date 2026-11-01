@@ -1,4 +1,4 @@
-import { nextLabels } from "@rinia/shared";
+import { nextLabels, positionsAtTop } from "@rinia/shared";
 import type {
     BulkIssuePatch,
     CreateIssueCommentInput,
@@ -96,14 +96,17 @@ export function useUpdateIssue(projectId: string) {
             const previous = queryClient.getQueriesData<Issue[]>({ queryKey: ["projects", projectId, "issues"] });
             const previousDetail = queryClient.getQueryData<IssueDetail>(issueKey(identifier));
 
+            // Moved to another column without a place picked, the card goes to the top, as the server puts it.
+            const placesAtTop = !!input.columnId && input.position === undefined;
             for (const [queryKey] of previous) {
-                queryClient.setQueryData<Issue[]>(queryKey, (current) =>
-                    current?.map((issue) => (issue.identifier === identifier ? { ...issue, ...optimisticValues } : issue)),
-                );
+                queryClient.setQueryData<Issue[]>(queryKey, (current) => {
+                    const placed = placesAtTop && current ? placeMovedAtTop(current, (issue) => issue.identifier === identifier, input.columnId!) : current;
+                    return placed?.map((issue) => (issue.identifier === identifier ? { ...issue, ...optimisticValues } : issue));
+                });
             }
             queryClient.setQueryData<IssueDetail>(issueKey(identifier), (current) => current ? { ...current, ...optimisticValues } : current);
 
-            return { previous, previousDetail, optimisticValues };
+            return { previous, previousDetail, optimisticValues, placesAtTop };
         },
         onError: (_error, variables, context) => {
             if (!context) return;
@@ -121,6 +124,8 @@ export function useUpdateIssue(projectId: string) {
                                 (rollback as Record<string, unknown>)[field] = previousIssue[field as keyof Issue];
                             }
                         }
+                        // The position was not part of the request, so it is not among the fields above.
+                        if (context.placesAtTop) rollback.position = previousIssue.position;
                         return { ...issue, ...rollback };
                     });
                 });
@@ -267,6 +272,19 @@ export function applyBulkPatch<T extends Issue>(issue: T, patch: BulkIssuePatch)
     return { ...issue, ...values, ...(touchesLabels ? { categoryIds: nextLabels(issue.categoryIds, patch) } : {}) };
 }
 
+/**
+ * Gives the selected cards that are moving to `columnId` the positions the server will give them: above the column's
+ * top card, in the order they had. The board sorts by position, so they show at the top before the response arrives.
+ */
+function placeMovedAtTop<T extends Issue>(list: T[], selected: (issue: T) => boolean, columnId: string): T[] {
+    const moving = list.filter((issue) => selected(issue) && issue.columnId !== columnId).sort((a, b) => a.position - b.position || a.number - b.number);
+    if (!moving.length) return list;
+    const staying = list.filter((issue) => issue.columnId === columnId && !moving.includes(issue));
+    const top = staying.length ? Math.min(...staying.map((issue) => issue.position)) : null;
+    const positions = new Map(positionsAtTop(top, moving.length).map((position, index) => [moving[index].id, position]));
+    return list.map((issue) => (positions.has(issue.id) ? { ...issue, position: positions.get(issue.id)! } : issue));
+}
+
 /** Changes many issues in one request. Every cached list shows the change at once and rolls back if it fails. */
 export function useBulkUpdateIssues(projectId: string) {
     const queryClient = useQueryClient();
@@ -279,7 +297,10 @@ export function useBulkUpdateIssues(projectId: string) {
             await queryClient.cancelQueries({ queryKey: lists });
             const previous = queryClient.getQueriesData<Issue[]>({ queryKey: lists });
             const ids = new Set(issueIds);
-            queryClient.setQueriesData<Issue[]>({ queryKey: lists }, (current) => current?.map((issue) => (ids.has(issue.id) ? applyBulkPatch(issue, patch) : issue)));
+            queryClient.setQueriesData<Issue[]>({ queryKey: lists }, (current) => {
+                const placed = patch.columnId && current ? placeMovedAtTop(current, (issue) => ids.has(issue.id), patch.columnId) : current;
+                return placed?.map((issue) => (ids.has(issue.id) ? applyBulkPatch(issue, patch) : issue));
+            });
             return { previous };
         },
         onError: (_error, _variables, context) => context?.previous.forEach(([queryKey, data]) => queryClient.setQueryData(queryKey, data)),
