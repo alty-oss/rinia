@@ -319,8 +319,7 @@ const ProjectIssues = ({ savedView }: { savedView?: SavedView }) => {
             <div className={cx("flex h-11 shrink-0 items-center gap-1 px-3 transition-colors max-sm:overflow-x-auto", view === "board" ? "bg-surface-2" : "bg-surface-1")}>
                 {view && (
                     <div className="animate-enter flex min-w-0 items-center gap-1 max-sm:shrink-0">
-                        {view === "list" &&
-                            ([
+                        {([
                                 ["active", t("issue.active")],
                                 ...(showBacklog ? [["backlog", t("issue.backlog")] as const] : []),
                                 ["all", t("issue.allIssues")],
@@ -370,7 +369,7 @@ const ProjectIssues = ({ savedView }: { savedView?: SavedView }) => {
             {/* Each view eases in when it opens, so switching (or a first-time preference arriving) never pops. */}
             {view === "board" && (
                 <div key="board" className="animate-enter min-h-0 flex-1 overflow-x-auto bg-surface-2 px-4 pt-1 pb-3">
-                    <Board projectId={projectId!} filters={searchParams} hidden={hiddenColumns} hideColumn={hideColumn} showColumn={showColumn} />
+                    <Board projectId={projectId!} filters={searchParams} scope={scope} hidden={hiddenColumns} hideColumn={hideColumn} showColumn={showColumn} />
                 </div>
             )}
             {view === "list" && (
