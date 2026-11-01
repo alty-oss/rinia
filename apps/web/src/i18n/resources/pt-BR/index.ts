@@ -15,6 +15,8 @@ import errors from "./errors";
 import validation from "./validation";
 import designSystem from "./designSystem";
 import appearance from "./appearance";
+import inbox from "./inbox";
+import myIssues from "./myIssues";
 
 export const ptBR = {
     common,
@@ -34,4 +36,6 @@ export const ptBR = {
     validation,
     designSystem,
     appearance,
+    inbox,
+    myIssues,
 } as const;

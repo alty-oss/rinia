@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { EntityIcon, TiptapDocument, UpdateIssueInput } from "@rinia/shared";
 import { ArrowDown, ArrowUp, Ban, Check, ChevronRight, Copy, GitBranch, Link2, Pencil, Plus, ShieldOff, Sparkles, Trash2 } from "lucide-react";
 import { Link, useBeforeUnload, useLocation, useNavigate, useParams } from "react-router";
@@ -25,6 +25,7 @@ import { useColumns } from "@/features/board/hooks/use-board";
 import { defaultIssueColumn } from "@/features/board/column-bucket";
 import { useCategories } from "@/features/categories/hooks/use-categories";
 import { FavoriteStar } from "@/features/favorites/components/favorite-star";
+import { FollowButton } from "@/features/notifications/components/follow-button";
 import { ProjectIcon } from "@/features/projects/components/project-icon";
 import { useProject } from "@/features/projects/hooks/use-project";
 import { useCurrentProject } from "@/features/projects/hooks/use-current-project";
@@ -54,7 +55,7 @@ import {
 import type { IssueDetail } from "../api";
 import { fetchIssueClipboardContent } from "../lib/issue-clipboard";
 import { issueDescriptionDrafts, issueDraftKey } from "../lib/issue-description-drafts";
-import { EMPTY_TIPTAP_DOCUMENT, RichTextEditor } from "./rich-text-editor";
+import { EMPTY_TIPTAP_DOCUMENT, RichTextEditor, type MentionItem } from "./rich-text-editor";
 import { useTranslation } from "react-i18next";
 import { translateStatusName } from "@/i18n/status-label";
 import type { TranslationKey } from "@/i18n/resources";
@@ -106,6 +107,7 @@ export const IssueView = () => {
     const { data: projectIssues } = useIssues(issue?.projectId ?? resolvedProjectId);
     const { data: columns } = useColumns(issue?.projectId ?? resolvedProjectId);
     const { data: members } = useProjectMembers(issue?.projectId ?? resolvedProjectId);
+    const mentionItems = useMemo(() => (members ?? []).map((member) => ({ id: member.id, label: member.username, description: member.name })), [members]);
     const { data: categories } = useCategories(issue?.projectId ?? resolvedProjectId);
     const createComment = useCreateIssueComment(issue?.identifier ?? resolvedIdentifier);
     const deleteComment = useDeleteIssueComment(issue?.identifier ?? resolvedIdentifier);
@@ -504,6 +506,7 @@ export const IssueView = () => {
                         <span className="text-tertiary">{issue.identifier}</span> {currentTitle}
                     </span>
                     <FavoriteStar target={{ kind: "issue", projectId: issue.projectId, issueId: issue.id }} />
+                    <FollowButton identifier={issue.identifier} />
                     <IssueActionsMenu
                         {...copyActions}
                         onAddRelation={() => setRelationsOpen(true)}
@@ -560,7 +563,7 @@ export const IssueView = () => {
                                     }
                                     setDescription(value);
                                 }}
-                                mentionItems={(members ?? []).map((member) => ({ id: member.id, label: member.username, description: member.name }))}
+                                mentionItems={mentionItems}
                                 placeholder={t("issue.describeIssue")}
                             />
                         </div>
@@ -627,6 +630,7 @@ export const IssueView = () => {
                                 loadFailed={activityLoadFailed || commentsLoadFailed}
                                 lookups={{ columns: columns ?? [], members: members ?? [], categories: categories ?? [], projectIssues: projectIssues ?? [] }}
                                 currentUserId={user?.id}
+                                mentionItems={mentionItems}
                                 value={comment}
                                 onChange={(value) => {
                                     commentDraftOwner.current = issue.id;
@@ -1235,6 +1239,7 @@ function IssueTimeline({
     loadFailed,
     lookups,
     currentUserId,
+    mentionItems,
     value,
     onChange,
     isSubmitting,
@@ -1249,6 +1254,8 @@ function IssueTimeline({
     loadFailed: boolean;
     lookups: TimelineLookups;
     currentUserId?: string;
+    /** Project members, for @mentions in comments. */
+    mentionItems: MentionItem[];
     value: TiptapDocument;
     onChange: (value: TiptapDocument) => void;
     isSubmitting: boolean;
@@ -1275,7 +1282,7 @@ function IssueTimeline({
                 <ol className="mt-3 flex flex-col">
                     {entries.map((item) =>
                         item.kind === "comment" ? (
-                            <TimelineComment key={`c-${item.entry.id}`} entry={item.entry} mine={item.entry.authorId === currentUserId} isSubmitting={isSubmitting} onDelete={onDelete} onEdit={onEdit} />
+                            <TimelineComment key={`c-${item.entry.id}`} entry={item.entry} mine={item.entry.authorId === currentUserId} mentionItems={mentionItems} isSubmitting={isSubmitting} onDelete={onDelete} onEdit={onEdit} />
                         ) : (
                             <TimelineActivity key={`a-${item.entry.id}`} entry={item.entry} lookups={lookups} />
                         ),
@@ -1283,7 +1290,7 @@ function IssueTimeline({
                 </ol>
             )}
             <div className="mt-4 rounded-xl border border-subtle bg-layer-1 transition-colors duration-150 focus-within:border-[var(--border-strong-1)]">
-                <RichTextEditor toolbar={false} variant="comment" content={value} onChange={onChange} onSubmitShortcut={onSubmit} placeholder={t("issue.leaveComment")} className="issue-comment-composer" />
+                <RichTextEditor toolbar={false} variant="comment" content={value} onChange={onChange} onSubmitShortcut={onSubmit} placeholder={t("issue.leaveComment")} mentionItems={mentionItems} className="issue-comment-composer" />
                 <div className="flex items-center justify-end gap-2 px-3 pb-3">
                     <button
                         type="button"
@@ -1320,7 +1327,7 @@ function TimelineActivity({ entry, lookups }: { entry: ActivityEntry; lookups: T
     );
 }
 
-function TimelineComment({ entry, mine, isSubmitting, onDelete, onEdit }: { entry: CommentEntry; mine: boolean; isSubmitting: boolean; onDelete: (id: string) => void | Promise<void>; onEdit: (id: string, contentJson: TiptapDocument) => void | Promise<void> }) {
+function TimelineComment({ entry, mine, mentionItems, isSubmitting, onDelete, onEdit }: { entry: CommentEntry; mine: boolean; mentionItems: MentionItem[]; isSubmitting: boolean; onDelete: (id: string) => void | Promise<void>; onEdit: (id: string, contentJson: TiptapDocument) => void | Promise<void> }) {
     const { t, i18n } = useTranslation();
     const [editing, setEditing] = useState(false);
     const [draft, setDraft] = useState<TiptapDocument>(entry.contentJson);
@@ -1342,7 +1349,7 @@ function TimelineComment({ entry, mine, isSubmitting, onDelete, onEdit }: { entr
             </div>
             {editing ? (
                 <>
-                    <RichTextEditor toolbar={false} variant="comment" content={draft} onChange={setDraft} className="issue-comment-composer" />
+                    <RichTextEditor toolbar={false} variant="comment" content={draft} onChange={setDraft} mentionItems={mentionItems} className="issue-comment-composer" />
                     <div className="mt-2 flex justify-end gap-2">
                         <Button size="xs" color="tertiary" onClick={() => setEditing(false)}>{t("common.cancel")}</Button>
                         <Button size="xs" isLoading={isSubmitting} onClick={async () => {

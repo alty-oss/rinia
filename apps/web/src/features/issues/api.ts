@@ -1,4 +1,4 @@
-import type { IssuePriority, IssueView } from "@rinia/shared";
+import type { EntityIcon, IssuePriority, IssueView, MyIssuesQuery } from "@rinia/shared";
 import type {
     CreateIssueCommentInput,
     CreateIssueInput,
@@ -80,6 +80,18 @@ function queryString(query: IssueListQuery) {
     const params = new URLSearchParams();
     Object.entries(query).forEach(([key, value]) => value !== undefined && params.set(key, String(value)));
     return params.toString() ? `?${params.toString()}` : "";
+}
+
+/** An issue listed outside its project, carrying the project, state, label, and assignee it shows with. */
+export type MyIssue = Issue & {
+    project: { id: string; name: string; issueKey: string; icon: string | null; iconAppearance: EntityIcon | null };
+    column: { id: string; name: string; color: string | null; position: number };
+    category: { id: string; name: string; color: string | null } | null;
+    assignee: IssuePerson | null;
+};
+
+export function listMyIssues(query: MyIssuesQuery): Promise<MyIssue[]> {
+    return apiClient.get<{ issues: MyIssue[] }>(`/my-issues?${new URLSearchParams(query).toString()}`).then((res) => res.issues);
 }
 
 export function listIssues(projectId: string, query: IssueListQuery = { orderBy: "position" }): Promise<Issue[]> {

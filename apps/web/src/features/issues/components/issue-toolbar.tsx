@@ -1,5 +1,5 @@
 import { Popover } from "@base-ui/react/popover";
-import type { ReactNode } from "react";
+import type { FC, ReactNode } from "react";
 import type { IssueView } from "@rinia/shared";
 import { AddOutline, AssigneeOutline, CloseOutline, DisplayOutline, FilterOutline, HistoryOutline, LabelsOutline, ListOutline, PriorityOutline, SearchOutline, StateOutline } from "@makeplane/propel/icons";
 import { Hash, Minus } from "lucide-react";
@@ -18,12 +18,37 @@ import { useTranslation } from "react-i18next";
 import { PRIORITY_OPTIONS, priorityLabelKey } from "@/features/issues/lib/priority";
 import { translateStatusName } from "@/i18n/status-label";
 
-export function IssueToolbar({ projectId, onCreate, layout = "list", compact = false, chrome = false }: { projectId: string; onCreate: () => void; layout?: IssueView; compact?: boolean; chrome?: boolean }) {
+export type IssueFilter = { key: string; label: string; items: Array<{ id: string; name: string; icon?: ReactNode; avatarUrl?: string | null }> };
+type DisplayOption = { id: string; label: string; icon: FC<{ className?: string }> };
+
+export function IssueToolbar({
+    projectId = "",
+    onCreate,
+    layout = "list",
+    compact = false,
+    chrome = false,
+    filters: customFilters,
+    orders,
+    groups,
+    defaultOrder = "position",
+}: {
+    /** The project whose states, priorities, people, and labels fill the filters. Lists that span projects pass `filters` instead. */
+    projectId?: string;
+    onCreate?: () => void;
+    layout?: IssueView;
+    compact?: boolean;
+    chrome?: boolean;
+    filters?: IssueFilter[];
+    /** The orders and groupings offered under Display, when they differ from a project's. */
+    orders?: DisplayOption[];
+    groups?: DisplayOption[];
+    defaultOrder?: string;
+}) {
     const [query, setQuery] = useSearchParams();
     const { t } = useTranslation();
-    const { data: columns } = useColumns(projectId);
-    const { data: categories } = useCategories(projectId);
-    const { data: members } = useProjectMembers(projectId);
+    const { data: columns } = useColumns(customFilters ? "" : projectId);
+    const { data: categories } = useCategories(customFilters ? "" : projectId);
+    const { data: members } = useProjectMembers(customFilters ? "" : projectId);
     function update(key: string, value: string) {
         setQuery(
             (current) => {
@@ -35,7 +60,7 @@ export function IssueToolbar({ projectId, onCreate, layout = "list", compact = f
             { replace: true },
         );
     }
-    const filters: Array<{ key: string; label: string; items: Array<{ id: string; name: string; icon?: ReactNode; avatarUrl?: string | null }> }> = [
+    const filters: IssueFilter[] = customFilters ?? [
         { key: "status", label: t("issue.status"), items: (columns ?? []).map((item) => ({ id: item.id, name: translateStatusName(item.name, t), icon: <StateIcon name={item.name} color={item.color} /> })) },
         { key: "priority", label: t("issue.priority"), items: PRIORITY_OPTIONS.map((id) => ({ id, name: t(priorityLabelKey(id)), icon: <PriorityIcon priority={id} /> })) },
         { key: "assignee", label: t("issue.assignee"), items: (members ?? []).map((member) => ({ id: member.id, name: member.name, avatarUrl: member.avatarUrl, icon: member.avatarUrl ? undefined : <IssueAvatar name={member.name} avatarUrl={member.avatarUrl} /> })) },
@@ -100,9 +125,9 @@ export function IssueToolbar({ projectId, onCreate, layout = "list", compact = f
                                     <Select
                                         label={t("issue.orderBy")}
                                         size="sm"
-                                        selectedKey={readIssueOrder(query.get("order"))}
-                                        onSelectionChange={(value) => update("order", String(value ?? "position"))}
-                                        items={[
+                                        selectedKey={orders ? (query.get("order") ?? defaultOrder) : readIssueOrder(query.get("order"))}
+                                        onSelectionChange={(value) => update("order", value === defaultOrder ? "" : String(value ?? ""))}
+                                        items={orders ?? [
                                             { id: "position", label: t("issue.manualOrder"), icon: ListOutline },
                                             { id: "priority", label: t("issue.priority"), icon: PriorityOutline },
                                             { id: "updated", label: t("issue.recentlyUpdated"), icon: HistoryOutline },
@@ -117,7 +142,7 @@ export function IssueToolbar({ projectId, onCreate, layout = "list", compact = f
                                             size="sm"
                                         selectedKey={query.get("group") ?? "status"}
                                         onSelectionChange={(value) => update("group", value === "status" ? "" : String(value ?? ""))}
-                                            items={[
+                                            items={groups ?? [
                                                 { id: "none", label: t("issue.noGrouping"), icon: Minus },
                                                 { id: "status", label: t("issue.status"), icon: StateOutline },
                                                 { id: "assignee", label: t("issue.assignee"), icon: AssigneeOutline },
@@ -130,7 +155,7 @@ export function IssueToolbar({ projectId, onCreate, layout = "list", compact = f
                             </Popover.Positioner>
                         </Popover.Portal>
                     </Popover.Root>
-                    {!chrome && <Button iconLeading={compact ? undefined : AddOutline} onClick={onCreate}>
+                    {!chrome && onCreate && <Button iconLeading={compact ? undefined : AddOutline} onClick={onCreate}>
                         {t("issue.newIssue")}
                     </Button>}
                 </div>

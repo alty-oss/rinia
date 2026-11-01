@@ -6,6 +6,7 @@ import { issueActivities } from "./issue-activities";
 import { issueComments } from "./issue-comments";
 import { issueRelations } from "./issue-relations";
 import { issues } from "./issues";
+import { issueSubscriptions, notifications } from "./notifications";
 import { projectDocuments } from "./project-documents";
 import { projectKeyAliases } from "./project-key-aliases";
 import { projectMembers } from "./project-members";
@@ -19,6 +20,7 @@ export * from "./issue-activities";
 export * from "./issue-comments";
 export * from "./issue-relations";
 export * from "./issues";
+export * from "./notifications";
 export * from "./project-documents";
 export * from "./project-key-aliases";
 export * from "./project-members";
@@ -112,4 +114,17 @@ export const favoritesRelations = relations(favorites, ({ one }) => ({
     project: one(projects, { fields: [favorites.projectId], references: [projects.id] }),
     document: one(projectDocuments, { fields: [favorites.documentId], references: [projectDocuments.id] }),
     issue: one(issues, { fields: [favorites.issueId], references: [issues.id] }),
+}));
+
+export const notificationsRelations = relations(notifications, ({ one }) => ({
+    user: one(users, { fields: [notifications.userId], references: [users.id] }),
+    actor: one(users, { fields: [notifications.actorId], references: [users.id] }),
+    project: one(projects, { fields: [notifications.projectId], references: [projects.id] }),
+    issue: one(issues, { fields: [notifications.issueId], references: [issues.id] }),
+    comment: one(issueComments, { fields: [notifications.commentId], references: [issueComments.id] }),
+}));
+
+export const issueSubscriptionsRelations = relations(issueSubscriptions, ({ one }) => ({
+    user: one(users, { fields: [issueSubscriptions.userId], references: [users.id] }),
+    issue: one(issues, { fields: [issueSubscriptions.issueId], references: [issues.id] }),
 }));

@@ -1,8 +1,9 @@
-import type { CreateIssueCommentInput, CreateIssueInput, CreateIssueRelationInput, IssueListQuery, TiptapDocument, UpdateIssueCommentInput, UpdateIssueInput } from "@rinia/shared";
-import { and, asc, count, desc, eq, max, or, sql } from "drizzle-orm";
+import type { CreateIssueCommentInput, CreateIssueInput, CreateIssueRelationInput, IssueListQuery, MyIssuesQuery, TiptapDocument, UpdateIssueCommentInput, UpdateIssueInput } from "@rinia/shared";
+import { and, asc, count, desc, eq, inArray, max, or, sql, type SQL } from "drizzle-orm";
 import { db } from "../../db";
-import { boardColumns, categories, issueActivities, issueComments, issueRelations, issues, projectKeyAliases, projectMembers, projects, users } from "../../db/schema";
+import { boardColumns, categories, issueActivities, issueComments, issueRelations, issues, issueSubscriptions, projectKeyAliases, projectMembers, projects, users } from "../../db/schema";
 import { HttpError } from "../../lib/http-error";
+import { mentionedUserIds, newMentions, recordIssueChange } from "../notifications/notifications.service";
 
 const EMPTY_DOCUMENT = { type: "doc" as const, content: [] };
 
@@ -144,6 +145,35 @@ export async function listIssues(projectId: string, query: IssueListQuery) {
     return rows.map((issue) => ({ ...issue, identifier: `${project.issueKey}-${issue.number}` }));
 }
 
+/**
+ * Issues from every project the user can see that are assigned to them, created by them, or that they follow,
+ * with what the list needs to show them outside their project.
+ */
+export async function listMyIssues(userId: string, isAdmin: boolean, query: MyIssuesQuery) {
+    const filters: SQL[] = [
+        query.filter === "assigned"
+            ? eq(issues.assigneeId, userId)
+            : query.filter === "created"
+              ? eq(issues.createdBy, userId)
+              : inArray(issues.id, db.select({ id: issueSubscriptions.issueId }).from(issueSubscriptions).where(eq(issueSubscriptions.userId, userId))),
+    ];
+    if (!isAdmin) filters.push(inArray(issues.projectId, db.select({ id: projectMembers.projectId }).from(projectMembers).where(eq(projectMembers.userId, userId))));
+
+    const order = query.orderBy === "number" ? asc(issues.number) : query.orderBy === "priority" ? asc(priorityRank) : query.orderBy === "position" ? asc(issues.position) : desc(issues.updatedAt);
+    const rows = await db.query.issues.findMany({
+        where: and(...filters),
+        orderBy: [order, asc(issues.number)],
+        limit: 500,
+        with: {
+            project: { columns: { id: true, name: true, issueKey: true, icon: true, iconAppearance: true } },
+            column: { columns: { id: true, name: true, color: true, position: true } },
+            category: { columns: { id: true, name: true, color: true } },
+            assignee: { columns: { id: true, name: true, username: true, avatarUrl: true } },
+        },
+    });
+    return rows.map((issue) => ({ ...issue, identifier: issueIdentifier(issue) }));
+}
+
 export async function createIssue(projectId: string, input: CreateIssueInput, actorId: string) {
     validateIssueImageUrls(input.descriptionJson);
     await ensureProjectMember(actorId, projectId);
@@ -177,6 +207,7 @@ export async function createIssue(projectId: string, input: CreateIssueInput, ac
         await tx.insert(issueActivities).values({ issueId: created.id, actorId, type: "created", payload: {} });
         return { ...created, project: { issueKey: identity.issueKey } };
     });
+    await recordIssueChange(issue, { actorId, created: true, assigneeId: issue.assigneeId, mentionedIds: mentionedUserIds(input.descriptionJson) });
     return { ...issue, identifier: issueIdentifier(issue) };
 }
 
@@ -217,6 +248,12 @@ export async function updateIssue(identifier: string, input: UpdateIssueInput, a
             await db.insert(issueActivities).values({ issueId: current.id, actorId, type, payload: { field, from: current[field], to: input[field] } });
         }
     }
+    await recordIssueChange(current, {
+        actorId,
+        assigneeId: input.assigneeId && input.assigneeId !== current.assigneeId ? input.assigneeId : undefined,
+        status: input.columnId && input.columnId !== current.columnId ? { from: current.columnId, to: input.columnId } : undefined,
+        mentionedIds: writesDescription ? newMentions(current.descriptionJson, values.descriptionJson) : undefined,
+    });
 
     const project = await db.query.projects.findFirst({ where: eq(projects.id, current.projectId), columns: { issueKey: true } });
     return { ...updated, identifier: `${project?.issueKey}-${updated.number}` };
@@ -244,6 +281,7 @@ export async function createIssueComment(identifier: string, input: CreateIssueC
     const issue = await getIssueOrThrow(identifier);
     await ensureProjectMember(authorId, issue.projectId);
     const [comment] = await db.insert(issueComments).values({ issueId: issue.id, authorId, contentJson: input.contentJson }).returning();
+    await recordIssueChange(issue, { actorId: authorId, comment: { id: comment.id, created: true }, mentionedIds: mentionedUserIds(input.contentJson) });
     return db.query.issueComments.findFirst({ where: eq(issueComments.id, comment.id), with: { author: { columns: { id: true, name: true, username: true, avatarUrl: true } } } });
 }
 
@@ -252,6 +290,8 @@ export async function updateIssueComment(commentId: string, input: UpdateIssueCo
     if (!comment) throw new HttpError(404, "Comment not found");
     if (comment.authorId !== authorId) throw new HttpError(403, "Only the comment author can edit it");
     const [updated] = await db.update(issueComments).set({ contentJson: input.contentJson, updatedAt: new Date() }).where(eq(issueComments.id, commentId)).returning();
+    const issue = await db.query.issues.findFirst({ where: eq(issues.id, comment.issueId), columns: { id: true, projectId: true } });
+    if (issue) await recordIssueChange(issue, { actorId: authorId, comment: { id: commentId, created: false }, mentionedIds: newMentions(comment.contentJson, input.contentJson) });
     return updated;
 }
 

@@ -26,7 +26,7 @@ import "./issue-rich-text-editor.css";
 
 export const EMPTY_TIPTAP_DOCUMENT: TiptapDocument = { type: "doc", content: [] };
 
-interface MentionItem {
+export interface MentionItem {
     id: string;
     label: string;
     description?: string;
@@ -156,9 +156,10 @@ function createSuggestionRenderer<T extends { id: string; label: string; descrip
     };
 }
 
-function createMentionSuggestion(items: MentionItem[]) {
+/** `getItems` is read on every keystroke, so people who load after the editor is created still appear. */
+function createMentionSuggestion(getItems: () => MentionItem[]) {
     return {
-        items: ({ query }: { query: string }) => items.filter((item) => `${item.label} ${item.description ?? ""}`.toLowerCase().includes(query.toLowerCase())).slice(0, 8),
+        items: ({ query }: { query: string }) => getItems().filter((item) => `${item.label} ${item.description ?? ""}`.toLowerCase().includes(query.toLowerCase())).slice(0, 8),
         render: () => createSuggestionRenderer<MentionItem>(),
     };
 }
@@ -220,7 +221,9 @@ interface RichTextEditorProps {
 
 export const RichTextEditor = ({ content, editable = true, onChange, placeholder, mentionItems = [], className, onSubmitShortcut, variant = "document", toolbar = true }: RichTextEditorProps) => {
     const { t } = useTranslation();
-    const mentionSuggestion = useMemo(() => createMentionSuggestion(mentionItems), [mentionItems]);
+    const mentionItemsRef = useRef(mentionItems);
+    mentionItemsRef.current = mentionItems;
+    const mentionSuggestion = useMemo(() => createMentionSuggestion(() => mentionItemsRef.current), []);
     const contentRef = useRef(content);
     const onChangeRef = useRef(onChange);
     const onSubmitShortcutRef = useRef(onSubmitShortcut);

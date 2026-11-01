@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { requireAuth } from "../../middleware/auth.middleware";
 import { requireProjectMember } from "../../middleware/project-membership.middleware";
+import { follow, subscription, unfollow } from "../notifications/notifications.controller";
 import { addComment, addRelation, activity, comments, create, getOne, list, patchComment, relations, remove, removeComment, removeRelation, update } from "./issues.controller";
 
 export const projectIssuesRouter = Router({ mergeParams: true });
@@ -18,6 +19,9 @@ issuesRouter.post("/:issueIdentifier/comments", addComment);
 issuesRouter.get("/:issueIdentifier/activity", activity);
 issuesRouter.get("/:issueIdentifier/relations", relations);
 issuesRouter.post("/:issueIdentifier/relations", addRelation);
+issuesRouter.get("/:issueIdentifier/subscription", subscription);
+issuesRouter.put("/:issueIdentifier/subscription", follow);
+issuesRouter.delete("/:issueIdentifier/subscription", unfollow);
 
 export const issueCommentsRouter = Router();
 issueCommentsRouter.use(requireAuth);

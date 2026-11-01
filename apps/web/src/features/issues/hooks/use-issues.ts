@@ -3,11 +3,12 @@ import type {
     CreateIssueInput,
     CreateIssueRelationInput,
     IssueListQuery,
+    MyIssuesQuery,
     UpdateIssueCommentInput,
     UpdateIssueInput,
 } from "@rinia/shared";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import type { Issue, IssueDetail } from "../api";
+import type { Issue, IssueDetail, MyIssue } from "../api";
 import { issueDescriptionDrafts } from "../lib/issue-description-drafts";
 import { useAuth } from "@/features/auth/hooks/use-auth";
 import {
@@ -22,6 +23,7 @@ import {
     listIssueComments,
     listIssueRelations,
     listIssues,
+    listMyIssues,
     updateIssue,
     updateIssueComment,
 } from "../api";
@@ -32,6 +34,32 @@ type IssueUpdateField = Exclude<keyof UpdateIssueInput, "expectedDescriptionRevi
 
 export function useIssues(projectId: string, query: IssueListQuery = { orderBy: "position" }) {
     return useQuery({ queryKey: issuesKey(projectId, query), queryFn: () => listIssues(projectId, query), enabled: !!projectId });
+}
+
+export const MY_ISSUES_QUERY_KEY = ["my-issues"] as const;
+
+export function useMyIssues(query: MyIssuesQuery) {
+    return useQuery({ queryKey: [...MY_ISSUES_QUERY_KEY, query], queryFn: () => listMyIssues(query) });
+}
+
+/** Edits an issue from "My issues": the row changes at once, then the issue's own project lists refresh too. */
+export function useUpdateMyIssue() {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: ({ issue, input }: { issue: MyIssue; input: UpdateIssueInput }) => updateIssue(issue.identifier, input),
+        onMutate: async ({ issue, input }) => {
+            await queryClient.cancelQueries({ queryKey: MY_ISSUES_QUERY_KEY });
+            const previous = queryClient.getQueriesData<MyIssue[]>({ queryKey: MY_ISSUES_QUERY_KEY });
+            queryClient.setQueriesData<MyIssue[]>({ queryKey: MY_ISSUES_QUERY_KEY }, (current) => current?.map((item) => (item.id === issue.id ? { ...item, ...input } : item)));
+            return { previous };
+        },
+        onError: (_error, _variables, context) => context?.previous.forEach(([queryKey, data]) => queryClient.setQueryData(queryKey, data)),
+        onSettled: (_data, _error, { issue }) => {
+            queryClient.invalidateQueries({ queryKey: MY_ISSUES_QUERY_KEY });
+            queryClient.invalidateQueries({ queryKey: ["projects", issue.projectId, "issues"] });
+            queryClient.invalidateQueries({ queryKey: issueKey(issue.identifier) });
+        },
+    });
 }
 
 export function useIssue(identifier: string | null) {
@@ -106,8 +134,10 @@ export function useUpdateIssue(projectId: string) {
             const { createdBy: _createdBy, ...updatedFields } = issue;
             queryClient.setQueryData<IssueDetail>(issueKey(issue.identifier), (current) => current ? { ...current, ...updatedFields } : current);
             queryClient.invalidateQueries({ queryKey: ["projects", projectId, "issues"] });
+            queryClient.invalidateQueries({ queryKey: MY_ISSUES_QUERY_KEY });
             queryClient.invalidateQueries({ queryKey: issueKey(issue.identifier) });
         },
+        // Invalidating the issue also refreshes whether you follow it, which assigning or mentioning can change.
         onSettled: (_data, _error, variables) => queryClient.invalidateQueries({ queryKey: issueKey(variables.identifier) }),
     });
 }
@@ -144,7 +174,11 @@ export function useCreateIssueComment(identifier: string) {
     const queryClient = useQueryClient();
     return useMutation({
         mutationFn: (input: CreateIssueCommentInput) => createIssueComment(identifier, input),
-        onSuccess: () => queryClient.invalidateQueries({ queryKey: [...issueKey(identifier), "comments"] }),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: [...issueKey(identifier), "comments"] });
+            // Commenting makes you follow the issue.
+            queryClient.invalidateQueries({ queryKey: [...issueKey(identifier), "subscription"] });
+        },
     });
 }
 
