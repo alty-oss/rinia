@@ -4,7 +4,6 @@ import { migrate } from "drizzle-orm/node-postgres/migrator";
 import { Pool } from "pg";
 import { sql } from "drizzle-orm";
 import { markdownToTiptap } from "@rinia/shared";
-import { upgradeDefaultColumns } from "./upgrade-default-columns";
 
 const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 const db = drizzle(pool);
@@ -17,8 +16,6 @@ async function main() {
     migrationsFolder: path.resolve(process.cwd(), "drizzle"),
   });
   await migrateLegacyMarkdown();
-  // TEMPORARY: see upgrade-default-columns.ts.
-  await upgradeDefaultColumns(db);
   await pool.end();
   console.log("Migrations applied");
 }

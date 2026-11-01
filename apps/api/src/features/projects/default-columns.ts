@@ -22,9 +22,3 @@ export const DEFAULT_COLUMNS: Record<Locale, Array<{ name: string; color: string
         { name: "Cancelado", color: "#8a8f98" },
     ],
 };
-
-/** The three columns projects were created with before the workflow above. */
-export const LEGACY_DEFAULT_COLUMNS: Record<Locale, readonly string[]> = {
-    en: ["To Do", "In Progress", "Done"],
-    "pt-BR": ["A fazer", "Em andamento", "Concluído"],
-};

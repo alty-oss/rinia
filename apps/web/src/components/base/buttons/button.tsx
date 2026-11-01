@@ -67,7 +67,11 @@ export const styles = sortCx({
         },
         secondary: {
             root: [
-                "border border-strong bg-layer-2 text-secondary shadow-raised-100 hover:bg-layer-2-hover hover:text-primary data-loading:bg-layer-1-hover",
+                "border border-strong bg-layer-2 text-secondary hover:bg-layer-2-hover hover:text-primary data-loading:bg-layer-1-hover",
+                // The same shadow as the primary button: a drop shadow and a top highlight that both give way when pressed.
+                "shadow-[0_1px_2px_0_var(--button-secondary-drop)]",
+                "inset-shadow-[0_1px_var(--button-secondary-highlight)]",
+                "active:bg-layer-2-active active:inset-shadow-[0_1px_rgb(0_0_0/0.08)] active:shadow-none",
                 // Icon styles
                 "*:data-icon:text-placeholder hover:*:data-icon:text-secondary",
             ].join(" "),

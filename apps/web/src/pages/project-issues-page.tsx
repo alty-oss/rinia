@@ -17,6 +17,7 @@ import { Skeleton } from "@/components/base/feedback/skeleton";
 import { Board } from "@/features/board/components/board";
 import { StateIcon } from "@/features/board/components/issue-property-icons";
 import { useColumns } from "@/features/board/hooks/use-board";
+import { columnBucket, defaultIssueColumn } from "@/features/board/column-bucket";
 import { IssueQuickCreateModal } from "@/features/issues/components/issue-quick-create-modal";
 import { IssueListRow } from "@/features/issues/components/issue-list-row";
 import { useCreateIssue, useIssues, useUpdateIssue } from "@/features/issues/hooks/use-issues";
@@ -26,6 +27,8 @@ import { useIssueView } from "@/features/issues/hooks/use-issue-view";
 import { listGroupKey, useListReorder, type ListGroupBy } from "@/features/issues/hooks/use-list-reorder";
 import { issueViews } from "@/features/issues/views";
 import { useProjectMembers } from "@/features/projects/hooks/use-project-members";
+import { useCategories } from "@/features/categories/hooks/use-categories";
+import { priorityLabelKey } from "@/features/issues/lib/priority";
 import { ApiError } from "@/lib/api-client";
 import { useTranslation } from "react-i18next";
 import { translateStatusName } from "@/i18n/status-label";
@@ -35,7 +38,7 @@ type GroupBy = ListGroupBy;
 type Scope = "active" | "backlog" | "all";
 
 export const ProjectIssuesPage = () => {
-    const { t } = useTranslation();
+    const { t, i18n } = useTranslation();
     const { projectId, projectKey } = useRouteProject();
     const params = useParams<{ scope: string }>();
     const navigate = useNavigate();
@@ -53,6 +56,7 @@ export const ProjectIssuesPage = () => {
     const updateIssue = useUpdateIssue(projectId!);
     const { data: columns } = useColumns(projectId!);
     const { data: members } = useProjectMembers(projectId!);
+    const { data: categories } = useCategories(projectId!);
     const createIssue = useCreateIssue(projectId!);
     const [isCreating, setIsCreating] = useState(false);
     const [creatingColumnId, setCreatingColumnId] = useState<string | null>(null);
@@ -167,6 +171,59 @@ export const ProjectIssuesPage = () => {
     }
 
 
+    /** Says what is empty: the filters and search that match nothing, or the scope and which states it covers. */
+    function listEmptyState() {
+        const list = new Intl.ListFormat(i18n.language, { type: "conjunction" });
+        const statusName = (column: { name: string }) => translateStatusName(column.name, t);
+        if (!issues?.length) {
+            return {
+                title: t("issue.noIssues"),
+                description: t("issue.createFirstIssue"),
+                action: <Button size="sm" iconLeading={AddOutline} onClick={() => startCreating(defaultIssueColumn(columns)?.id ?? null)}>{t("issue.newIssue")}</Button>,
+            };
+        }
+
+        const statusColumn = status ? columnById.get(status) : undefined;
+        const assigneeName = assignee ? memberById.get(assignee)?.name : undefined;
+        const labelName = category ? categories?.find((item) => item.id === category)?.name : undefined;
+        const conditions = ([
+            priority && t("issue.conditionPriority", { value: t(priorityLabelKey(priority)) }),
+            statusColumn && t("issue.conditionStatus", { value: statusName(statusColumn) }),
+            assigneeName && t("issue.conditionAssignee", { value: assigneeName }),
+            labelName && t("issue.conditionLabel", { value: labelName }),
+            search && t("issue.conditionSearch", { value: search }),
+        ] as Array<string | false | undefined>).filter((condition): condition is string => !!condition);
+        if (conditions.length > 0) {
+            const scopeLabel = scope === "backlog" ? t("issue.backlog") : t("issue.active");
+            return {
+                title: t("issue.noMatchingIssues"),
+                description: scope === "all" ? t("issue.emptyFilteredAll", { conditions: list.format(conditions) }) : t("issue.emptyFiltered", { scope: scopeLabel, conditions: list.format(conditions) }),
+                action: <Button size="sm" color="secondary" onClick={clearFilters}>{t("issue.clearFilters")}</Button>,
+            };
+        }
+
+        const statesWhere = (match: (bucket: string) => boolean) => list.format((columns ?? []).filter((column) => match(columnBucket(column.name))).map(statusName));
+        if (scope === "backlog") {
+            const backlogColumn = columns?.find((column) => columnBucket(column.name) === "backlog");
+            return {
+                title: t("issue.emptyBacklogTitle"),
+                description: t("issue.emptyBacklog", { states: statesWhere((bucket) => bucket === "backlog") }),
+                action: <Button size="sm" iconLeading={AddOutline} onClick={() => startCreating(backlogColumn?.id ?? null)}>{t("issue.newIssue")}</Button>,
+            };
+        }
+        return {
+            title: t("issue.emptyActiveTitle"),
+            description: t("issue.emptyActive", { states: statesWhere((bucket) => bucket !== "active") }),
+            action: <Button size="sm" color="secondary" onClick={() => setScope("all")}>{t("issue.showAllIssues")}</Button>,
+        };
+    }
+
+    function startCreating(columnId: string | null) {
+        setCreateError(null);
+        setCreatingColumnId(columnId);
+        setIsCreating(true);
+    }
+
     function openIssue(identifier: string) {
         navigate(urls.issue(identifier));
     }
@@ -176,7 +233,7 @@ export const ProjectIssuesPage = () => {
             setCreateError(t("validation.required"));
             return;
         }
-        const columnId = creatingColumnId ?? columns?.[0]?.id;
+        const columnId = creatingColumnId ?? defaultIssueColumn(columns)?.id;
         if (!columnId) {
             setCreateError(t("issue.createStatusFirst"));
             return;
@@ -214,7 +271,7 @@ export const ProjectIssuesPage = () => {
                         className="flex h-7 items-center gap-1 rounded-md border border-subtle px-2 text-[13px] text-secondary hover:bg-layer-transparent-hover"
                         onClick={() => {
                             setCreateError(null);
-                            setCreatingColumnId(columns?.[0]?.id ?? null);
+                            setCreatingColumnId(defaultIssueColumn(columns)?.id ?? null);
                             setIsCreating(true);
                         }}
                     >
@@ -254,10 +311,10 @@ export const ProjectIssuesPage = () => {
             {view === "board" && (
                 <div key="board" className="animate-enter min-h-0 flex-1 overflow-x-auto bg-surface-2 px-4 pt-3 pb-3">
                     <Board projectId={projectId!} filters={searchParams} />
-                    {isCreating && columns?.[0] && (
+                    {isCreating && defaultIssueColumn(columns) && (
                         <IssueQuickCreateModal
                             projectId={projectId!}
-                            columnId={creatingColumnId ?? columns[0].id}
+                            columnId={creatingColumnId ?? defaultIssueColumn(columns)!.id}
                             onClose={() => { setIsCreating(false); setCreatingColumnId(null); }}
                             onCreated={(identifier) => {
                                 setIsCreating(false);
@@ -270,8 +327,8 @@ export const ProjectIssuesPage = () => {
             )}
             {view === "list" && (
             <main key="list" className="animate-enter min-h-0 w-full flex-1 overflow-y-auto">
-                <div className="flex flex-col">
-                    {isCreating && !creatingColumnId && (
+                <div className="flex min-h-full flex-col">
+                    {isCreating && !groups.some((group) => group.key === creatingColumnId) && (
                         <CreateRow
                             title={title}
                             pending={createIssue.isPending}
@@ -348,22 +405,8 @@ export const ProjectIssuesPage = () => {
                                 </section>
                                 );
                             })}
-                            {filteredIssues.length === 0 && (
-                                <EmptyState
-                                    title={issues?.length ? t("issue.noIssuesMatch") : t("issue.noIssues")}
-                                    description={issues?.length ? t("issue.clearOrSearch") : t("issue.createFirstIssue")}
-                                    action={
-                                        issues?.length ? (
-                                            <Button size="sm" color="secondary" onClick={clearFilters}>
-                                                {t("issue.clearFilters")}
-                                            </Button>
-                                        ) : (
-                                            <Button size="sm" iconLeading={AddOutline} onClick={() => { setCreatingColumnId(columns?.[0]?.id ?? null); setIsCreating(true); }}>
-                                                {t("issue.newIssue")}
-                                            </Button>
-                                        )
-                                    }
-                                />
+                            {filteredIssues.length === 0 && !(isCreating && !groups.some((group) => group.key === creatingColumnId)) && (
+                                <EmptyState framed={false} className="flex-1 py-16" {...listEmptyState()} />
                             )}
                             <DragOverlay>
                                 {reorder.activeIssue && (
@@ -436,9 +479,3 @@ function readScope(value: string | null): Scope {
     return value === "backlog" || value === "all" ? value : "active";
 }
 
-function columnBucket(name: string): "active" | "backlog" | "closed" {
-    const normalized = name.toLowerCase();
-    if (normalized.includes("backlog") || normalized.includes("fila")) return "backlog";
-    if (normalized.includes("done") || normalized.includes("cancel") || normalized.includes("duplicate") || normalized.includes("conclu")) return "closed";
-    return "active";
-}

@@ -22,6 +22,7 @@ import { overlayChrome } from "@/components/overlay/overlay-chrome";
 import { useAuth } from "@/features/auth/hooks/use-auth";
 import { IssueAvatar, PriorityIcon, StateIcon } from "@/features/board/components/issue-property-icons";
 import { useColumns } from "@/features/board/hooks/use-board";
+import { defaultIssueColumn } from "@/features/board/column-bucket";
 import { useCategories } from "@/features/categories/hooks/use-categories";
 import { FavoriteStar } from "@/features/favorites/components/favorite-star";
 import { ProjectIcon } from "@/features/projects/components/project-icon";
@@ -461,7 +462,7 @@ export const IssueView = () => {
         );
     };
     const createSubIssue = async (subTitle: string) => {
-        await createIssue.mutateAsync({ columnId: columns?.[0]?.id ?? issue.columnId, title: subTitle, parentIssueId: issue.id, priority: "none" });
+        await createIssue.mutateAsync({ columnId: defaultIssueColumn(columns)?.id ?? issue.columnId, title: subTitle, parentIssueId: issue.id, priority: "none" });
         await queryClient.invalidateQueries({ queryKey: issueKey(issue.identifier) });
     };
     const saving = updateIssue.isPending || descriptionStatus === "saving";
@@ -1074,7 +1075,7 @@ function IssueSubIssues({ issue, columns, isCreating, onCreate }: { issue: Issue
             )}
             <Collapse open={adding} lazy={false}>
                 <form onSubmit={submit} className="mt-1 flex h-10 items-center gap-2.5 rounded-lg border border-subtle bg-layer-1 pr-1.5 pl-2.5">
-                    <StateIcon name={columns[0]?.name ?? ""} color={columns[0]?.color} />
+                    <StateIcon name={defaultIssueColumn(columns)?.name ?? ""} color={defaultIssueColumn(columns)?.color} />
                     <input
                         ref={inputRef}
                         value={draft}
