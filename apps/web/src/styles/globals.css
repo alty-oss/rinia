@@ -357,6 +357,9 @@ html:not([data-theme*="dark"]) {
     --brand-default: #2563eb;
     --bg-accent-primary: #2563eb;
     --border-accent-strong: #2563eb;
+    /* Secondary buttons mirror the accent button: a soft drop shadow and a 1px highlight along the top edge. */
+    --button-secondary-drop: rgb(0 0 0 / 0.06);
+    --button-secondary-highlight: rgb(255 255 255 / 0.9);
 }
 
 html[data-theme*="dark"] {
@@ -389,6 +392,8 @@ html[data-theme*="dark"] {
     --brand-default: #2563eb;
     --bg-accent-primary: #2563eb;
     --border-accent-strong: #2563eb;
+    --button-secondary-drop: rgb(0 0 0 / 0.4);
+    --button-secondary-highlight: rgb(255 255 255 / 0.07);
 }
 
 @layer base {
