@@ -1,0 +1,21 @@
+/* Pieces of a snippet that the grammars colour poorly, marked by `highlight.ts`. Nested under the overlay, or with the
+   extra class on the token, these win over the colour each piece has on its own. */
+.twinkleplop .command,
+.twinkleplop .command .tok {
+    color: var(--twp-function);
+}
+.twinkleplop .flag,
+.twinkleplop .flag .tok {
+    color: var(--twp-attribute);
+}
+.twinkleplop .url,
+.twinkleplop .url .tok {
+    color: var(--twp-string);
+}
+.twinkleplop .continuation,
+.twinkleplop .continuation .tok {
+    color: var(--twp-comment);
+}
+.twinkleplop .tok.key {
+    color: var(--twp-property);
+}

@@ -4,6 +4,7 @@ import { useLocation, useNavigate, useParams } from "react-router";
 import { LoadingState } from "@/components/feedback/loading-state";
 import { NotFound } from "@/pages/not-found";
 import { useTranslation } from "react-i18next";
+import { useRealtimeChannels } from "@/features/realtime/use-realtime";
 import { getProjectByKey } from "./api";
 import { useProjects } from "./hooks/use-projects";
 
@@ -40,6 +41,8 @@ export function ProjectRoute({ children }: { children: ReactNode }) {
         retry: false,
     });
     const project = listed ?? lookup.data;
+    // Every page inside a project updates when someone else changes it.
+    useRealtimeChannels([project && `project:${project.id}`]);
 
     useEffect(() => {
         if (!project || project.issueKey === projectKey) return;

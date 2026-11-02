@@ -25,6 +25,8 @@ import { useCategories } from "@/features/categories/hooks/use-categories";
 import { PRIORITY_OPTIONS, priorityLabelKey } from "@/features/issues/lib/priority";
 import { ProjectIcon } from "@/features/projects/components/project-icon";
 import { useProjectMembers } from "@/features/projects/hooks/use-project-members";
+import { useProjects } from "@/features/projects/hooks/use-projects";
+import { useRealtimeChannels } from "@/features/realtime/use-realtime";
 import { translateStatusName } from "@/i18n/status-label";
 import { urls } from "@/lib/urls";
 
@@ -52,6 +54,9 @@ export const MyIssuesPage = () => {
     const project = searchParams.get("project") ?? "";
     const due = searchParams.get("due") ?? "";
     const { data: issues, isLoading, isError } = useMyIssues({ filter, orderBy });
+    // Issues here come from every project, so a change in any of them can add, move or drop one.
+    const { data: projects } = useProjects();
+    useRealtimeChannels((projects ?? []).map((item) => `project:${item.id}` as const));
     const updateIssue = useUpdateMyIssue();
     const [selectedIssueId, setSelectedIssueId] = useState<string | null>(null);
     const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());

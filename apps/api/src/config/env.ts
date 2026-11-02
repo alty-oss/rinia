@@ -7,6 +7,8 @@ const envSchema = z.object({
     SPECIAL_REGISTRATION_CODE: z.string().min(1, "SPECIAL_REGISTRATION_CODE is required"),
     ADMIN_USERNAMES: z.string().default(""),
     PORT: z.coerce.number().int().positive().default(3000),
+    /** Where people open Rinia, for links the API hands out (MCP results). Defaults to the host each request came to. */
+    APP_URL: z.string().url().optional(),
     NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
 });
 

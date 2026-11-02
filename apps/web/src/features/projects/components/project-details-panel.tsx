@@ -54,8 +54,8 @@ export const ProjectDetailsPanel = ({ projectId, isProjectOwner }: { projectId: 
                             projectId={projectId}
                             icon={icon}
                             isProjectOwner={isProjectOwner}
-                            className={`grid size-9 shrink-0 place-items-center rounded-lg outline-accent-strong ${colored ? "" : "bg-accent-primary text-white"}`}
-                            iconClassName={colored ? "size-9 rounded-lg" : "size-4"}
+                            className={`grid size-8 shrink-0 place-items-center rounded-lg outline-accent-strong ${colored ? "" : "bg-accent-primary text-white"}`}
+                            iconClassName={colored ? "size-8 rounded-lg" : "size-4"}
                         />
                         <Controller
                             control={control}

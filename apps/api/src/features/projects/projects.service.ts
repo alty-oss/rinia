@@ -5,6 +5,7 @@ import { boardColumns, projectKeyAliases, projectMembers, projects, users } from
 import { HttpError } from "../../lib/http-error";
 import { DEFAULT_COLUMNS } from "./default-columns";
 import { isProjectKeyConflict } from "./project-key";
+import { publishChange, realtimeHub } from "../realtime/realtime.service";
 
 const PROJECT_LIST_COLUMNS = {
     id: true,
@@ -186,6 +187,7 @@ export async function updateProject(projectId: string, input: UpdateProjectInput
     if (!project) {
         throw new HttpError(404, "Project not found");
     }
+    publishChange("project.updated", { projectId, id: projectId });
     return withParsedCover(project);
 }
 
@@ -199,6 +201,7 @@ export async function updateProjectPage(projectId: string, input: UpdateProjectP
     if (!project) {
         throw new HttpError(404, "Project not found");
     }
+    publishChange("project.updated", { projectId, id: projectId });
     return project;
 }
 
@@ -240,6 +243,7 @@ export async function addProjectMember(projectId: string, username: string) {
         .insert(projectMembers)
         .values({ projectId, userId: user.id, role: "member" })
         .returning();
+    publishChange("member.added", { projectId, id: user.id });
 
     return { ...user, role: member.role, joinedAt: member.joinedAt };
 }
@@ -257,4 +261,6 @@ export async function removeProjectMember(projectId: string, userId: string) {
     }
 
     await db.delete(projectMembers).where(and(eq(projectMembers.projectId, projectId), eq(projectMembers.userId, userId)));
+    publishChange("member.removed", { projectId, id: userId });
+    realtimeHub.revoke(projectId, userId);
 }

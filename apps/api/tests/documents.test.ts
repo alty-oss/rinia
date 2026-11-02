@@ -56,14 +56,9 @@ test("document schemas preserve existing JSON and allow localized empty-title fa
   // The service chooses the fallback title from the user's locale.
   assert.equal(parsed.title, "");
   assert.deepEqual(parsed.contentJson, legacy);
-  assert.equal(
-    updateDocumentSchema.safeParse({
-      title: "x",
-      contentJson: legacy,
-      expectedRevision: 0,
-    }).success,
-    false,
-  );
+  // Content is edited through the realtime socket, so a save carries only the title and icon.
+  assert.deepEqual(updateDocumentSchema.parse({ title: " x ", contentJson: legacy, expectedRevision: 1 }), { title: "x" });
+  assert.equal(updateDocumentSchema.safeParse({ title: "y".repeat(201) }).success, false);
 });
 
 test("document appearance accepts catalog, emoji, and remote image icons", () => {
@@ -122,76 +117,32 @@ test("document lookup is scoped by both project and document", async () => {
   assert.deepEqual(uuids, [projectId, documentId]);
 });
 
-test("a successful revision update increments revision and preserves the supplied content", async () => {
+test("renaming a page saves the title and icon, bumps the revision, and leaves the content alone", async () => {
   spyOn(db.query.users, "findFirst").mockImplementation(async () => ({ locale: "en" }) as never);
-  const replacement = {
-    ...legacy,
-    content: [
-      { type: "paragraph", content: [{ type: "text", text: "Saved." }] },
-    ],
-  };
+  spyOn(db.query.projectDocuments, "findFirst").mockImplementation(async () => ({ ...page, title: "Updated", revision: 2 }) as never);
+  let values: Record<string, unknown> = {};
   const update = spyOn(db, "update").mockImplementation(
     () =>
       ({
-        set: (values: Record<string, unknown>) => ({
-          where: (_condition: unknown) => ({
-            returning: async () => [
-              {
-                ...page,
-                title: "Updated",
-                contentJson: values.contentJson,
-                revision: 2,
-              },
-            ],
-          }),
-        }),
+        set: (next: Record<string, unknown>) => {
+          values = next;
+          return { where: () => ({ returning: async () => [{ ...page, title: "Updated", revision: 2 }] }) };
+        },
       }) as never,
   );
-  const result = await updateDocument(projectId, documentId, authorId, {
-    title: "Updated",
-    contentJson: replacement,
-    expectedRevision: 1,
-  });
+  const result = await updateDocument(projectId, documentId, authorId, { title: "Updated", iconAppearance: { type: "icon", key: "rocket" } });
   assert.equal(result.revision, 2);
-  assert.deepEqual(result.contentJson, replacement);
   assert.equal(update.mock.calls.length, 1);
+  assert.equal(values.title, "Updated");
+  assert.deepEqual(values.iconAppearance, { type: "icon", key: "rocket" });
+  assert.equal("contentJson" in values, false);
+  assert.equal("yjsState" in values, false);
 });
 
-test("stale revisions return 409 while missing documents return 404", async () => {
+test("renaming a missing page returns 404", async () => {
   spyOn(db.query.users, "findFirst").mockImplementation(async () => ({ locale: "en" }) as never);
-  spyOn(db, "update").mockImplementation(
-    () =>
-      ({
-        set: () => ({ where: () => ({ returning: async () => [] }) }),
-      }) as never,
-  );
-  spyOn(db.query.projectDocuments, "findFirst").mockImplementation(async () => page);
-  await assert.rejects(
-    updateDocument(projectId, documentId, authorId, {
-      title: "New",
-      contentJson: legacy,
-      expectedRevision: 1,
-    }),
-    (error: unknown) => error instanceof HttpError && error.statusCode === 409,
-  );
-
-  mock.restore();
-  spyOn(db.query.users, "findFirst").mockImplementation(async () => ({ locale: "en" }) as never);
-  spyOn(db, "update").mockImplementation(
-    () =>
-      ({
-        set: () => ({ where: () => ({ returning: async () => [] }) }),
-      }) as never,
-  );
-  spyOn(db.query.projectDocuments, "findFirst").mockImplementation(async () => undefined);
-  await assert.rejects(
-    updateDocument(projectId, documentId, authorId, {
-      title: "New",
-      contentJson: legacy,
-      expectedRevision: 1,
-    }),
-    (error: unknown) => error instanceof HttpError && error.statusCode === 404,
-  );
+  spyOn(db, "update").mockImplementation(() => ({ set: () => ({ where: () => ({ returning: async () => [] }) }) }) as never);
+  await assert.rejects(updateDocument(projectId, documentId, authorId, { title: "New" }), (error: unknown) => error instanceof HttpError && error.statusCode === 404);
 });
 
 test("only the author, project owner, or admin can delete a page", async () => {
@@ -201,8 +152,9 @@ test("only the author, project owner, or admin can delete a page", async () => {
   const findMembership = spyOn(db.query.projectMembers, "findFirst").mockImplementation(
     async () => undefined,
   );
-  const deleted = spyOn(db, "delete").mockImplementation(
-    () => ({ where: async () => undefined }) as never,
+  // Deleting is soft: the page is marked and removed for good after the undo window.
+  const deleted = spyOn(db, "update").mockImplementation(
+    () => ({ set: () => ({ where: async () => undefined }) }) as never,
   );
   await assert.rejects(
     deleteDocument(projectId, documentId, otherId, false),

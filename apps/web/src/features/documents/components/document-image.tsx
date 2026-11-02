@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Popover } from "@base-ui/react/popover";
-import { Image } from "@tiptap/extension-image";
+import { DocumentImageNode } from "@rinia/shared/src/document-extensions";
 import { type NodeViewProps, NodeViewWrapper, ReactNodeViewRenderer } from "@tiptap/react";
 import { ImageIcon, Pencil } from "lucide-react";
 import { Button } from "@/components/base/buttons/button";
@@ -171,20 +171,10 @@ function ImageBlock({ node, updateAttributes, selected, editor, getPos }: NodeVi
         </NodeViewWrapper>
     );
 }
-export const DocumentImage = Image.extend({
-    addAttributes() {
-        return {
-            ...this.parent?.(),
-            widthPercent: {
-                default: 100,
-                parseHTML: (element) => Number(element.getAttribute("data-width-percent")) || 100,
-                renderHTML: (attrs) => ({ "data-width-percent": attrs.widthPercent }),
-            },
-        };
-    },
+export const DocumentImage = DocumentImageNode.extend({
     addNodeView() {
         return ReactNodeViewRenderer(ImageBlock, {
             stopEvent: ({ event }) => event.target instanceof Element && event.target.closest("[data-node-view-control]") !== null,
         });
     },
-}).configure({ allowBase64: false });
+});

@@ -112,3 +112,69 @@ export function markdownToTiptap(markdown: string | null | undefined): TiptapDoc
     }
     return { type: "doc", content };
 }
+
+type RichNode = { type?: string; text?: string; attrs?: Record<string, unknown>; marks?: Array<{ type?: string; attrs?: Record<string, unknown> }>; content?: RichNode[] };
+
+function inlineMarkdown(nodes: RichNode[] = []): string {
+    return nodes
+        .map((node) => {
+            if (node.type === "hardBreak") return "\n";
+            if (node.type === "mention") return `@${String(node.attrs?.label ?? node.attrs?.id ?? "")}`;
+            if (node.type === "image") return `![${String(node.attrs?.alt ?? "")}](${String(node.attrs?.src ?? "")})`;
+            if (node.type !== "text") return inlineMarkdown(node.content);
+            let text = node.text ?? "";
+            const marks = node.marks ?? [];
+            if (marks.some((mark) => mark.type === "code")) text = `\`${text}\``;
+            if (marks.some((mark) => mark.type === "bold")) text = `**${text}**`;
+            if (marks.some((mark) => mark.type === "italic")) text = `*${text}*`;
+            if (marks.some((mark) => mark.type === "strike")) text = `~~${text}~~`;
+            const link = marks.find((mark) => mark.type === "link");
+            return link ? `[${text}](${String(link.attrs?.href ?? "")})` : text;
+        })
+        .join("");
+}
+
+function blockMarkdown(node: RichNode, indent = ""): string {
+    const children = node.content ?? [];
+    const list = (marker: (index: number, item: RichNode) => string) =>
+        children
+            .map((item, index) => {
+                const [first, ...rest] = item.content ?? [];
+                const head = `${indent}${marker(index, item)}${first ? inlineMarkdown(first.content) : ""}`;
+                return [head, ...rest.map((block) => blockMarkdown(block, `${indent}  `))].join("\n");
+            })
+            .join("\n");
+    switch (node.type) {
+        case "heading":
+            return `${indent}${"#".repeat(Number(node.attrs?.level) || 1)} ${inlineMarkdown(children)}`;
+        case "bulletList":
+            return list(() => "- ");
+        case "orderedList":
+            return list((index) => `${(Number(node.attrs?.start) || 1) + index}. `);
+        case "taskList":
+            return list((_index, item) => (item.attrs?.checked ? "- [x] " : "- [ ] "));
+        case "codeBlock":
+            return `${indent}\`\`\`${String(node.attrs?.language ?? "")}\n${inlineMarkdown(children)}\n${indent}\`\`\``;
+        case "blockquote":
+            return children.map((block) => blockMarkdown(block, indent).replace(/^/gm, "> ")).join("\n>\n");
+        case "horizontalRule":
+            return `${indent}---`;
+        case "image":
+            return `${indent}${inlineMarkdown([node])}`;
+        case "table":
+            return children
+                .map((row, index) => {
+                    const cells = (row.content ?? []).map((cell) => (cell.content ?? []).map((block) => inlineMarkdown(block.content)).join(" ").replace(/\|/g, "\\|"));
+                    const line = `${indent}| ${cells.join(" | ")} |`;
+                    return index === 0 ? `${line}\n${indent}|${cells.map(() => " --- |").join("")}` : line;
+                })
+                .join("\n");
+        default:
+            return `${indent}${inlineMarkdown(children)}`;
+    }
+}
+
+/** Renders Tiptap JSON as Markdown, the reverse of `markdownToTiptap`, for readers outside the editor such as AI tools. */
+export function tiptapToMarkdown(document: { content?: unknown[] } | null | undefined): string {
+    return ((document?.content ?? []) as RichNode[]).map((node) => blockMarkdown(node)).join("\n\n");
+}

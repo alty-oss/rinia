@@ -51,9 +51,11 @@ const collisionDetection: CollisionDetection = (args) => {
 /** Columns change size as issues enter and leave during a drag, so their rectangles must be measured continuously. */
 const measuring = { droppable: { strategy: MeasuringStrategy.Always } };
 
-export const Board = ({ projectId, filters = new URLSearchParams(), hidden, hideColumn, showColumn }: {
+export const Board = ({ projectId, filters = new URLSearchParams(), scope = "all", hidden, hideColumn, showColumn }: {
     projectId: string;
     filters?: URLSearchParams;
+    /** Like the list's scopes: Active and Backlog show only the columns of those states, All shows every column. */
+    scope?: "active" | "backlog" | "all";
     hidden: Set<string>;
     hideColumn: (columnId: string) => void;
     showColumn: (columnId: string) => void;
@@ -65,6 +67,11 @@ export const Board = ({ projectId, filters = new URLSearchParams(), hidden, hide
     const { data: columns, isLoading: columnsLoading, isError: columnsError } = useColumns(projectId);
     const orderBy = readIssueOrder(filters.get("order"));
     const { data: issues, isLoading: issuesLoading, isError: issuesError } = useIssues(projectId, { orderBy });
+    // The columns on screen: the scope's states, minus the ones the person hid.
+    const shownColumns = useMemo(
+        () => (columns ?? []).filter((column) => !hidden.has(column.id) && (scope === "all" || columnBucket(column.name) === scope)),
+        [columns, hidden, scope],
+    );
     const closedColumnIds = useMemo(() => new Set((columns ?? []).filter((column) => columnBucket(column.name) === "closed").map((column) => column.id)), [columns]);
     const filtered = useMemo(() => filterIssues(issues ?? [], filters, (issue) => closedColumnIds.has(issue.columnId)), [closedColumnIds, issues, filters]);
     const { data: categories } = useCategories(projectId);
@@ -92,7 +99,7 @@ export const Board = ({ projectId, filters = new URLSearchParams(), hidden, hide
      */
     const board = useMemo(() => dragIssues ?? [...filtered].sort((a, b) => a.position - b.position || a.number - b.number), [dragIssues, filtered]);
 
-    useRegisterVisibleIssues(useMemo(() => (columns ?? []).filter((column) => !hidden.has(column.id)).flatMap((column) => board.filter((issue) => issue.columnId === column.id).map((issue) => issue.id)), [board, columns, hidden]));
+    useRegisterVisibleIssues(useMemo(() => shownColumns.flatMap((column) => board.filter((issue) => issue.columnId === column.id).map((issue) => issue.id)), [board, shownColumns]));
 
     function hideColumnWithUndo(columnId: string) {
         hideColumn(columnId);
@@ -249,7 +256,7 @@ export const Board = ({ projectId, filters = new URLSearchParams(), hidden, hide
             >
                 <div className="flex h-full min-w-0 gap-3">
                 <div className="flex h-full min-w-0 flex-1 items-start gap-3 overflow-x-auto">
-                    {columns?.filter((column) => !hidden.has(column.id)).map((column) => (
+                    {shownColumns.map((column) => (
                         <Column
                             key={column.id}
                             column={column}

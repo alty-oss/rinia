@@ -5,6 +5,8 @@ declare global {
     namespace Express {
         interface Request {
             user?: JwtPayload;
+            /** How `user` signed in: the browser session cookie or an API token. */
+            authMethod?: "session" | "token";
             projectMembership?: typeof projectMembers.$inferSelect;
         }
     }

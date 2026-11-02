@@ -3,19 +3,14 @@ import { test } from "bun:test";
 import type { UpdateDocumentInput } from "@rinia/shared";
 import type { DocumentPage } from "../../web/src/features/documents/api";
 import { DocumentSession } from "../../web/src/features/documents/document-session";
-import type { DocumentDraft } from "../../web/src/features/documents/draft-store";
 
 const projectId = "11111111-1111-4111-8111-111111111111";
 const documentId = "22222222-2222-4222-8222-222222222222";
-const contentJson = {
-  type: "doc" as const,
-  content: [{ type: "paragraph", content: [{ type: "text", text: "Saved" }] }],
-};
 const page: DocumentPage = {
   id: documentId,
   projectId,
   title: "Notes",
-  contentJson,
+  contentJson: { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "Saved" }] }] },
   iconAppearance: null,
   createdBy: "33333333-3333-4333-8333-333333333333",
   createdAt: "2026-01-01T00:00:00.000Z",
@@ -29,69 +24,37 @@ function deferred<T>() {
   return { promise, resolve };
 }
 
-function setup(
-  options: {
-    draft?: DocumentDraft;
-    online?: () => boolean;
-    save?: (input: UpdateDocumentInput) => Promise<DocumentPage>;
-  } = {},
-) {
-  const writes: Array<{
-    title: string;
-    contentJson: DocumentPage["contentJson"];
-    iconAppearance?: DocumentPage["iconAppearance"];
-    revision: number;
-  }> = [];
-  let removed = 0;
+function setup(options: { online?: () => boolean; save?: (input: UpdateDocumentInput) => Promise<DocumentPage> } = {}) {
   let saveCount = 0;
   const session = new DocumentSession(page, {
-    read: async () => options.draft,
-    write: async (value) => void writes.push(value),
-    remove: async () => void removed++,
     save: async (input) => {
       saveCount++;
-      return options.save
-        ? options.save(input)
-        : {
-            ...page,
-            title: input.title,
-            contentJson: input.contentJson,
-            iconAppearance: input.iconAppearance ?? null,
-            revision: input.expectedRevision + 1,
-          };
+      return options.save ? options.save(input) : { ...page, title: input.title, iconAppearance: input.iconAppearance ?? null, revision: page.revision + saveCount };
     },
     online: options.online ?? (() => true),
     onSaved: () => undefined,
   });
-  return {
-    session,
-    writes,
-    removed: () => removed,
-    saveCount: () => saveCount,
-  };
+  return { session, saveCount: () => saveCount };
 }
 
-test("a recovered draft with a stale revision is preserved as a conflict", async () => {
-  const { session, saveCount } = setup({
-    draft: {
-      key: "user:project:document",
-      userId: "user",
-      projectId,
-      documentId,
-      title: "Offline notes",
-      contentJson,
-      revision: 0,
+test("a title change saves without a revision and settles as saved", async () => {
+  const inputs: UpdateDocumentInput[] = [];
+  const { session } = setup({
+    save: async (input) => {
+      inputs.push(input);
+      return { ...page, title: input.title, revision: 2 };
     },
   });
-  await session.ready;
-  assert.equal(session.getSnapshot().status, "conflict");
-  assert.equal(session.getSnapshot().title, "Offline notes");
+  session.edit({ title: "Renamed" });
+  assert.equal(session.getSnapshot().status, "pending");
   await session.flush();
-  assert.equal(saveCount(), 0);
-  assert.equal(session.getSnapshot().dirty, true);
+  assert.deepEqual(inputs, [{ title: "Renamed", iconAppearance: null }]);
+  assert.equal(session.getSnapshot().status, "saved");
+  assert.equal(session.getSnapshot().revision, 2);
+  assert.equal(session.getSnapshot().dirty, false);
 });
 
-test("edits made during an in-flight save are sent next with the acknowledged revision", async () => {
+test("edits made during an in-flight save are sent next", async () => {
   const first = deferred<DocumentPage>();
   const second = deferred<DocumentPage>();
   const inputs: UpdateDocumentInput[] = [];
@@ -101,81 +64,90 @@ test("edits made during an in-flight save are sent next with the acknowledged re
       return inputs.length === 1 ? first.promise : second.promise;
     },
   });
-  await session.ready;
   session.edit({ title: "First version" });
   const flushing = session.flush();
   await new Promise((resolve) => setTimeout(resolve, 0));
-    assert.equal(inputs.length, 1);
-    session.edit({ title: "Latest version" });
-    const followup = session.flush();
-    first.resolve({ ...page, title: "First version", revision: 2 });
+  assert.equal(inputs.length, 1);
+  session.edit({ title: "Latest version" });
+  const followup = session.flush();
+  first.resolve({ ...page, title: "First version", revision: 2 });
   await new Promise((resolve) => setTimeout(resolve, 0));
   assert.equal(inputs.length, 2);
   assert.equal(inputs[1].title, "Latest version");
-  assert.equal(inputs[1].expectedRevision, 2);
-    second.resolve({ ...page, title: "Latest version", revision: 3 });
-    await Promise.all([flushing, followup]);
+  second.resolve({ ...page, title: "Latest version", revision: 3 });
+  await Promise.all([flushing, followup]);
   assert.equal(session.getSnapshot().status, "saved");
+  assert.equal(session.getSnapshot().title, "Latest version");
   assert.equal(session.getSnapshot().revision, 3);
   assert.equal(session.getSnapshot().dirty, false);
 });
 
-test("a network failure keeps the draft and permits an immediate retry", async () => {
+test("a failed save keeps the change and permits an immediate retry", async () => {
   let fail = true;
-  const { session, writes, removed } = setup({
+  const { session } = setup({
     save: async (input) => {
-      if (fail) {
-        const error = new Error("offline response");
-        Object.assign(error, { status: 500 });
-        throw error;
-      }
-      return {
-        ...page,
-        title: input.title,
-        revision: input.expectedRevision + 1,
-      };
+      if (fail) throw Object.assign(new Error("server error"), { status: 500 });
+      return { ...page, title: input.title, revision: 2 };
     },
   });
-  await session.ready;
-  session.edit({ title: "Draft to keep" });
+  session.edit({ title: "To keep" });
   await session.flush();
   assert.equal(session.getSnapshot().status, "error");
+  assert.equal(session.getSnapshot().title, "To keep");
   assert.equal(session.getSnapshot().dirty, true);
-  assert.equal(writes.at(-1)?.title, "Draft to keep");
-  assert.equal(removed(), 0);
   fail = false;
   await session.flush();
   assert.equal(session.getSnapshot().status, "saved");
-  assert.equal(removed(), 1);
 });
 
-test("offline edits remain pending until a retry can reach the server", async () => {
+test("offline edits wait until a retry can reach the server", async () => {
   let online = false;
   const { session, saveCount } = setup({ online: () => online });
-  await session.ready;
-  session.edit({ title: "Offline edit" });
-  assert.equal(session.getSnapshot().status, "offline");
+  session.edit({ title: "Offline" });
   await session.flush();
+  assert.equal(session.getSnapshot().status, "offline");
   assert.equal(saveCount(), 0);
   online = true;
-  session.networkChanged();
   await session.flush();
-  assert.equal(session.getSnapshot().status, "saved");
   assert.equal(saveCount(), 1);
+  assert.equal(session.getSnapshot().status, "saved");
 });
 
-test("appearance is persisted with the same revisioned save as document content", async () => {
+test("the icon is saved together with the title", async () => {
   const inputs: UpdateDocumentInput[] = [];
-  const { session, writes } = setup({
+  const { session } = setup({
     save: async (input) => {
       inputs.push(input);
-      return { ...page, title: input.title, contentJson: input.contentJson, iconAppearance: input.iconAppearance ?? null, revision: input.expectedRevision + 1 };
+      return { ...page, title: input.title, iconAppearance: input.iconAppearance ?? null, revision: 2 };
     },
   });
-  await session.ready;
-  session.edit({ iconAppearance: { type: "emoji", value: "🚀" } });
+  session.edit({ iconAppearance: { type: "icon", key: "rocket" } });
   await session.flush();
-  assert.deepEqual(inputs[0].iconAppearance, { type: "emoji", value: "🚀" });
-  assert.equal(session.getSnapshot().status, "saved");
-  assert.deepEqual(session.getSnapshot().iconAppearance, { type: "emoji", value: "🚀" });
+  assert.deepEqual(inputs[0].iconAppearance, { type: "icon", key: "rocket" });
+  assert.deepEqual(session.getSnapshot().iconAppearance, { type: "icon", key: "rocket" });
+});
+
+test("a newer title from someone else replaces this one unless it is being edited here", () => {
+  const { session } = setup();
+  session.observe({ ...page, title: "Theirs", revision: 2 });
+  assert.equal(session.getSnapshot().title, "Theirs");
+  session.edit({ title: "Mine" });
+  session.observe({ ...page, title: "Theirs again", revision: 3 });
+  assert.equal(session.getSnapshot().title, "Mine", "a change being typed here is not overwritten");
+  session.observe({ ...page, title: "Old", revision: 1 });
+  assert.equal(session.getSnapshot().title, "Mine", "an older version is ignored");
+});
+
+test("a deleted page stops saving", async () => {
+  const { session, saveCount } = setup({
+    save: async () => {
+      throw Object.assign(new Error("gone"), { status: 404 });
+    },
+  });
+  session.edit({ title: "After delete" });
+  await session.flush();
+  assert.equal(session.getSnapshot().status, "deleted");
+  session.edit({ title: "Ignored" });
+  await session.flush();
+  assert.equal(saveCount(), 1);
 });

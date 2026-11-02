@@ -20,6 +20,8 @@ import { useAppNavigation } from "@/components/layout/app-shell";
 import { ConfirmDialog } from "@/components/overlay/confirm-dialog";
 import { overlayChrome } from "@/components/overlay/overlay-chrome";
 import { useAuth } from "@/features/auth/hooks/use-auth";
+import { PresenceAvatars } from "@/features/realtime/components/presence-avatars";
+import { useChannelPresence, useRealtimeChannels } from "@/features/realtime/use-realtime";
 import { IssueAvatar, PriorityIcon, StateIcon } from "@/features/board/components/issue-property-icons";
 import { useColumns } from "@/features/board/hooks/use-board";
 import { columnBucket, defaultIssueColumn } from "@/features/board/column-bucket";
@@ -107,6 +109,9 @@ export const IssueView = () => {
     const [openMenu, setOpenMenu] = useState<PropertyMenuId | null>(null);
     const [deleteOpen, setDeleteOpen] = useState(false);
     const { data: issue, isLoading, isError } = useIssue(resolvedIdentifier);
+    // The project channel carries the issue's own changes and its neighbours' (pager, sub-issues); the issue channel carries comments and relations.
+    useRealtimeChannels([issue && `project:${issue.projectId}`]);
+    const viewers = useChannelPresence(issue ? `issue:${issue.id}` : null);
     const { data: project } = useProject(issue?.projectId ?? resolvedProjectId);
     const updateIssue = useUpdateIssue(issue?.projectId ?? resolvedProjectId);
     const createIssue = useCreateIssue(issue?.projectId ?? resolvedProjectId);
@@ -568,6 +573,7 @@ export const IssueView = () => {
                     />
                 </div>
                 <div className="flex shrink-0 items-center gap-3">
+                    <PresenceAvatars viewers={viewers} />
                     {(saving || unsaved) && <span className="text-xs text-tertiary" role="status">{saving ? t("issue.savingIssue") : t("issue.unsavedIssue")}</span>}
                     {projectIssues && projectIssues.length > 0 && <IssuePager issues={projectIssues} identifier={issue.identifier} onOpen={(next) => navigate(urls.issue(next))} />}
                 </div>

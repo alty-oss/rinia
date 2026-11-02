@@ -369,6 +369,35 @@
     color: var(--txt-tertiary);
     font-size: 12px;
 }
+/* Other people's cursors and selections. The colour comes from --caret-color, set per person by the editor. */
+.collaboration-carets__caret {
+    position: relative;
+    margin-right: -1px;
+    margin-left: -1px;
+    border-right: 1px solid var(--caret-color);
+    border-left: 1px solid var(--caret-color);
+    pointer-events: none;
+    word-break: normal;
+}
+.collaboration-carets__label {
+    position: absolute;
+    top: -1.5em;
+    left: -1px;
+    padding: 0 6px;
+    border-radius: 4px 4px 4px 0;
+    background: var(--caret-color);
+    color: #fff;
+    font-size: 11px;
+    font-style: normal;
+    font-weight: 600;
+    line-height: 1.5;
+    white-space: nowrap;
+    user-select: none;
+    pointer-events: none;
+}
+.collaboration-carets__selection {
+    background: color-mix(in srgb, var(--caret-color) 22%, transparent);
+}
 .document-editor button:focus-visible,
 .document-format-menu button:focus-visible,
 .document-popover button:focus-visible {

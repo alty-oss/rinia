@@ -3,6 +3,7 @@ import { and, asc, eq, ne } from "drizzle-orm";
 import { db } from "../../db";
 import { categories } from "../../db/schema";
 import { HttpError } from "../../lib/http-error";
+import { publishChange } from "../realtime/realtime.service";
 
 export async function listCategories(projectId: string) {
     return db.query.categories.findMany({
@@ -24,6 +25,7 @@ export async function createCategory(projectId: string, input: CreateCategoryInp
         .insert(categories)
         .values({ projectId, name: input.name, color: input.color, createdBy: creatorId })
         .returning();
+    publishChange("label.created", { projectId, id: category.id });
 
     return category;
 }
@@ -47,6 +49,7 @@ export async function updateCategory(projectId: string, categoryId: string, inpu
     }
 
     const [updated] = await db.update(categories).set(input).where(eq(categories.id, categoryId)).returning();
+    publishChange("label.updated", { projectId, id: categoryId });
     return updated;
 }
 
@@ -65,4 +68,5 @@ export async function deleteCategory(projectId: string, categoryId: string, requ
     }
 
     await db.delete(categories).where(eq(categories.id, categoryId));
+    publishChange("label.deleted", { projectId, id: categoryId });
 }

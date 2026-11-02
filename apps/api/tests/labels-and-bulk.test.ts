@@ -3,7 +3,7 @@ import type { Server } from "node:http";
 import { afterAll, afterEach, beforeAll, mock, spyOn, test } from "bun:test";
 import { PgDialect } from "drizzle-orm/pg-core";
 import type { SQL } from "drizzle-orm";
-import { bulkUpdateIssuesSchema, issueListQuerySchema, nextLabels, updateIssueSchema } from "@rinia/shared";
+import { bulkUpdateIssuesSchema, issueListQuerySchema, nextLabels, positionsAtTop, updateIssueSchema } from "@rinia/shared";
 import { db } from "../src/db";
 import { issueActivities, issueLabels, issues } from "../src/db/schema";
 import { bulkDeleteIssues, listIssues, updateIssue } from "../src/features/issues/issues.service";
@@ -201,4 +201,63 @@ test("deleting a parent and its sub-issue together works in one transaction", as
     await bulkDeleteIssues(projectId, [ids[0], ids[1]]);
     assert.equal(transaction.mock.calls.length, 1);
     assert.deepEqual(writes.map((write) => write.kind), ["update", "delete"]);
+});
+
+test("cards moved without a place picked go to the top of the column, keeping their order", () => {
+    assert.deepEqual(positionsAtTop(3000, 1), [2000]);
+    assert.deepEqual(positionsAtTop(3000, 3), [0, 1000, 2000]);
+    assert.deepEqual(positionsAtTop(null, 2), [1000, 2000], "an empty column starts at the usual spacing");
+});
+
+/** Stubs a single-issue update and returns the values it wrote; the column's top card is at `top`. */
+function stubSingleMove(top: number | null) {
+    spyOn(db.query.issues, "findFirst").mockImplementation(async () => ({ ...issueRow(ids[0], { position: 50_000 }), project: { id: projectId, name: "Rinia", issueKey: "RIN" } }) as never);
+    stubProject(true);
+    const tops: SQL[] = [];
+    spyOn(db, "select").mockImplementation((() => ({
+        from: () => ({
+            where: async (where: SQL) => (tops.push(where), [{ position: top }]),
+            leftJoin: () => ({ where: async () => [] }),
+        }),
+    })) as never);
+    let written: Record<string, unknown> = {};
+    spyOn(db, "update").mockImplementation((() => ({ set: (values: Record<string, unknown>) => ((written = values), { where: () => ({ returning: async () => [{ ...issueRow(ids[0]), ...values }] }) }) })) as never);
+    spyOn(db, "insert").mockImplementation((() => ({ values: () => Object.assign(Promise.resolve(), { onConflictDoNothing: async () => undefined }) })) as never);
+    return { written: () => written, tops };
+}
+
+test("moving an issue to another column from a menu puts it above that column's top card", async () => {
+    const { written, tops } = stubSingleMove(3000);
+    await updateIssue(ids[0], { columnId: done }, ana);
+    assert.equal(written().position, 2000);
+    assert.ok(render(tops[0]).params.includes(done), "the top is looked up in the target column");
+    assert.ok(render(tops[0]).params.includes(ids[0]), "the issue itself is left out of that lookup");
+});
+
+test("a position picked by dragging is kept, and a change that keeps the column leaves the position alone", async () => {
+    const { written } = stubSingleMove(3000);
+    await updateIssue(ids[0], { columnId: done, position: 4500 }, ana);
+    assert.equal(written().position, 4500);
+    await updateIssue(ids[0], { columnId: "todo" }, ana);
+    assert.equal("position" in written(), false);
+});
+
+test("moving issues in bulk stacks the ones that change column at its top, in their order", async () => {
+    stubProject(true);
+    // The first is already done; the others come in reverse board order, which the stack must undo.
+    const rows = [issueRow(ids[0], { columnId: done, position: 100 }), issueRow(ids[1], { position: 9000 }), issueRow(ids[2], { position: 7000 })];
+    spyOn(db.query.issues, "findMany").mockImplementation(async () => rows as never);
+    spyOn(db.query.issueSubscriptions, "findFirst").mockImplementation(async () => undefined);
+    spyOn(db, "select").mockImplementation((() => ({ from: () => ({ where: async () => [{ position: 3000 }], leftJoin: () => ({ where: async () => [] }) }) })) as never);
+    const { writes } = stubTransaction();
+
+    const response = await call("PATCH", `/projects/${projectId}/issues/bulk`, { issueIds: ids.slice(0, 3), patch: { columnId: done } });
+    assert.equal(response.status, 200);
+    const placed = writes
+        .filter((write) => write.table === issues && (write.values as { position?: number }).position !== undefined)
+        .map((write) => [render(write.where!).params[0], (write.values as { position: number }).position]);
+    assert.deepEqual(placed, [
+        [ids[2], 1000],
+        [ids[1], 2000],
+    ]);
 });

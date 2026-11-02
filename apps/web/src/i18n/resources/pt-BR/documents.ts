@@ -12,7 +12,7 @@ const documents = {
         deletedMessage: "Esta página foi excluída.", newerVersion: "Uma versão mais recente foi salva em outro lugar.",
         draftPreserved: "Seu rascunho local foi preservado. Crie uma página separada para manter estas alterações.",
         createFromDraft: "Criar página a partir do rascunho", openSavedVersion: "Abrir versão salva", couldNotLoad: "Não foi possível carregar esta página. Ela pode ter sido excluída ou você pode não ter mais acesso.",
-        couldNotRefresh: "Não foi possível atualizar esta página. Seu trabalho local continua disponível.", couldNotSave: "Não foi possível salvar a página.",
+        couldNotOpen: "Não foi possível abrir esta página para edição. Uma nova tentativa será feita quando a conexão voltar.", couldNotRefresh: "Não foi possível atualizar esta página. Seu trabalho local continua disponível.", couldNotSave: "Não foi possível salvar a página.",
         retrySave: "Pressione Ctrl/Cmd+S para tentar novamente.", deleteTitle: "Excluir esta página?", openSavedTitle: "Abrir a versão salva?",
         deleteWarning: "A página será removida. Você poderá desfazer enquanto a confirmação estiver visível.",
         openSavedWarning: "Isto substituirá seu rascunho local pela versão salva. Crie uma página a partir do rascunho antes se quiser manter ambas.",

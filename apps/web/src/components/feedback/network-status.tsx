@@ -1,10 +1,16 @@
 import { useEffect, useState } from "react";
-import { WifiOff } from "lucide-react";
+import { RefreshCw, WifiOff } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { useRealtimeStatus } from "@/features/realtime/use-realtime";
+
+/** A dropped live connection is only reported once it has stayed down this long, so a quick reconnect goes unnoticed. */
+const RECONNECT_GRACE_MS = 3_000;
 
 export const NetworkStatus = () => {
     const { t } = useTranslation();
     const [isOffline, setIsOffline] = useState(() => typeof navigator !== "undefined" && !navigator.onLine);
+    const realtime = useRealtimeStatus();
+    const [reconnecting, setReconnecting] = useState(false);
 
     useEffect(() => {
         const handleOffline = () => setIsOffline(true);
@@ -18,12 +24,19 @@ export const NetworkStatus = () => {
         };
     }, []);
 
-    if (!isOffline) return null;
+    useEffect(() => {
+        if (realtime !== "offline") return setReconnecting(false);
+        const timer = window.setTimeout(() => setReconnecting(true), RECONNECT_GRACE_MS);
+        return () => window.clearTimeout(timer);
+    }, [realtime]);
+
+    if (!isOffline && !reconnecting) return null;
+    const Icon = isOffline ? WifiOff : RefreshCw;
 
     return (
         <div className="fixed inset-x-0 bottom-3 z-40 mx-auto flex w-fit max-w-[calc(100vw-2rem)] items-center gap-2 rounded-full border border-fg-warning-primary/40 bg-surface-1 px-3 py-2 text-xs font-medium text-secondary shadow-xl" role="status" aria-live="polite">
-            <WifiOff className="size-3.5 shrink-0 text-fg-warning-primary" aria-hidden="true" />
-            <span>{t("common.offlineNotice")}</span>
+            <Icon className={`size-3.5 shrink-0 text-fg-warning-primary ${isOffline ? "" : "motion-safe:animate-spin"}`} aria-hidden="true" />
+            <span>{isOffline ? t("common.offlineNotice") : t("realtime.reconnecting")}</span>
         </div>
     );
 };

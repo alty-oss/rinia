@@ -1,4 +1,5 @@
 import {
+  customType,
   index,
   integer,
   jsonb,
@@ -11,6 +12,12 @@ import { projects } from "./projects";
 import { users } from "./users";
 import type { TiptapDocument } from "./issues";
 import type { EntityIcon } from "@rinia/shared";
+
+const bytea = customType<{ data: Uint8Array; driverData: Buffer }>({
+  dataType: () => "bytea",
+  toDriver: (value) => Buffer.from(value),
+  fromDriver: (value) => new Uint8Array(value),
+});
 
 export const projectDocuments = pgTable(
   "project_documents",
@@ -28,7 +35,10 @@ export const projectDocuments = pgTable(
       .notNull()
       .defaultNow(),
     revision: integer("revision").notNull().default(1),
+    /** A snapshot of the page as Tiptap JSON, rewritten from `yjsState` whenever people edit it. */
     contentJson: jsonb("content_json").$type<TiptapDocument>().notNull(),
+    /** The collaborative Yjs document, which is the source of truth for the content. Null until the page is first opened for editing. */
+    yjsState: bytea("yjs_state"),
     updatedAt: timestamp("updated_at", { withTimezone: true })
       .notNull()
       .defaultNow(),

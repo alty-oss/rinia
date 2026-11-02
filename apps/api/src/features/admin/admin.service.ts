@@ -2,7 +2,7 @@ import { boardColumns, categories, issueActivities, issueComments, issueRelation
 import { db } from "../../db";
 
 export interface DatabaseBackup {
-    version: 5;
+    version: 6;
     exportedAt: string;
     tables: {
         users: (typeof users.$inferSelect)[];
@@ -14,7 +14,8 @@ export interface DatabaseBackup {
         comments: (typeof issueComments.$inferSelect)[];
         activities: (typeof issueActivities.$inferSelect)[];
         relations: (typeof issueRelations.$inferSelect)[];
-        documents: (typeof projectDocuments.$inferSelect)[];
+        /** `yjsState` is base64. */
+        documents: (Omit<typeof projectDocuments.$inferSelect, "yjsState"> & { yjsState: string | null })[];
     };
 }
 
@@ -33,7 +34,7 @@ export async function createBackup(): Promise<DatabaseBackup> {
     ]);
 
     return {
-        version: 5,
+        version: 6,
         exportedAt: new Date().toISOString(),
         tables: {
             users: usersRows,
@@ -45,7 +46,9 @@ export async function createBackup(): Promise<DatabaseBackup> {
             comments: commentsRows,
             activities: activitiesRows,
             relations: relationsRows,
-            documents: documentsRows,
+            // The Yjs state is kept: rebuilt from the JSON, every block would get a new identity, and a browser still
+            // holding its offline copy of the page would merge the old blocks back in, doubling the page.
+            documents: documentsRows.map((row) => ({ ...row, yjsState: row.yjsState && Buffer.from(row.yjsState).toString("base64") })),
         },
     };
 }

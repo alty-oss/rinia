@@ -6,6 +6,7 @@ import { Outlet, useLocation, useNavigate } from "react-router";
 import { NetworkStatus } from "@/components/feedback/network-status";
 import { WorkspaceLoadingFallback } from "@/components/feedback/workspace-loading-fallback";
 import { ProjectSearchModal } from "@/features/projects/components/project-search-modal";
+import { RealtimeProvider } from "@/features/realtime/realtime-provider";
 import { Sidebar } from "./sidebar";
 import { useTranslation } from "react-i18next";
 
@@ -85,6 +86,7 @@ export const AppShell = () => {
                 </Dialog.Root>
                 {searchOpen && <ProjectSearchModal onClose={() => setSearchOpen(false)} />}
                 <NetworkStatus />
+                <RealtimeProvider />
             </div>
         </NavigationContext.Provider>
     );

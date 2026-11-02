@@ -1,4 +1,5 @@
 import { relations } from "drizzle-orm";
+import { apiTokens } from "./api-tokens";
 import { boardColumns } from "./board-columns";
 import { categories } from "./categories";
 import { commentReactions } from "./comment-reactions";
@@ -17,6 +18,7 @@ import { projects } from "./projects";
 import { users } from "./users";
 import { views } from "./views";
 
+export * from "./api-tokens";
 export * from "./board-columns";
 export * from "./categories";
 export * from "./comment-reactions";
@@ -44,6 +46,11 @@ export const usersRelations = relations(users, ({ many }) => ({
     issuesAssigned: many(issues, { relationName: "issueAssignee" }),
     comments: many(issueComments),
     activities: many(issueActivities),
+    apiTokens: many(apiTokens),
+}));
+
+export const apiTokensRelations = relations(apiTokens, ({ one }) => ({
+    user: one(users, { fields: [apiTokens.userId], references: [users.id] }),
 }));
 
 export const projectsRelations = relations(projects, ({ one, many }) => ({

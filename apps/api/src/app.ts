@@ -3,12 +3,15 @@ import cookieParser from "cookie-parser";
 import express from "express";
 import helmet from "helmet";
 import { adminRouter } from "./features/admin/admin.routes";
+import { apiTokensRouter } from "./features/api-tokens/api-tokens.routes";
 import { authRouter } from "./features/auth/auth.routes";
 import { favoritesRouter } from "./features/favorites/favorites.routes";
 import { issueCommentsRouter, issueRelationsRouter, issuesRouter } from "./features/issues/issues.routes";
+import { mcpRouter } from "./features/mcp/mcp.routes";
 import { myIssuesRouter, notificationsRouter } from "./features/notifications/notifications.routes";
 import { projectsRouter } from "./features/projects/projects.routes";
 import { usersRouter } from "./features/users/users.routes";
+import { requestContext } from "./lib/request-context";
 import { errorHandler } from "./middleware/error-handler.middleware";
 
 export const app = express();
@@ -26,6 +29,8 @@ app.use(helmet({ contentSecurityPolicy: false }));
 app.use("/api/projects/:projectId/documents", express.json({ limit: "2mb" }));
 app.use(express.json());
 app.use(cookieParser());
+// Lets services tag realtime events with who made the change.
+app.use(requestContext);
 
 app.get("/api/health", (_req, res) => {
     res.json({ status: "ok" });
@@ -41,6 +46,8 @@ app.use("/api/favorites", favoritesRouter);
 app.use("/api/notifications", notificationsRouter);
 app.use("/api/my-issues", myIssuesRouter);
 app.use("/api/admin", adminRouter);
+app.use("/api/api-tokens", apiTokensRouter);
+app.use("/api/mcp", mcpRouter);
 
 // Any /api/* route not mapped above -> JSON 404, before the static fallback below
 // (otherwise the SPA catch-all would swallow misspelled or unknown API calls).
