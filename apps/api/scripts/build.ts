@@ -6,8 +6,10 @@
 // including workspace packages (which are only symlinks there), and @rinia/shared would then be
 // missing at runtime.
 //
-// The target is "node" even though production runs on Bun: the output runs on both runtimes, so
-// going back to Node only means changing the base image and CMD in the Dockerfile.
+// The target is "bun", not "node": with "node" the bundler inlines the npm `ws` package, and on Bun its
+// WebSocket upgrade never completes, so the browser sees every realtime handshake fail. With "bun", `ws` is
+// Bun's own implementation. Going back to Node means changing the target, the
+// base image and the CMD, and keeping `ws` out of the bundle or installing node_modules.
 const entryPoints = ["src/server.ts", "src/db/migrate.ts"];
 
 for (const entryPoint of entryPoints) {
@@ -15,7 +17,7 @@ for (const entryPoint of entryPoints) {
     const result = await Bun.build({
         entrypoints: [entryPoint],
         outdir: "dist",
-        target: "node",
+        target: "bun",
         minify: true,
         sourcemap: "linked",
     });
