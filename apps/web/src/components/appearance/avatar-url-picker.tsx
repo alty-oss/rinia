@@ -1,6 +1,6 @@
 import { Popover } from "@base-ui/react/popover";
-import { useEffect, useState } from "react";
-import { Pencil } from "lucide-react";
+import { useEffect, useState, type ReactNode } from "react";
+import { Camera } from "lucide-react";
 import { Avatar } from "@/components/base/avatar/avatar";
 import { Button } from "@/components/base/buttons/button";
 import { overlayChrome } from "@/components/overlay/overlay-chrome";
@@ -13,10 +13,12 @@ interface AvatarUrlPickerProps {
     initials: string;
     onChange: (value: string) => void;
     disabled?: boolean;
+    /** The current photo. It is the button: hovering it shows the edit icon over it. */
+    children: ReactNode;
 }
 
 /** A profile-photo control that mirrors the cover picker: stage an URL, then apply it to the form. */
-export function AvatarUrlPicker({ value, initials, onChange, disabled }: AvatarUrlPickerProps) {
+export function AvatarUrlPicker({ value, initials, onChange, disabled, children }: AvatarUrlPickerProps) {
     const { t } = useTranslation();
     const [open, setOpen] = useState(false);
     const [url, setUrl] = useState(value ?? "");
@@ -45,9 +47,15 @@ export function AvatarUrlPicker({ value, initials, onChange, disabled }: AvatarU
             <Popover.Trigger
                 disabled={disabled}
                 aria-label={value ? t("profile.changePhoto") : t("profile.addPhoto")}
-                className="absolute -right-2 -bottom-2 z-10 flex size-7 items-center justify-center rounded-md border border-strong bg-layer-2 text-secondary shadow-sm transition hover:bg-layer-2-hover disabled:opacity-50"
+                className="group/avatar relative flex rounded-full outline-none focus-visible:ring-2 focus-visible:ring-accent-strong focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
             >
-                <Pencil className="size-3.5" />
+                {children}
+                <span
+                    aria-hidden="true"
+                    className="absolute inset-0 flex items-center justify-center rounded-full bg-black/40 text-white opacity-0 transition-opacity duration-150 group-hover/avatar:opacity-100 group-focus-visible/avatar:opacity-100 group-data-[popup-open]/avatar:opacity-100 group-disabled/avatar:opacity-0"
+                >
+                    <Camera className="size-4" />
+                </span>
             </Popover.Trigger>
             <Popover.Portal>
                 <Popover.Positioner side="bottom" align="start" sideOffset={8} collisionPadding={12} className="z-[60]">

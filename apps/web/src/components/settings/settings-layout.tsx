@@ -12,37 +12,39 @@ export interface SettingsBackLink {
     icon?: ReactNode;
 }
 
-/** Linear-style settings page: an optional back link, then a narrow centered column. */
-export function SettingsPage({ title, description, aside, back, children }: { title?: string; description?: ReactNode; aside?: ReactNode; back?: SettingsBackLink; children: ReactNode }) {
+/**
+ * Linear-style settings page: a narrow centered column, or a wider one for grids of cards. Everything scrolls as one:
+ * there is no bar above the content to clip it, and the back link sits in the column, above the title.
+ */
+export function SettingsPage({ title, description, aside, back, wide = false, children }: { title?: string; description?: ReactNode; aside?: ReactNode; back?: SettingsBackLink; wide?: boolean; children: ReactNode }) {
     const { openNavigation } = useAppNavigation();
     const { t } = useTranslation();
     return (
-        <div className="flex h-full min-h-0 flex-col">
-            <div className="flex h-11 shrink-0 select-none items-center gap-1 px-3">
-                <span className="md:hidden">
-                    <ButtonUtility icon={AppIcons.Menu} color="tertiary" tooltip={t("nav.expand")} onClick={openNavigation} />
-                </span>
-                {back && (
-                    <Link to={back.to} className="flex h-7 min-w-0 items-center gap-1.5 rounded-md px-1.5 text-[13px] text-secondary hover:bg-layer-transparent-hover hover:text-primary">
-                        <ChevronLeft className="size-3.5 shrink-0 text-tertiary" aria-hidden="true" />
-                        {back.icon}
-                        <span className="truncate">{back.label}</span>
-                    </Link>
-                )}
-            </div>
-            <div className="min-h-0 flex-1 overflow-y-auto">
-                <div className="mx-auto w-full max-w-[42rem] px-6 pt-6 pb-16">
-                    {title && (
-                        <header className="mb-8 flex select-none flex-wrap items-end justify-between gap-x-6 gap-y-2">
-                            <div className="min-w-0">
-                                <h1 className="truncate text-[26px] leading-8 font-semibold tracking-tight text-primary">{title}</h1>
-                                {description && <p className="mt-2 text-[13px] text-tertiary">{description}</p>}
-                            </div>
-                            {aside}
-                        </header>
+        <div className="h-full min-h-0 overflow-y-auto">
+            <div className={`mx-auto w-full px-6 pt-4 pb-16 md:pt-12 ${wide ? "max-w-[56rem]" : "max-w-[42rem]"}`}>
+                {/* Phones have no sidebar, so the page opens it there. Without a back link, wider screens show nothing here. */}
+                <div className={`flex items-center gap-1 select-none ${back ? "mb-4 md:mb-6" : "mb-4 md:hidden"}`}>
+                    <span className="-ml-2 md:hidden">
+                        <ButtonUtility icon={AppIcons.Menu} color="tertiary" tooltip={t("nav.expand")} onClick={openNavigation} />
+                    </span>
+                    {back && (
+                        <Link to={back.to} className="-ml-1.5 flex h-7 min-w-0 items-center gap-1.5 rounded-md px-1.5 text-[13px] text-secondary hover:bg-layer-transparent-hover hover:text-primary">
+                            <ChevronLeft className="size-3.5 shrink-0 text-tertiary" aria-hidden="true" />
+                            {back.icon}
+                            <span className="truncate">{back.label}</span>
+                        </Link>
                     )}
-                    {children}
                 </div>
+                {title && (
+                    <header className="mb-8 flex select-none flex-wrap items-end justify-between gap-x-6 gap-y-2">
+                        <div className="min-w-0">
+                            <h1 className="truncate text-[26px] leading-8 font-semibold tracking-tight text-primary">{title}</h1>
+                            {description && <p className="mt-2 text-[13px] text-tertiary">{description}</p>}
+                        </div>
+                        {aside}
+                    </header>
+                )}
+                {children}
             </div>
         </div>
     );
@@ -76,8 +78,21 @@ export function SettingsHeading({ title, description, control }: { title: string
     );
 }
 
-/** One row inside a SettingsGroup: label and hint on the left, the control on the right. */
-export function SettingsControl({ title, description, children }: { title: string; description?: ReactNode; children: ReactNode }) {
+/**
+ * One row inside a SettingsGroup: label and hint on the left, the control on the right. `stacked` puts the control
+ * under the label at full width, for values worth reading whole, such as names, addresses and commands.
+ */
+export function SettingsControl({ title, description, stacked = false, children }: { title: string; description?: ReactNode; stacked?: boolean; children: ReactNode }) {
+    if (stacked)
+        return (
+            <div className="flex flex-col gap-2.5 py-3.5">
+                <div className="min-w-0 space-y-0.5 select-none">
+                    <h3 className="text-[13px] font-medium text-primary">{title}</h3>
+                    {description && <p className="text-[13px] text-tertiary">{description}</p>}
+                </div>
+                <div className="flex w-full items-start gap-2">{children}</div>
+            </div>
+        );
     return (
         <div className="flex flex-col gap-3 py-3.5 sm:flex-row sm:items-center sm:justify-between sm:gap-8">
             <div className="min-w-0 space-y-0.5 select-none">
@@ -106,6 +121,12 @@ export function SettingsLinkRow({ to, icon: Icon, title, description, value }: {
     );
 }
 
+/** The same height as a `lg` button, so a field and the button beside it line up. */
+const settingsFieldBase =
+    "h-8 w-full rounded-lg border border-subtle bg-transparent px-3 text-[13px] text-primary outline-none placeholder:text-placeholder focus-visible:border-accent-strong disabled:text-tertiary";
+
 /** Text input sized for the right side of a settings row. */
-export const settingsFieldClass =
-    "h-9 w-full rounded-lg border border-subtle bg-transparent px-3 text-[13px] text-primary outline-none placeholder:text-placeholder focus-visible:border-accent-strong disabled:text-tertiary sm:w-64";
+export const settingsFieldClass = `${settingsFieldBase} sm:w-64`;
+
+/** Text input that fills a stacked row, next to at most a button. */
+export const settingsWideFieldClass = `${settingsFieldBase} min-w-0 flex-1`;

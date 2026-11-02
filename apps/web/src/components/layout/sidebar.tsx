@@ -1,5 +1,5 @@
 import { useEffect, useState, type Dispatch, type ReactNode, type SetStateAction } from "react";
-import { Bot, ChevronDown, Circle, House, KeyRound, Layers, Search, ShieldCheck, SlidersHorizontal, SquarePen, UserRound, X } from "lucide-react";
+import { Blocks, ChevronDown, Circle, House, KeyRound, Layers, Search, ShieldCheck, SlidersHorizontal, SquarePen, UserRound, X } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router";
 import { AppIcons } from "@/components/foundations/icons";
 import type { AppIcon } from "@/components/foundations/icons";
@@ -239,7 +239,7 @@ function SettingsNav({ projectId, projects }: { projectId: string; projects: Pro
     const { user } = useAuth();
     const [query, setQuery] = useState("");
     const matches = (label: string) => label.toLowerCase().includes(query.trim().toLowerCase());
-    const link = (path: string, label: string, Icon: AppIcon, active = location.pathname === path) =>
+    const link = (path: string, label: string, Icon: AppIcon, active = location.pathname === path || location.pathname.startsWith(`${path}/`)) =>
         matches(label) && (
             <Link key={path} to={path} className={itemClass(active)} aria-current={active ? "page" : undefined}>
                 <Icon className="size-4 shrink-0" />
@@ -247,8 +247,8 @@ function SettingsNav({ projectId, projects }: { projectId: string; projects: Pro
             </Link>
         );
     const personal = [link("/settings/preferences", t("nav.preferences"), SlidersHorizontal), link("/settings/profile", t("nav.profile"), UserRound)].filter(Boolean);
-    // Everything for AI tools lives apart from the person's own settings.
-    const agent = [link(urls.agentSettings("mcp"), t("nav.mcp"), Bot), link(urls.agentSettings("tokens"), t("nav.apiTokens"), KeyRound)].filter(Boolean);
+    // Connections to other tools live apart from the person's own settings.
+    const integrationLinks = [link(urls.integrations(), t("nav.allIntegrations"), Blocks), link(urls.apiTokens(), t("nav.apiTokens"), KeyRound)].filter(Boolean);
     const projectLinks = (projects ?? []).filter((project) => matches(project.name));
     const admin = user?.isAdmin ? [link("/settings/admin", t("nav.administration"), ShieldCheck)].filter(Boolean) : [];
     const backProject = projects?.find((project) => project.id === projectId);
@@ -271,7 +271,7 @@ function SettingsNav({ projectId, projects }: { projectId: string; projects: Pro
                 />
             </label>
             {personal.length > 0 && <SettingsNavSection label={t("nav.personal")}>{personal}</SettingsNavSection>}
-            {agent.length > 0 && <SettingsNavSection label={t("nav.agent")}>{agent}</SettingsNavSection>}
+            {integrationLinks.length > 0 && <SettingsNavSection label={t("nav.integrations")}>{integrationLinks}</SettingsNavSection>}
             {projectLinks.length > 0 && (
                 <SettingsNavSection label={t("nav.yourProjects")}>
                     {projectLinks.map((project) => {
@@ -287,7 +287,7 @@ function SettingsNav({ projectId, projects }: { projectId: string; projects: Pro
                 </SettingsNavSection>
             )}
             {admin.length > 0 && <SettingsNavSection label={t("nav.administration")}>{admin}</SettingsNavSection>}
-            {query && personal.length + agent.length + projectLinks.length + admin.length === 0 && <p className="px-2 py-3 text-[13px] text-placeholder">{t("nav.noSettingsFound")}</p>}
+            {query && personal.length + integrationLinks.length + projectLinks.length + admin.length === 0 && <p className="px-2 py-3 text-[13px] text-placeholder">{t("nav.noSettingsFound")}</p>}
         </div>
     );
 }

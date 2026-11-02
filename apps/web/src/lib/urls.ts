@@ -9,7 +9,6 @@ export { documentSlug, matchDocumentSlug, slugify } from "@rinia/shared";
 
 export type IssueScope = "active" | "backlog" | "all";
 export type ProjectSettingsSection = "general" | "members" | "states" | "labels";
-export type AgentSettingsPage = "mcp" | "tokens";
 
 /** The project key inside an issue identifier: `RIN-4` → `RIN`. */
 export function projectKeyOf(identifier: string) {
@@ -30,5 +29,7 @@ export const urls = {
     view: (key: string, view: { id: string; name: string }) => `/project/${key}/views/${documentSlug({ id: view.id, title: view.name })}`,
     members: (key: string) => `/project/${key}/members`,
     projectSettings: (key: string, section?: ProjectSettingsSection) => (section ? `/settings/project/${key}/${section}` : `/settings/project/${key}`),
-    agentSettings: (page: AgentSettingsPage) => `/settings/agent/${page}`,
+    integrations: () => "/settings/integrations",
+    integration: (slug: string) => `/settings/integrations/${slug}`,
+    apiTokens: () => "/settings/api-tokens",
 };

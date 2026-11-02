@@ -7,7 +7,7 @@ const nav = {
         account: "Conta", signOut: "Sair", search: "Buscar",
         applications: "Aplicativos", resizeSidebar: "Redimensionar a barra lateral", navigation: "Navegação",
         home: "Início",
-        backToApp: "Voltar ao app", preferences: "Preferências", personal: "Pessoal", agent: "Agente", mcp: "MCP", apiTokens: "Tokens de API",
+        backToApp: "Voltar ao app", preferences: "Preferências", personal: "Pessoal", integrations: "Integrações", allIntegrations: "Todas as integrações", apiTokens: "Tokens de API",
         favorite: "Favorito",
         searchSettings: "Buscar configurações", yourProjects: "Seus projetos", administration: "Administração", noSettingsFound: "Nenhuma configuração encontrada.",
         resizeDrag: "Arraste", resizeDragHint: "para redimensionar",

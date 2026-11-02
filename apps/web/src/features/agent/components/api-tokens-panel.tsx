@@ -1,35 +1,28 @@
-import { useState, type FormEvent } from "react";
-import { createApiTokenSchema } from "@rinia/shared";
+import { useState } from "react";
 import { DeleteOutline, KeyOutline } from "@makeplane/propel/icons";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/base/buttons/button";
 import { ButtonUtility } from "@/components/base/buttons/button-utility";
 import { Alert } from "@/components/base/feedback/alert";
 import { ConfirmDialog } from "@/components/overlay/confirm-dialog";
-import { SettingsControl, SettingsGroup, settingsFieldClass } from "@/components/settings/settings-layout";
-import { API_TOKENS_QUERY_KEY, createApiToken, fetchApiTokens, revokeApiToken, type ApiToken } from "@/features/auth/api";
+import { Link } from "react-router";
+import { SettingsControl, SettingsGroup } from "@/components/settings/settings-layout";
+import { API_TOKENS_QUERY_KEY, fetchApiTokens, revokeApiToken, type ApiToken } from "@/features/auth/api";
+import { CopyField } from "@/features/integrations/components/copy-field";
 import { ApiError } from "@/lib/api-client";
-import { claudeCodeCommand, CopyField } from "./mcp-command";
+import { urls } from "@/lib/urls";
 import { useTranslation } from "react-i18next";
+import { CreateTokenForm } from "./create-token-form";
 
-/** Personal tokens for tools such as Claude Code. A new token is shown once, right after it is created, with the command that connects it. */
+/** Personal tokens for AI tools and scripts. A new token is shown once, right after it is created. */
 export const ApiTokensPanel = () => {
     const { t } = useTranslation();
     const queryClient = useQueryClient();
     const { data: tokens, isError } = useQuery({ queryKey: API_TOKENS_QUERY_KEY, queryFn: fetchApiTokens });
-    const [name, setName] = useState("");
     /** The token just created, readable until it is dismissed or revoked. */
     const [fresh, setFresh] = useState<{ id: string; secret: string } | null>(null);
     const secret = fresh?.secret ?? null;
 
-    const create = useMutation({
-        mutationFn: createApiToken,
-        onSuccess: (created) => {
-            setFresh({ id: created.token.id, secret: created.secret });
-            setName("");
-            queryClient.setQueryData<ApiToken[]>(API_TOKENS_QUERY_KEY, (current) => [created.token, ...(current ?? [])]);
-        },
-    });
     const revoke = useMutation({
         mutationFn: revokeApiToken,
         onSuccess: (_result, tokenId) => {
@@ -39,31 +32,13 @@ export const ApiTokensPanel = () => {
         },
     });
 
-    const parsed = createApiTokenSchema.safeParse({ name });
-    const submit = (event: FormEvent) => {
-        event.preventDefault();
-        if (parsed.success) create.mutate(parsed.data);
-    };
     const failure = (error: unknown, fallback: string) => (error instanceof ApiError ? error.message : fallback);
 
     return (
         <SettingsGroup>
-            <form noValidate onSubmit={submit}>
-                <SettingsControl title={t("agent.tokenName")} description={t("agent.tokenNameHint")}>
-                    <input
-                        value={name}
-                        onChange={(event) => setName(event.target.value)}
-                        maxLength={80}
-                        placeholder={t("agent.tokenNamePlaceholder")}
-                        aria-label={t("agent.tokenName")}
-                        disabled={create.isPending}
-                        className={settingsFieldClass}
-                    />
-                    <Button type="submit" size="sm" color="secondary" isLoading={create.isPending} isDisabled={!parsed.success}>
-                        {t("agent.createToken")}
-                    </Button>
-                </SettingsControl>
-            </form>
+            <SettingsControl stacked title={t("agent.tokenName")} description={t("agent.tokenNameHint")}>
+                <CreateTokenForm onCreated={(created) => setFresh({ id: created.token.id, secret: created.secret })} />
+            </SettingsControl>
 
             {secret && (
                 <div className="flex flex-col gap-3 py-3.5">
@@ -72,9 +47,14 @@ export const ApiTokensPanel = () => {
                         <p className="text-[13px] text-tertiary">{t("agent.newTokenHint")}</p>
                     </div>
                     <CopyField value={secret} label={t("agent.newToken")} />
-                    <p className="text-[13px] text-tertiary">{t("agent.newTokenCommand")}</p>
-                    <CopyField value={claudeCodeCommand(secret)} label={t("agent.claudeCodeCommand")} wrap />
-                    <div className="flex justify-end">
+                    <div className="flex items-center justify-between gap-3">
+                        <p className="text-[13px] text-tertiary">
+                            {t("agent.useInIntegrations")}{" "}
+                            <Link to={urls.integrations()} className="text-primary underline decoration-subtle underline-offset-2 hover:decoration-current">
+                                {t("nav.allIntegrations")}
+                            </Link>
+                            .
+                        </p>
                         <Button size="sm" color="secondary" onClick={() => setFresh(null)}>
                             {t("agent.hideToken")}
                         </Button>
@@ -82,11 +62,9 @@ export const ApiTokensPanel = () => {
                 </div>
             )}
 
-            {(create.isError || revoke.isError || isError) && (
+            {(revoke.isError || isError) && (
                 <div className="py-3.5">
-                    <Alert tone="error">
-                        {create.isError ? failure(create.error, t("agent.couldNotCreateToken")) : revoke.isError ? failure(revoke.error, t("agent.couldNotRevokeToken")) : t("agent.couldNotLoadTokens")}
-                    </Alert>
+                    <Alert tone="error">{revoke.isError ? failure(revoke.error, t("agent.couldNotRevokeToken")) : t("agent.couldNotLoadTokens")}</Alert>
                 </div>
             )}
 

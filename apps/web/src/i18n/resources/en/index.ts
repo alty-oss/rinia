@@ -20,6 +20,7 @@ import myIssues from "./myIssues";
 import views from "./views";
 import realtime from "./realtime";
 import agent from "./agent";
+import integrations from "./integrations";
 
 export const en = {
     common,
@@ -44,4 +45,5 @@ export const en = {
     views,
     realtime,
     agent,
+    integrations,
 } as const;
